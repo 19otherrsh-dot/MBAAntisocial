@@ -12,7 +12,8 @@ campus-scoped product where the density actually lives.
 
 ## Running it
 
-Requires Node 20.9+ and a MongoDB instance.
+Requires Node 20.9+ and a MongoDB instance. Setting up a new machine from
+scratch: see [INSTALL.md](INSTALL.md).
 
 ```bash
 npm install
