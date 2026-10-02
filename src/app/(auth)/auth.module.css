@@ -1,0 +1,143 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: var(--bg);
+}
+
+/* On wide screens the form sits beside a panel of static proof points, so the
+   sign-in screen carries some of the pitch rather than being a bare box. */
+@media (min-width: 960px) {
+  .page { grid-template-columns: 1fr 1fr; }
+}
+
+.formSide {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-5);
+  min-height: 100dvh;
+}
+
+.formHeader { margin-bottom: var(--s-6); }
+
+.formBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+  padding-bottom: var(--s-6);
+}
+
+.title {
+  font-size: var(--t-2xl);
+  font-weight: 680;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  margin-top: var(--s-2);
+  line-height: 1.6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+
+.footerNote {
+  margin-top: var(--s-5);
+  font-size: var(--t-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.footerNote a {
+  color: var(--accent-text);
+  font-weight: 550;
+}
+.footerNote a:hover { text-decoration: underline; }
+
+/* ───────────────────────── Aside ───────────────────────── */
+
+.aside {
+  display: none;
+  background: var(--bg-sunken);
+  border-left: 1px solid var(--line);
+  padding: var(--s-7) var(--s-6);
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s-5);
+}
+
+@media (min-width: 960px) {
+  .aside { display: flex; }
+}
+
+.asideTitle {
+  font-size: var(--t-xl);
+  font-weight: 660;
+  letter-spacing: -0.03em;
+  max-width: 22ch;
+}
+
+.proofList { display: flex; flex-direction: column; gap: var(--s-4); max-width: 44ch; }
+
+.proof { display: flex; gap: var(--s-3); align-items: flex-start; }
+
+.proofIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+
+.proofTitle { font-weight: 580; font-size: var(--t-base); }
+.proofBody { font-size: var(--t-sm); color: var(--text-secondary); line-height: 1.55; margin-top: 2px; }
+
+/* ───────────────────────── Misc ───────────────────────── */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--s-3);
+}
+
+.stepDot {
+  width: 22px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+}
+
+.stepDotActive { background: var(--accent); }
+
+.passwordMeter { display: flex; gap: 3px; margin-top: var(--s-1); }
+
+.passwordSegment {
+  height: 3px;
+  flex: 1;
+  border-radius: var(--r-full);
+  background: var(--line);
+  transition: background var(--dur) var(--ease);
+}

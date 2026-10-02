@@ -1,0 +1,482 @@
+/* ==========================================================================
+   MBAAntisocial — design system
+
+   Light and dark are equal citizens. Every colour is a token; components
+   never reference a raw hex. Surfaces are defined by borders and elevation
+   rather than blur, which keeps long scrolling lists cheap to paint.
+   ========================================================================== */
+
+/* ───────────────────────── Tokens ───────────────────────── */
+
+:root {
+  color-scheme: light;
+
+  /* Canvas — warm paper rather than pure white, easier to read against all day */
+  --bg: #faf9f6;
+  --bg-sunken: #f2f0ea;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: #f6f4ef;
+  --surface-active: #edeae2;
+
+  /* Ink */
+  --text: #17161c;
+  --text-secondary: #5a5866;
+  --text-muted: #8b8896;
+  --text-inverse: #faf9f6;
+
+  /* Lines */
+  --line: #e3e0d7;
+  --line-strong: #cdc9bd;
+  --line-accent: #5b4bff;
+
+  /* Brand — electric indigo, paired with jade for contribution */
+  --accent: #5b4bff;
+  --accent-hover: #4a3ae6;
+  --accent-soft: #ecebff;
+  --accent-text: #4335d6;
+  --on-accent: #ffffff;
+
+  /* Semantic tones. Each has a soft fill, a border, and readable text. */
+  --violet: #6d4aff;
+  --violet-soft: #eeeaff;
+  --violet-text: #533ad1;
+
+  --blue: #1d6ff2;
+  --blue-soft: #e5f0ff;
+  --blue-text: #1257c4;
+
+  --teal: #00967a;
+  --teal-soft: #dcf5ef;
+  --teal-text: #027360;
+
+  --amber: #b4700a;
+  --amber-soft: #fdf0d8;
+  --amber-text: #8d5806;
+
+  --rose: #d4344b;
+  --rose-soft: #fde8ea;
+  --rose-text: #ad2439;
+
+  --slate: #6a6878;
+  --slate-soft: #efeef2;
+  --slate-text: #4f4d5c;
+
+  /* Status aliases */
+  --success: var(--teal);
+  --warning: var(--amber);
+  --danger: var(--rose);
+  --danger-hover: #b8293e;
+
+  /* Elevation — soft and low; nothing floats dramatically */
+  --shadow-xs: 0 1px 2px rgb(23 22 28 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(23 22 28 / 0.07), 0 1px 2px rgb(23 22 28 / 0.04);
+  --shadow-md: 0 4px 12px rgb(23 22 28 / 0.08), 0 2px 4px rgb(23 22 28 / 0.04);
+  --shadow-lg: 0 12px 32px rgb(23 22 28 / 0.12), 0 4px 8px rgb(23 22 28 / 0.06);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+
+  /* Spacing — 4px base */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4rem;
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  /* Type */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-mono-jet), ui-monospace, 'SFMono-Regular', 'Cascadia Mono', monospace;
+
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-base: 0.9375rem;
+  --t-md: 1rem;
+  --t-lg: 1.125rem;
+  --t-xl: 1.375rem;
+  --t-2xl: 1.75rem;
+  --t-3xl: 2.25rem;
+  --t-4xl: 3rem;
+
+  /* Layout */
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 68px;
+  --topbar-h: 60px;
+  --content-max: 1180px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0.1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 320ms;
+}
+
+/* Dark palette, shared by the explicit toggle and the system preference. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #100f14;
+    --bg-sunken: #0a090d;
+    --surface: #1a181f;
+    --surface-raised: #211f28;
+    --surface-hover: #262330;
+    --surface-active: #2f2b3a;
+
+    --text: #f3f1ee;
+    --text-secondary: #a8a4b3;
+    --text-muted: #78748a;
+    --text-inverse: #17161c;
+
+    --line: #2c2936;
+    --line-strong: #423d52;
+    --line-accent: #8b7dff;
+
+    --accent: #8b7dff;
+    --accent-hover: #a094ff;
+    --accent-soft: #221e3d;
+    --accent-text: #b3a9ff;
+    --on-accent: #14121f;
+
+    --violet: #9b85ff;
+    --violet-soft: #241f3d;
+    --violet-text: #b9a9ff;
+
+    --blue: #5c9dff;
+    --blue-soft: #14243d;
+    --blue-text: #8fbcff;
+
+    --teal: #2bc9a4;
+    --teal-soft: #0e2b26;
+    --teal-text: #5fdcbd;
+
+    --amber: #e0a340;
+    --amber-soft: #33240c;
+    --amber-text: #f0c374;
+
+    --rose: #f2707f;
+    --rose-soft: #391820;
+    --rose-text: #ff97a3;
+
+    --slate: #9793a6;
+    --slate-soft: #262430;
+    --slate-text: #b4b0c0;
+
+    --danger-hover: #ff8a96;
+
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55), 0 4px 8px rgb(0 0 0 / 0.35);
+  }
+}
+
+/* The explicit toggle must win in both directions, so the dark values are
+   repeated under the attribute selector rather than relying on the media query. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #100f14;
+  --bg-sunken: #0a090d;
+  --surface: #1a181f;
+  --surface-raised: #211f28;
+  --surface-hover: #262330;
+  --surface-active: #2f2b3a;
+
+  --text: #f3f1ee;
+  --text-secondary: #a8a4b3;
+  --text-muted: #78748a;
+  --text-inverse: #17161c;
+
+  --line: #2c2936;
+  --line-strong: #423d52;
+  --line-accent: #8b7dff;
+
+  --accent: #8b7dff;
+  --accent-hover: #a094ff;
+  --accent-soft: #221e3d;
+  --accent-text: #b3a9ff;
+  --on-accent: #14121f;
+
+  --violet: #9b85ff;
+  --violet-soft: #241f3d;
+  --violet-text: #b9a9ff;
+
+  --blue: #5c9dff;
+  --blue-soft: #14243d;
+  --blue-text: #8fbcff;
+
+  --teal: #2bc9a4;
+  --teal-soft: #0e2b26;
+  --teal-text: #5fdcbd;
+
+  --amber: #e0a340;
+  --amber-soft: #33240c;
+  --amber-text: #f0c374;
+
+  --rose: #f2707f;
+  --rose-soft: #391820;
+  --rose-text: #ff97a3;
+
+  --slate: #9793a6;
+  --slate-soft: #262430;
+  --slate-text: #b4b0c0;
+
+  --danger-hover: #ff8a96;
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55), 0 4px 8px rgb(0 0 0 / 0.35);
+}
+
+/* ───────────────────────── Reset ───────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--t-base);
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  /* Slightly tighter default tracking; Inter reads dense at small sizes. */
+  letter-spacing: -0.006em;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+img, svg, video {
+  display: block;
+  max-width: 100%;
+}
+
+ul, ol { list-style: none; }
+
+/* Numerals line up in tables, counters, and countdowns. */
+.tnum, time, [data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A single, consistent focus treatment — never removed, only styled. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--r-full);
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ───────────────────────── Primitives ───────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.card-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.stack { display: flex; flex-direction: column; }
+.row { display: flex; align-items: center; }
+.between { display: flex; align-items: center; justify-content: space-between; }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1; }
+
+.gap-1 { gap: var(--s-1); }
+.gap-2 { gap: var(--s-2); }
+.gap-3 { gap: var(--s-3); }
+.gap-4 { gap: var(--s-4); }
+.gap-5 { gap: var(--s-5); }
+.gap-6 { gap: var(--s-6); }
+
+.muted { color: var(--text-secondary); }
+.dim { color: var(--text-muted); }
+
+/* Small uppercase label, used for section eyebrows and table headers. */
+.eyebrow {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Visible to screen readers only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Any wide element (tables, code) scrolls inside itself, never the page. */
+.scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* ───────────────────────── Motion ───────────────────────── */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  70% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-rise { animation: rise var(--dur-slow) var(--ease) both; }
+.animate-pop { animation: pop var(--dur) var(--ease-spring) both; }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-hover) 25%,
+    var(--surface-active) 50%,
+    var(--surface-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: var(--r-md);
+}
+
+/* Honour the OS setting rather than animating regardless. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ───────────────────────── Responsive ───────────────────────── */
+
+@media (max-width: 900px) {
+  :root {
+    --t-4xl: 2.25rem;
+    --t-3xl: 1.875rem;
+    --t-2xl: 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --t-4xl: 2rem;
+    --s-7: 2rem;
+    --s-8: 2.5rem;
+  }
+}

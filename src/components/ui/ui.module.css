@@ -1,0 +1,635 @@
+/* Shared styles for the UI primitives. One stylesheet keeps the visual
+   language of buttons, fields, chips, and cards provably consistent. */
+
+/* ───────────────────────── Button ───────────────────────── */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  font-weight: 550;
+  white-space: nowrap;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+  position: relative;
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.sm { height: 32px; padding: 0 var(--s-3); font-size: var(--t-sm); }
+.md { height: 38px; padding: 0 var(--s-4); font-size: var(--t-base); }
+.lg { height: 46px; padding: 0 var(--s-5); font-size: var(--t-md); }
+
+.iconOnly.sm { width: 32px; padding: 0; }
+.iconOnly.md { width: 38px; padding: 0; }
+.iconOnly.lg { width: 46px; padding: 0; }
+
+/* Variants */
+.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.soft {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.soft:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--accent) 15%);
+}
+
+.danger {
+  background: var(--danger);
+  color: #fff;
+}
+.danger:hover:not(:disabled) { background: var(--danger-hover); }
+
+.dangerGhost {
+  background: transparent;
+  color: var(--danger);
+}
+.dangerGhost:hover:not(:disabled) { background: var(--rose-soft); }
+
+.fullWidth { width: 100%; }
+
+/* Loading state keeps the label in place so the button does not resize. */
+.spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 620ms linear infinite;
+  flex-shrink: 0;
+}
+
+.loadingLabel { opacity: 0.7; }
+
+/* ───────────────────────── Field ───────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.label {
+  font-size: var(--t-sm);
+  font-weight: 560;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: var(--t-xs);
+}
+
+.hint {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.error {
+  font-size: var(--t-xs);
+  color: var(--danger);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-1);
+  line-height: 1.45;
+}
+
+.control {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 0 var(--s-3);
+  height: 38px;
+  color: var(--text);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.control::placeholder { color: var(--text-muted); }
+
+.control:hover:not(:disabled):not(:focus) { border-color: var(--text-muted); }
+
+.control:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.control:disabled {
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.controlInvalid,
+.controlInvalid:hover {
+  border-color: var(--danger);
+}
+.controlInvalid:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
+.textarea {
+  height: auto;
+  min-height: 90px;
+  padding: var(--s-3);
+  resize: vertical;
+  line-height: 1.55;
+  font-family: inherit;
+}
+
+.select {
+  appearance: none;
+  padding-right: var(--s-6);
+  cursor: pointer;
+  /* Chevron drawn as a background so it inherits the theme's ink colour. */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) calc(50% + 1px),
+    calc(100% - 12px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: var(--s-3);
+  display: flex;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.hasIcon { padding-left: 2.25rem; }
+
+.charCount {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.charCountOver { color: var(--danger); font-weight: 600; }
+
+/* ───────────────────────── Chip ───────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: var(--t-xs);
+  font-weight: 550;
+  line-height: 1.5;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.chipLg { padding: 4px 11px; font-size: var(--t-sm); }
+
+.chipViolet { background: var(--violet-soft); color: var(--violet-text); border-color: color-mix(in srgb, var(--violet) 22%, transparent); }
+.chipBlue { background: var(--blue-soft); color: var(--blue-text); border-color: color-mix(in srgb, var(--blue) 22%, transparent); }
+.chipTeal { background: var(--teal-soft); color: var(--teal-text); border-color: color-mix(in srgb, var(--teal) 22%, transparent); }
+.chipAmber { background: var(--amber-soft); color: var(--amber-text); border-color: color-mix(in srgb, var(--amber) 22%, transparent); }
+.chipRose { background: var(--rose-soft); color: var(--rose-text); border-color: color-mix(in srgb, var(--rose) 22%, transparent); }
+.chipSlate { background: var(--slate-soft); color: var(--slate-text); border-color: color-mix(in srgb, var(--slate) 20%, transparent); }
+
+.chipOutline {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+/* ───────────────────────── Avatar ───────────────────────── */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-full);
+  font-weight: 600;
+  flex-shrink: 0;
+  overflow: hidden;
+  user-select: none;
+  letter-spacing: -0.02em;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ───────────────────────── Segmented control / tabs ───────────────────────── */
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.segmented::-webkit-scrollbar { display: none; }
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 5px 11px;
+  border-radius: calc(var(--r-md) - 3px);
+  font-size: var(--t-sm);
+  font-weight: 540;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.segment:hover { color: var(--text); }
+
+.segmentActive {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+}
+
+.segmentCount {
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--surface-active);
+  color: var(--text-secondary);
+}
+
+/* ───────────────────────── Switch ───────────────────────── */
+
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  cursor: pointer;
+}
+
+.switchTrack {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: background var(--dur) var(--ease);
+}
+
+.switchOn { background: var(--accent); }
+
+.switchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--dur) var(--ease-spring);
+}
+
+.switchOn .switchThumb { transform: translateX(16px); }
+
+.switchInput {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switchInput:focus-visible + .switchTrack {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.switchText { display: flex; flex-direction: column; gap: 2px; }
+.switchLabel { font-size: var(--t-base); font-weight: 540; }
+.switchHint { font-size: var(--t-xs); color: var(--text-muted); line-height: 1.45; }
+
+/* ───────────────────────── Empty state ───────────────────────── */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--s-7) var(--s-5);
+  gap: var(--s-3);
+}
+
+.emptyArt { color: var(--line-strong); margin-bottom: var(--s-2); }
+
+.emptyTitle { font-size: var(--t-lg); font-weight: 620; }
+
+.emptyBody {
+  font-size: var(--t-base);
+  color: var(--text-secondary);
+  max-width: 42ch;
+  line-height: 1.6;
+}
+
+.emptyAction { margin-top: var(--s-2); }
+
+/* ───────────────────────── Dialog ───────────────────────── */
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, var(--bg-sunken) 78%, transparent);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--s-4);
+  animation: fade-in var(--dur) var(--ease) both;
+}
+
+@media (min-width: 640px) {
+  .dialogBackdrop { align-items: center; }
+}
+
+.dialog {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 540px;
+  max-height: min(86dvh, 780px);
+  display: flex;
+  flex-direction: column;
+  animation: rise var(--dur-slow) var(--ease) both;
+}
+
+.dialogWide { max-width: 720px; }
+
+.dialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-5) var(--s-3);
+}
+
+.dialogTitle { font-size: var(--t-lg); font-weight: 620; }
+.dialogDescription {
+  font-size: var(--t-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.dialogBody {
+  padding: 0 var(--s-5) var(--s-5);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.dialogFooter {
+  display: flex;
+  gap: var(--s-2);
+  justify-content: flex-end;
+  padding: var(--s-4) var(--s-5);
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.dialogClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.dialogClose:hover { background: var(--surface-hover); color: var(--text); }
+
+/* ───────────────────────── Toast ───────────────────────── */
+
+.toastViewport {
+  position: fixed;
+  bottom: var(--s-4);
+  right: var(--s-4);
+  left: var(--s-4);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-items: center;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .toastViewport { left: auto; align-items: flex-end; max-width: 380px; }
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: rise var(--dur) var(--ease) both;
+}
+
+.toastSuccess { border-left: 3px solid var(--teal); }
+.toastError { border-left: 3px solid var(--danger); }
+.toastInfo { border-left: 3px solid var(--accent); }
+
+.toastIcon { flex-shrink: 0; margin-top: 1px; }
+.toastSuccess .toastIcon { color: var(--teal); }
+.toastError .toastIcon { color: var(--danger); }
+.toastInfo .toastIcon { color: var(--accent); }
+
+.toastText { flex: 1; font-size: var(--t-sm); line-height: 1.5; }
+.toastTitle { font-weight: 580; }
+.toastBody { color: var(--text-secondary); margin-top: 1px; }
+
+.toastDismiss {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  padding: 2px;
+  border-radius: var(--r-sm);
+}
+.toastDismiss:hover { color: var(--text); background: var(--surface-hover); }
+
+/* ───────────────────────── Rating input ───────────────────────── */
+
+.ratingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.ratingButtons { display: flex; gap: var(--s-1); }
+
+.ratingDot {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.ratingDot:hover { border-color: var(--accent); color: var(--accent-text); }
+
+.ratingDotActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.ratingValue {
+  font-size: var(--t-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5ch;
+}
+
+/* ───────────────────────── Stat ───────────────────────── */
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.statValue {
+  font-size: var(--t-2xl);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.statLabel {
+  font-size: var(--t-xs);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.statMeta { font-size: var(--t-xs); color: var(--text-secondary); }
+
+/* ───────────────────────── Progress ───────────────────────── */
+
+.progressTrack {
+  height: 6px;
+  background: var(--surface-active);
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  transition: width var(--dur-slow) var(--ease);
+}
+
+/* ───────────────────────── Banner ───────────────────────── */
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid;
+  font-size: var(--t-sm);
+  line-height: 1.55;
+}
+
+.bannerIcon { flex-shrink: 0; margin-top: 2px; }
+.bannerTitle { font-weight: 580; }
+.bannerAction { margin-left: auto; flex-shrink: 0; }
+
+.bannerInfo { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--accent-text); }
+.bannerWarning { background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 28%, transparent); color: var(--amber-text); }
+.bannerDanger { background: var(--rose-soft); border-color: color-mix(in srgb, var(--rose) 28%, transparent); color: var(--rose-text); }
+.bannerSuccess { background: var(--teal-soft); border-color: color-mix(in srgb, var(--teal) 28%, transparent); color: var(--teal-text); }
