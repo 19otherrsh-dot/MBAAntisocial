@@ -27,6 +27,14 @@ A local MongoDB via Docker:
 docker run -d -p 27017:27017 --name mba-mongo mongo:7
 ```
 
+On Windows, `setup.ps1` does all of the above and checks each step: tooling,
+`.env.local` (created with a fresh secret if missing), MongoDB (starts a Docker
+container when the URI is local), and `npm ci`. Add `-Seed` and/or `-Verify`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Seed -Verify
+```
+
 Generate a session secret with `npx auth secret`. `src/lib/env.ts` validates the
 environment at boot and fails with a readable message rather than surfacing
 `undefined` deep inside a request.

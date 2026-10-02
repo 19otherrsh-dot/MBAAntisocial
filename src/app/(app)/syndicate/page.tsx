@@ -84,7 +84,7 @@ export default function SyndicatePage() {
                     <Chip tone={isFilled ? 'slate' : 'amber'}>
                        {isFilled ? 'Filled' : `${bounty.slotsFilled.length} / ${bounty.slotsRequired} Filled`}
                     </Chip>
-                    <Chip outline style={{ textTransform: 'capitalize' }}>{bounty.category}</Chip>
+                    <Chip outline>{bounty.category.charAt(0).toUpperCase() + bounty.category.slice(1)}</Chip>
                     <Chip outline>{timeAgo(bounty.createdAt)}</Chip>
                   </div>
 
@@ -197,7 +197,7 @@ function CreateBountyDialog({ onClose, onDone }: { onClose: () => void; onDone: 
       <Select 
         label="Category" 
         value={category} 
-        onChange={(e) => setCategory(e.target.value as any)} 
+        onChange={(e) => setCategory(e.target.value as Bounty['category'])} 
         options={[
           { value: 'subscription', label: 'Subscription (News, Prep)' },
           { value: 'travel', label: 'Travel (Uber, Airbnb)' },
