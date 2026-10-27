@@ -3,6 +3,7 @@ import { env } from '@/lib/env';
 import ClassSlot from '@/models/academics/ClassSlot';
 import InterviewSlot from '@/models/InterviewSlot';
 import Task from '@/models/Task';
+import Event from '@/models/campus/Event';
 import type { IcsEvent } from './ics';
 
 export interface FeedUser {
@@ -79,7 +80,26 @@ const tasks: CalendarProvider = async (user) => {
   }));
 };
 
-const CALENDAR_PROVIDERS: CalendarProvider[] = [timetable, sessions, tasks];
+const events: CalendarProvider = async (user) => {
+  const rows = await Event.find({ rsvps: { $elemMatch: { user: user.id, status: { $in: ['going', 'interested'] } } }, endAt: { $gte: new Date(Date.now() - 14 * 86_400_000) } })
+    .select('title description venue onlineUrl startAt endAt status rsvps')
+    .lean();
+  return rows.map((e) => {
+    const mine = e.rsvps.find((r) => String(r.user) === user.id);
+    return {
+      uid: `event-${e._id}@mba-antisocial`,
+      title: e.title,
+      description: e.description.slice(0, 500) || undefined,
+      location: e.venue || undefined,
+      url: `${env.APP_URL}/events/${e._id}`,
+      start: e.startAt,
+      end: e.endAt,
+      status: e.status === 'cancelled' ? 'CANCELLED' : mine?.status === 'going' ? 'CONFIRMED' : 'TENTATIVE',
+    };
+  });
+};
+
+const CALENDAR_PROVIDERS: CalendarProvider[] = [timetable, sessions, tasks, events];
 
 export function registerCalendarProvider(provider: CalendarProvider) {
   CALENDAR_PROVIDERS.push(provider);

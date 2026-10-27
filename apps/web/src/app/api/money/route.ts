@@ -39,7 +39,7 @@ export const GET = route({ feature: 'budget', query: querySchema }, async ({ act
   return ok({
     month,
     profile: profile
-      ? { currency: profile.currency, monthlyIncome: profile.monthlyIncome, monthlyBudget: profile.monthlyBudget, categoryBudgets: Object.fromEntries(profile.categoryBudgets ?? new Map()), loan: profile.loan ?? null }
+      ? { currency: profile.currency, monthlyIncome: profile.monthlyIncome, monthlyBudget: profile.monthlyBudget, categoryBudgets: profile.categoryBudgets instanceof Map ? Object.fromEntries(profile.categoryBudgets) : ((profile.categoryBudgets as unknown as Record<string, number>) ?? {}), loan: profile.loan ?? null }
       : null,
     summary: {
       spent: Math.round(spent),

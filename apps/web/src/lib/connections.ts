@@ -3,6 +3,8 @@ import Message from '@/models/Message';
 import HubConversation from '@/models/hub/HubConversation';
 import HubMessage from '@/models/hub/HubMessage';
 import Job from '@/models/Job';
+import Listing from '@/models/campus/Listing';
+import LostItem from '@/models/campus/LostItem';
 import User from '@/models/User';
 import { ApiError } from './api/errors';
 import { MODERATOR_ROLES } from './constants';
@@ -23,7 +25,8 @@ import { MODERATOR_ROLES } from './constants';
  *  2. The other person messaged first — a reply must always work, or the
  *     feature is a trap.
  *  3. One of them posted an opportunity inviting contact — posting a referral
- *     offer *is* the opt-in, so honouring it is not a loophole.
+ *     offer, a marketplace listing, or a lost-and-found notice *is* the opt-in,
+ *     so honouring it is not a loophole.
  *  4. A moderator is involved — moderation needs to be able to reach people.
  *
  * Everything else is a cold DM, which is the behaviour this product sells
@@ -83,7 +86,12 @@ export async function checkConnection(
     conversations.length
       ? HubMessage.exists({ conversation: { $in: conversations.map((c) => c._id) }, author: peerId })
       : Promise.resolve(null),
-    Job.exists({ author: peerId, isActive: true, invitesContact: true }),
+    // Posting a listing or a lost-and-found notice is asking to be contacted.
+    Promise.all([
+      Job.exists({ author: peerId, isActive: true, invitesContact: true }),
+      Listing.exists({ seller: peerId, status: { $in: ['active', 'reserved'] } }),
+      LostItem.exists({ reporter: peerId, status: 'open' }),
+    ]).then((hits) => hits.some(Boolean)),
   ]);
 
   if (sharedSession) return { allowed: true, reason: 'completed_session' };
