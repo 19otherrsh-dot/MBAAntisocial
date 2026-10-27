@@ -10,7 +10,9 @@
     "./realtime": "./src/realtime.ts",
     "./hub": "./src/hub.ts",
     "./games": "./src/games.ts",
-    "./campus": "./src/campus.ts"
+    "./campus": "./src/campus.ts",
+    "./academics": "./src/academics.ts",
+    "./money": "./src/money.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",

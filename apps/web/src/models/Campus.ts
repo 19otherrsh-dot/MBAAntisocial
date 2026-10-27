@@ -40,6 +40,15 @@ export interface ICampus {
     discordGuildId: string;
   };
 
+  /** Shown on the wellbeing page. Students reach their own campus's support first. */
+  support: {
+    counsellorName: string;
+    counsellorContact: string;
+    hours: string;
+    bookingUrl: string;
+    emergencyContact: string;
+  };
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +80,13 @@ const CampusSchema = new Schema<ICampus, CampusModel>(
       whispers: { type: Boolean, default: true },
       games: { type: Boolean, default: true },
       discordGuildId: { type: String, default: '' },
+    },
+    support: {
+      counsellorName: { type: String, default: '', maxlength: 100 },
+      counsellorContact: { type: String, default: '', maxlength: 200 },
+      hours: { type: String, default: '', maxlength: 100 },
+      bookingUrl: { type: String, default: '', maxlength: 300 },
+      emergencyContact: { type: String, default: '', maxlength: 200 },
     },
   },
   { timestamps: true }

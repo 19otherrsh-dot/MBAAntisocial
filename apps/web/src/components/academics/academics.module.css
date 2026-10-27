@@ -1,0 +1,43 @@
+.week { display: grid; grid-template-columns: 56px repeat(var(--days), 1fr); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+.weekHead { padding: 8px; font-size: var(--t-xs); font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--line); text-align: center; }
+.weekHeadToday { color: var(--accent-text); }
+.timeCol { position: relative; border-right: 1px solid var(--line); }
+.timeLabel { position: absolute; right: 6px; font-size: 10px; color: var(--text-muted); transform: translateY(-50%); }
+.dayCol { position: relative; border-right: 1px solid var(--line); }
+.dayCol:last-child { border-right: 0; }
+.hourLine { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
+.block {
+  position: absolute; left: 3px; right: 3px; border-radius: 8px; padding: 4px 6px; overflow: hidden; font-size: 11px; line-height: 1.25;
+  color: var(--text); border-left: 3px solid; cursor: pointer; text-align: left;
+}
+.block strong { display: block; font-size: 12px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nowLine { position: absolute; left: 0; right: 0; height: 2px; background: var(--rose); z-index: 2; }
+.dayList { display: flex; flex-direction: column; gap: var(--s-2); }
+.classRow { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+.swatch { width: 10px; align-self: stretch; border-radius: 6px; flex: none; }
+.time { font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--text-muted); width: 92px; flex: none; }
+.markButtons { display: flex; gap: 4px; margin-left: auto; }
+.mark { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: var(--t-xs); font-weight: 600; color: var(--text-secondary); }
+.markOn { background: var(--success); border-color: var(--success); color: #fff; }
+.markOff { background: var(--danger); border-color: var(--danger); color: #fff; }
+.markCancel { background: var(--slate); border-color: var(--slate); color: #fff; }
+.courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s-4); }
+.courseCard { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); border-top: 4px solid; }
+.ring { --size: 76px; width: var(--size); height: var(--size); border-radius: 50%; display: grid; place-items: center; flex: none; }
+.ringInner { width: calc(var(--size) - 14px); height: calc(var(--size) - 14px); border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 750; font-variant-numeric: tabular-nums; }
+.verdict { font-size: var(--t-sm); font-weight: 600; }
+.good { color: var(--success); }
+.warn { color: var(--amber-text); }
+.bad { color: var(--danger); }
+.compRow { display: grid; grid-template-columns: 1fr 70px 70px 70px 28px; gap: 6px; align-items: center; }
+.compRow input { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface); color: var(--text); font: inherit; font-size: var(--t-sm); }
+.compRow input:focus { outline: none; box-shadow: var(--shadow-focus); border-color: var(--accent); }
+.need { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.needCell { padding: 6px; border-radius: var(--r-md); background: var(--bg-sunken); text-align: center; font-size: var(--t-xs); }
+.needCell strong { display: block; font-size: var(--t-md); font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .weekWrap { display: none; }
+}
+@media (min-width: 721px) {
+  .mobileOnly { display: none; }
+}

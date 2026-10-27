@@ -13,7 +13,7 @@ import { provisionMeeting, releaseMeeting } from '@/server/modules/sessions/meet
 import { canBookAcross } from '@/server/modules/sessions/cross-campus';
 import { earnCredits, hasPriorityBooking } from '@/server/modules/credits/service';
 import type { MeetingProviderId } from '@/server/ports/meetings';
-import { serialiseSlot } from '../route';
+import { serialiseSlot } from '@/server/modules/sessions/serialise';
 
 const MENTOR_FIELDS = 'name image year campus specializations mentorProfile.headline mentorProfile.offers karma mentorRating badges';
 const MENTEE_FIELDS = 'name image year batch campus';

@@ -35,6 +35,8 @@ export interface StructuredInput<T> {
   feature: string;
   /** Optional PDF attachment, base64 without newlines. */
   pdfBase64?: string;
+  /** Optional image attachment (a screenshot, a photo of a notice board). */
+  image?: { base64: string; mediaType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' };
 }
 
 export interface AiProvider {

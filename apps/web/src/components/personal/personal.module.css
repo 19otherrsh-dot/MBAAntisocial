@@ -1,0 +1,30 @@
+.quickAdd { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: flex-end; padding: var(--s-4); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: var(--t-sm); color: var(--text-secondary); background: var(--surface); }
+.chipOn { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.barRow { display: grid; grid-template-columns: 140px 1fr 90px; gap: var(--s-3); align-items: center; font-size: var(--t-sm); }
+.barTrack { position: relative; height: 12px; border-radius: 4px; background: var(--bg-sunken); }
+.barFill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; background: var(--accent); min-width: 2px; }
+.barOver { background: var(--danger); }
+.budgetMark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-secondary); border-radius: 1px; }
+.barValue { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+.trend { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; align-items: end; height: 140px; padding-top: 18px; }
+.trendCol { position: relative; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; align-items: center; gap: 4px; }
+.trendBar { width: min(36px, 70%); border-radius: 4px 4px 0 0; background: var(--accent); opacity: .55; transition: opacity .12s; }
+.trendCol:hover .trendBar, .trendCurrent .trendBar { opacity: 1; }
+.trendLabel { font-size: 10px; color: var(--text-muted); }
+.trendValue { position: absolute; top: -16px; font-size: 10px; color: var(--text-secondary); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity .12s; white-space: nowrap; }
+.trendCol:hover .trendValue, .trendCurrent .trendValue { opacity: 1; }
+.list { display: flex; flex-direction: column; }
+.listRow { display: flex; align-items: center; gap: var(--s-3); padding: 8px 4px; border-bottom: 1px solid var(--line); font-size: var(--t-sm); }
+.moodScale { display: flex; gap: 8px; }
+.moodButton { flex: 1; min-width: 52px; padding: 10px 4px; border-radius: var(--r-lg); border: 1px solid var(--line-strong); background: var(--surface); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--t-xs); color: var(--text-secondary); }
+.moodButton span:first-child { font-size: 26px; }
+.moodOn { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.moodStrip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(6px, 1fr); gap: 2px; align-items: end; height: 72px; }
+.moodDay { border-radius: 4px 4px 0 0; background: var(--accent); }
+.moodEmpty { height: 3px; background: var(--line); border-radius: 2px; }
+.helpline { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+.phone { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 560px) { .barRow { grid-template-columns: 96px 1fr 72px; } }

@@ -84,6 +84,9 @@ export class ClaudeAiProvider implements AiProvider {
         source: { type: 'base64', media_type: 'application/pdf', data: input.pdfBase64 },
       });
     }
+    if (input.image) {
+      content.push({ type: 'image', source: { type: 'base64', media_type: input.image.mediaType, data: input.image.base64 } });
+    }
     content.push({ type: 'text', text: input.prompt });
 
     try {

@@ -76,6 +76,10 @@ export interface IUser {
   alumniProfile: AlumniProfile;
   /** IANA zone used for reminders, quiet hours, and "today". */
   timezone: string;
+  /** Personal academics: the grade scale GPA is computed on, and the term shown by default. */
+  academicSettings: { gradeScale: '4.33' | '4' | '10'; currentTerm: string };
+  /** Signs the private calendar feed URL; bumping it revokes old links. */
+  calendarFeedVersion: number;
   /** Sign-in methods this account has used: password, otp, google, microsoft-entra-id, linkedin. */
   authProviders: string[];
   /** Set once the address is proven — by link, code, or a verified SSO identity. */
@@ -168,6 +172,11 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
       linkedinUrl: { type: String, default: '', trim: true, maxlength: 300 },
     },
     timezone: { type: String, default: 'Asia/Kolkata', maxlength: 60 },
+    academicSettings: {
+      gradeScale: { type: String, enum: ['4.33', '4', '10'], default: '4.33' },
+      currentTerm: { type: String, default: '', maxlength: 40 },
+    },
+    calendarFeedVersion: { type: Number, default: 1 },
     authProviders: [{ type: String }],
     emailVerifiedAt: { type: Date },
 
