@@ -260,6 +260,53 @@ function ProfileEditor({ me }: { me: Me }) {
             }))}
           />
 
+          <Select
+            label="Where sessions happen"
+            hint={
+              draft.mentorProfile?.meetingProvider === 'google_meet' || draft.mentorProfile?.meetingProvider === 'zoom'
+                ? 'Each booking creates its own meeting. Connect the account in Settings first.'
+                : draft.mentorProfile?.meetingProvider === 'livekit'
+                  ? 'A private in-app video room per booking — nothing to install.'
+                  : 'Your standing room link is shared with whoever books.'
+            }
+            value={draft.mentorProfile?.meetingProvider ?? 'manual'}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                mentorProfile: { ...draft.mentorProfile!, meetingProvider: event.target.value as Me['mentorProfile']['meetingProvider'] },
+              })
+            }
+            options={me.meetingProviders.map((provider) => ({
+              value: provider.id,
+              label:
+                provider.requiresConnection && !me.connections.some((c) => c.provider === (provider.id === 'google_meet' ? 'google_calendar' : provider.id))
+                  ? `${provider.label} (connect in Settings)`
+                  : provider.label,
+            }))}
+          />
+
+          {(draft.mentorProfile?.meetingProvider ?? 'manual') === 'manual' && (
+            <Input
+              label="Standing meeting link"
+              placeholder="https://meet.google.com/abc-defg-hij"
+              value={draft.mentorProfile?.meetingLink ?? ''}
+              onChange={(event) =>
+                setDraft({ ...draft, mentorProfile: { ...draft.mentorProfile!, meetingLink: event.target.value } })
+              }
+              hint="Bookings without a link are flagged so nobody turns up to nothing."
+              optional
+            />
+          )}
+
+          <Switch
+            label="Let students from other campuses book me"
+            hint="Only campuses that allow cross-campus mentors can see you, and your weekly cap still applies."
+            checked={draft.mentorProfile?.crossCampus ?? false}
+            onChange={(checked) =>
+              setDraft({ ...draft, mentorProfile: { ...draft.mentorProfile!, crossCampus: checked } })
+            }
+          />
+
           <div>
             <Button
               onClick={() => save.run({ mentorProfile: draft.mentorProfile })}
@@ -271,55 +318,17 @@ function ProfileEditor({ me }: { me: Me }) {
         </section>
       )}
 
-      {/* ───── Visibility ───── */}
+      {/* ───── Alumni ───── */}
+      {me.role === 'alumni' && <AlumniSection me={me} onSave={(payload) => save.run(payload)} saving={save.pending} />}
+
       <section className={styles.settingsGroup}>
-        <div>
-          <h3 className={styles.settingsTitle}>Visibility</h3>
-          <p className={styles.settingsHint}>
-            Ranking is opt-in and stays that way. Nobody is listed without choosing to be.
-          </p>
+        <div className="between gap-3 wrap">
+          <div>
+            <h3 className={styles.settingsTitle}>Notifications, privacy & integrations</h3>
+            <p className={styles.settingsHint}>Quiet hours, push, email, leaderboard visibility, Google/Zoom/Discord.</p>
+          </div>
+          <Link href="/settings"><Button variant="secondary">Open settings</Button></Link>
         </div>
-
-        <Switch
-          label="Show me on the campus leaderboard"
-          hint="Your name, karma, points, and streak become visible to your campus."
-          checked={draft.leaderboardOptIn ?? false}
-          onChange={(checked) => {
-            setDraft({ ...draft, leaderboardOptIn: checked });
-            void save.run({ leaderboardOptIn: checked });
-          }}
-        />
-      </section>
-
-      {/* ───── Notifications ───── */}
-      <section className={styles.settingsGroup}>
-        <div>
-          <h3 className={styles.settingsTitle}>Notifications</h3>
-          <p className={styles.settingsHint}>
-            Everything here tells you something happened. Nothing tells you what you are missing.
-          </p>
-        </div>
-
-        {(
-          [
-            ['sessionReminders', 'Session activity', 'Bookings, cancellations, and reschedules.'],
-            ['deadlineReminders', 'Deadlines', 'Tasks and competition registrations closing soon.'],
-            ['feedComments', 'Replies', 'When someone replies to something you posted.'],
-            ['digest', 'Weekly summary', 'One email a week. Off by default.'],
-          ] as const
-        ).map(([key, label, hint]) => (
-          <Switch
-            key={key}
-            label={label}
-            hint={hint}
-            checked={draft.notificationPrefs?.[key] ?? false}
-            onChange={(checked) => {
-              const next = { ...draft.notificationPrefs!, [key]: checked };
-              setDraft({ ...draft, notificationPrefs: next });
-              void save.run({ notificationPrefs: { [key]: checked } });
-            }}
-          />
-        ))}
       </section>
 
       {/* ───── Badges ───── */}
@@ -384,5 +393,63 @@ function ProfileEditor({ me }: { me: Me }) {
 
       {save.error && <div className={styles.errorBox}>{save.error}</div>}
     </>
+  );
+}
+
+function AlumniSection({
+  me,
+  onSave,
+  saving,
+}: {
+  me: Me;
+  onSave: (payload: Record<string, unknown>) => void;
+  saving: boolean;
+}) {
+  const [profile, setProfile] = useState(() => ({ ...me.alumniProfile }));
+  return (
+    <section className={styles.settingsGroup}>
+      <div>
+        <h3 className={styles.settingsTitle}>Alumni & referrals</h3>
+        <p className={styles.settingsHint}>
+          Boundaried by design: juniors can only request a referral when you switch it on, and never beyond your cap.
+        </p>
+      </div>
+      <div className="row gap-3 wrap">
+        <Input label="Company" value={profile.company} onChange={(e) => setProfile({ ...profile, company: e.target.value })} />
+        <Input label="Role" value={profile.designation} onChange={(e) => setProfile({ ...profile, designation: e.target.value })} />
+        <Input
+          label="Graduated"
+          type="number"
+          value={profile.graduationYear ?? ''}
+          onChange={(e) => setProfile({ ...profile, graduationYear: e.target.value ? Number(e.target.value) : undefined })}
+        />
+      </div>
+      <Input
+        label="LinkedIn profile"
+        placeholder="https://www.linkedin.com/in/…"
+        value={profile.linkedinUrl}
+        onChange={(e) => setProfile({ ...profile, linkedinUrl: e.target.value })}
+        optional
+      />
+      <Switch
+        label="Open to referral requests"
+        hint="You can pause this any time; open requests stay until you respond."
+        checked={profile.referralsOpen}
+        onChange={(checked) => setProfile({ ...profile, referralsOpen: checked })}
+      />
+      {profile.referralsOpen && (
+        <Select
+          label="Open requests at once"
+          value={String(profile.referralCapacity)}
+          onChange={(e) => setProfile({ ...profile, referralCapacity: Number(e.target.value) })}
+          options={[1, 2, 3, 5, 8, 10].map((n) => ({ value: String(n), label: `${n}` }))}
+        />
+      )}
+      <div>
+        <Button onClick={() => onSave({ alumniProfile: profile })} loading={saving}>
+          Save alumni profile
+        </Button>
+      </div>
+    </section>
   );
 }

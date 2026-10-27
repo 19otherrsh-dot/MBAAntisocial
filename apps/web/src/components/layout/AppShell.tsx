@@ -1,17 +1,21 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { LogOut, UserRound } from 'lucide-react';
+import { LogOut, UserRound, Search } from 'lucide-react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
-import { titleForPath } from './navigation';
+import CommandPalette from './CommandPalette';
+import CampusLocked from './CampusLocked';
+import { itemForPath, titleForPath } from './navigation';
 import { MeProvider, useMe } from '@/lib/client/me';
+import { RealtimeProvider } from '@/lib/client/realtime';
 import { usePersistentFlag } from '@/lib/client/hooks';
+import { featureAvailable } from '@mba/shared/campus';
 import { LogoMark } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import styles from './shell.module.css';
@@ -21,7 +25,9 @@ const COLLAPSE_KEY = 'sidebar-collapsed';
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <MeProvider>
-      <ShellFrame>{children}</ShellFrame>
+      <RealtimeProvider>
+        <ShellFrame>{children}</ShellFrame>
+      </RealtimeProvider>
     </MeProvider>
   );
 }
@@ -29,16 +35,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 function ShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { me } = useMe();
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Read straight from localStorage through an external store, so the stored
   // preference does not have to be copied into state by an effect.
   const [collapsed, setCollapsed] = usePersistentFlag(COLLAPSE_KEY, false);
-
   const toggle = useCallback(() => setCollapsed(!collapsed), [collapsed, setCollapsed]);
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+
+  // ⌘K / Ctrl+K anywhere; "/" when not typing in a field.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      } else if (event.key === '/' && !typing) {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // One edition gate for every page, instead of each page checking for itself.
+  const item = itemForPath(pathname);
+  const locked = Boolean(me && item?.feature && !featureAvailable(item.feature, me.edition));
 
   return (
     <div className={cn(styles.shell, collapsed && styles.shellCollapsed)}>
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
+      <Sidebar collapsed={collapsed} onToggle={toggle} onOpenPalette={openPalette} />
 
       <div className={styles.main}>
         <header className={styles.topbar}>
@@ -50,26 +78,25 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
           <h1 className={cn(styles.topbarTitle, 'truncate')}>{titleForPath(pathname)}</h1>
 
           <div className={styles.topbarActions}>
+            <button className={cn(styles.iconButton, styles.mobileOnly)} onClick={openPalette} aria-label="Search">
+              <Search size={18} />
+            </button>
             <ThemeToggle />
             <NotificationBell />
             <Link href="/profile" className={styles.iconButton} aria-label="Your profile">
               <UserRound size={18} />
             </Link>
-            <button
-              className={styles.iconButton}
-              onClick={() => signOut({ callbackUrl: '/login' })}
-              aria-label="Sign out"
-              title="Sign out"
-            >
+            <button className={styles.iconButton} onClick={() => signOut({ callbackUrl: '/login' })} aria-label="Sign out" title="Sign out">
               <LogOut size={18} />
             </button>
           </div>
         </header>
 
-        <main className={styles.content}>{children}</main>
+        <main className={styles.content}>{locked && item ? <CampusLocked item={item} /> : children}</main>
       </div>
 
       <BottomNav />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {/* Announces a streak milestone once, without a modal or a guilt trip. */}
       {me && <StreakAnnouncer />}

@@ -32,12 +32,6 @@ games/*/project/.import/
 *.translation
 export_presets.local.cfg
 
-# generated PWA service worker
-apps/web/public/sw.js
-apps/web/public/sw.js.map
-apps/web/public/workbox-*.js
-apps/web/public/workbox-*.js.map
-apps/web/public/swe-worker-*.js
 
 # misc
 .DS_Store
