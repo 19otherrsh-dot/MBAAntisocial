@@ -52,3 +52,6 @@ apps/web/.uploads/
 
 # vercel
 .vercel
+
+# private dedicated-server packs (published by scripts/publish-game.ts --server-pack)
+game-servers/

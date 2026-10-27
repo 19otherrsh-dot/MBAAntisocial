@@ -1,6 +1,14 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   turbopack: {},
+  /**
+   * Docker builds set BUILD_STANDALONE=1 for a self-contained server bundle;
+   * `next start` and Vercel use the regular output. Tracing starts at the
+   * monorepo root so packages/shared is included.
+   */
+  output: process.env.BUILD_STANDALONE === '1' ? 'standalone' : undefined,
+  outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: ['@mba/shared'],
   /**
    * Game builds and the player page are cross-origin isolated so threaded

@@ -1,0 +1,104 @@
+# Everything needed to run MBAAntisocial on one machine.
+#
+#   cp apps/web/.env.example apps/web/.env          # fill in AUTH_SECRET etc.
+#   cp apps/realtime/.env.example apps/realtime/.env
+#   docker compose up -d --build
+#   docker compose run --rm tools                  # optional: seed demo data
+#
+# Web on :3000, realtime on :4000, Mailpit (captured email) on :8025.
+# Add `--profile voice` for the built-in LiveKit video/voice server.
+
+name: mba-antisocial
+
+services:
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      # Initiates the one-node replica set on first boot, then reports healthy.
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongo:27017'}]}).ok }\" | grep -q 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports: ["8025:8025"]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_REALTIME_URL: ${PUBLIC_REALTIME_URL:-http://localhost:4000}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+    env_file: [apps/web/.env]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/mba-antisocial?replicaSet=rs0
+      REDIS_URL: redis://redis:6379
+      SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+      UPLOAD_DIR: /data/uploads
+    volumes: [uploads:/data/uploads]
+    ports: ["3000:3000"]
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  realtime:
+    build:
+      context: .
+      dockerfile: apps/realtime/Dockerfile
+      args:
+        GODOT_VERSION: ${GODOT_VERSION:-}
+    env_file: [apps/realtime/.env]
+    environment:
+      REDIS_URL: redis://redis:6379
+      WEB_INTERNAL_URL: http://web:3000
+      # Off-Vercel deployments run the cron jobs from here.
+      SCHEDULER_ENABLED: "true"
+    volumes: ["./game-servers:/data/game-servers:ro"]
+    ports: ["4000:4000"]
+    depends_on:
+      redis: { condition: service_healthy }
+      web: { condition: service_started }
+    restart: unless-stopped
+
+  livekit:
+    profiles: [voice]
+    image: livekit/livekit-server:v1.8
+    command: ["--dev", "--bind", "0.0.0.0"]
+    ports: ["7880:7880", "7881:7881", "7882:7882/udp"]
+    restart: unless-stopped
+
+  tools:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: tools
+    env_file: [apps/web/.env]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/mba-antisocial?replicaSet=rs0
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongo: { condition: service_healthy }
+
+volumes:
+  mongo-data:
+  redis-data:
+  uploads:

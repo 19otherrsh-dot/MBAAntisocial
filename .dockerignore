@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+**/.expo
+**/.env
+**/.env.*
+!**/.env.example
+.git
+apps/web/.uploads
+game-servers
+**/*.tsbuildinfo
+**/coverage

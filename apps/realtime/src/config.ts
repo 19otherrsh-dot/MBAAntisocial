@@ -1,4 +1,9 @@
+import { existsSync } from 'node:fs';
 import { z } from 'zod';
+
+// Local runs read apps/realtime/.env; containers and hosts pass real env vars,
+// which always win (loadEnvFile never overwrites what is already set).
+if (existsSync('.env')) process.loadEnvFile('.env');
 
 const schema = z.object({
   PORT: z.coerce.number().int().default(4000),
