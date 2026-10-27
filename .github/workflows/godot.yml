@@ -1,0 +1,44 @@
+name: Godot SDK
+
+# The addon is GDScript, which only Godot can parse. This loads it in a
+# headless Godot so syntax or API mistakes fail here, not in a game build.
+on:
+  push:
+    branches: [main]
+    paths: ["packages/game-sdk/**"]
+  pull_request:
+    paths: ["packages/game-sdk/**"]
+
+jobs:
+  check-addon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GODOT_VERSION: 4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install headless Godot
+        run: |
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv Godot_v*_linux.x86_64 /usr/local/bin/godot && chmod +x /usr/local/bin/godot
+      - name: Make a throwaway project that enables the addon
+        run: |
+          mkdir -p ci-project/addons
+          cp -r packages/game-sdk/godot/addons/antisocial_sdk ci-project/addons/
+          cat > ci-project/project.godot <<'CFG'
+          config_version=5
+          [application]
+          config/name="SDK check"
+          [autoload]
+          Antisocial="*res://addons/antisocial_sdk/antisocial.gd"
+          [editor_plugins]
+          enabled=PackedStringArray("res://addons/antisocial_sdk/plugin.cfg")
+          CFG
+      - name: Parse every script
+        working-directory: ci-project
+        run: |
+          godot --headless --import --quit 2>&1 | tee import.log
+          for f in $(find addons -name '*.gd'); do
+            godot --headless --check-only --script "res://$f" 2>&1 | tee -a check.log
+          done
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" import.log check.log; then exit 1; fi

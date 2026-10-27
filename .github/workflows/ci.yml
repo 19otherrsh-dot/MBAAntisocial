@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Types, lint, unit tests, builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      # Placeholders so env validation passes while pages compile.
+      MONGODB_URI: mongodb://localhost:27017/ci
+      AUTH_SECRET: ci-placeholder-secret-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build -w @mba/realtime
+      - run: npm run build -w @mba/web
+
+  e2e:
+    name: Browser smoke test
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      MONGODB_URI: mongodb://127.0.0.1:27017/mba-ci?replicaSet=rs0&directConnection=true
+      REDIS_URL: redis://127.0.0.1:6379
+      AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      REALTIME_SECRET: ci-only-realtime-0123456789abcdef0123456789
+      INTERNAL_API_SECRET: ci-only-internal-0123456789abcdef012345678
+      APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: MongoDB (single-node replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]}).ok }" | grep -q 1 && break
+            sleep 2
+          done
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm run build -w @mba/web
+      - run: npm run seed -w @mba/web
+      - name: Start the app
+        working-directory: apps/web
+        run: |
+          npx next start -p 3000 > ../../next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/login && exit 0; sleep 1; done; exit 1
+      - run: npm run e2e -w @mba/web
+      - if: failure()
+        run: tail -200 next.log

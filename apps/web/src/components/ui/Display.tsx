@@ -142,7 +142,8 @@ const BANNER_CLASS = {
 
 export function Banner({ variant = 'info', icon, title, children, action, className }: BannerProps) {
   return (
-    <div className={cn(styles.banner, BANNER_CLASS[variant], className)}>
+    // A danger banner is usually a failed action: announce it, not just colour it.
+    <div className={cn(styles.banner, BANNER_CLASS[variant], className)} role={variant === 'danger' ? 'alert' : undefined}>
       {icon && <span className={styles.bannerIcon}>{icon}</span>}
       <div className="grow">
         {title && <div className={styles.bannerTitle}>{title}</div>}
