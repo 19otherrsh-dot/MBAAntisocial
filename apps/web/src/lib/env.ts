@@ -107,6 +107,10 @@ const envSchema = z.object({
   // ── Games ──
   /** STUN/TURN for WebRTC games, JSON array of RTCIceServer. */
   GAME_ICE_SERVERS: optional,
+
+  // ── Open Edition briefing ──
+  /** Comma-separated RSS/Atom feeds for the daily briefing. */
+  NEWS_FEEDS: optional,
 });
 
 const parsed = envSchema.safeParse(process.env);

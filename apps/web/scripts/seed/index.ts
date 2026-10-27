@@ -17,6 +17,7 @@ const MODULES: Array<() => Promise<SeedModule>> = [
   async () => ({ name: 'games', run: (await import('./games')).run }),
   async () => ({ name: 'campus-life', run: (await import('./campus-life')).run }),
   async () => ({ name: 'personal', run: (await import('./personal')).run }),
+  async () => ({ name: 'career', run: (await import('./career')).run }),
 ];
 
 export async function runSeedModules(ctx: SeedContext) {

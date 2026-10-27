@@ -75,9 +75,13 @@ export function useApiQuery<T>(
   }, []);
 
   const matches = settled.key === key;
+  // A refetch of the same request keeps showing the last result until the new
+  // one lands, instead of flashing back to a skeleton.
+  const requestOf = (k: string) => k.slice(k.indexOf(':') + 1);
+  const refreshing = !matches && Boolean(key) && Boolean(settled.key) && requestOf(settled.key) === requestOf(key);
 
   return {
-    data: matches ? settled.data : null,
+    data: matches || refreshing ? settled.data : null,
     // A disabled query is never loading; an in-flight one has not settled yet.
     loading: Boolean(path) && !matches,
     error: matches ? settled.error : null,

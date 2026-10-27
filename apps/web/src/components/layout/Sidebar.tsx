@@ -69,7 +69,7 @@ export default function Sidebar({ collapsed, onToggle, onOpenPalette }: SidebarP
               pathname={pathname}
               isCurrent={current?.id === section.id}
               collapsed={collapsed}
-              edition={me?.edition ?? 'open'}
+              edition={me ? me.edition : 'campus'}
             />
           )
         )}

@@ -81,7 +81,7 @@ export default function BottomNav() {
                   <div className={styles.menuGrid}>
                     {items.map((item) => {
                       const Icon = item.icon;
-                      const locked = item.feature ? !featureAvailable(item.feature, me?.edition ?? 'open') : false;
+                      const locked = item.feature ? !featureAvailable(item.feature, me ? me.edition : 'campus') : false;
                       return (
                         <Link key={item.href} href={item.href} className={cn(styles.menuTile, isActive(pathname, item.href) && styles.menuTileActive)}>
                           <Icon size={20} />

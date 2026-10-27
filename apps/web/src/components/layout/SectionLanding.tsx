@@ -48,7 +48,7 @@ export default function SectionLanding({ id, children }: { id: NavSection['id'];
         <div className={styles.tileGridInner} data-reveal="">
           {items.map((item) => {
             const Icon = item.icon;
-            const locked = item.feature ? !featureAvailable(item.feature, me?.edition ?? 'open') : false;
+            const locked = item.feature ? !featureAvailable(item.feature, me ? me.edition : 'campus') : false;
             return (
               <Link key={item.href} href={item.href} className={cn(styles.tile, locked && styles.tileLocked)} data-spot="">
                 <span className={styles.tileIcon}>
