@@ -1,3 +1,4 @@
+import { featureAvailable } from '@mba/shared/campus';
 import { route, ok, created, paginate, pageMeta } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
 import { createSlotSchema, slotQuerySchema } from '@/lib/validation';
@@ -20,7 +21,12 @@ const MENTEE_FIELDS = 'name image year batch';
  * book slots published at another — the opposite of the campus-native model in
  * §6.1, and a privacy leak besides.
  */
-export const GET = route({ query: slotQuerySchema, feature: 'sessions' }, async ({ actor, query }) => {
+// Gated per scope: other campuses' mentors are an Open Edition feature (PRD §15),
+// your own campus's slots unlock with the Campus Edition.
+export const GET = route({ query: slotQuerySchema, feature: 'cross_campus_mentors' }, async ({ actor, query }) => {
+  if (query.view === 'open' && query.scope !== 'cross' && !featureAvailable('sessions', actor.edition)) {
+    throw ApiError.forbidden('Your campus’s own mentors unlock with the Campus Edition. Mentors from other campuses are open to you now.');
+  }
   const { skip, limit } = paginate(query);
 
   const filter: QueryFilter<IInterviewSlot> = {};

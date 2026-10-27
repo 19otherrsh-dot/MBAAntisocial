@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CalendarPlus, CalendarClock, Inbox } from 'lucide-react';
+import { CalendarPlus, CalendarClock, Inbox, Lock } from 'lucide-react';
+import { featureAvailable } from '@mba/shared/campus';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Select, Switch, Textarea } from '@/components/ui/Field';
@@ -53,11 +54,15 @@ function SessionsView() {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { me } = useMe();
 
+  // Before a campus unlocks, only other campuses' mentors are bookable (PRD §15).
+  const campusUnlocked = me ? featureAvailable('sessions', me.edition) : true;
+  const views = campusUnlocked ? VIEWS : VIEWS.filter((v) => v.value === 'open' || v.value === 'bookings');
   const viewParam = searchParams.get('view');
-  const view: View = VIEWS.some((v) => v.value === viewParam) ? (viewParam as View) : 'open';
+  const view: View = views.some((v) => v.value === viewParam) ? (viewParam as View) : 'open';
   const slotView: SlotView | null = view === 'gd' || view === 'templates' ? null : view;
   const mentorFilter = searchParams.get('mentor');
-  const [scope, setScope] = useState<'campus' | 'cross'>('campus');
+  const [chosenScope, setScope] = useState<'campus' | 'cross'>(searchParams.get('scope') === 'cross' ? 'cross' : 'campus');
+  const scope = campusUnlocked ? chosenScope : 'cross';
   const [linkSlot, setLinkSlot] = useState<Slot | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<SessionType | ''>('');
@@ -131,7 +136,7 @@ function SessionsView() {
           </p>
         </div>
 
-        {me?.canMentor && (
+        {me?.canMentor && campusUnlocked && (
           <Button icon={<CalendarPlus size={16} />} onClick={() => setPublishOpen(true)}>
             Publish a slot
           </Button>
@@ -139,10 +144,10 @@ function SessionsView() {
       </div>
 
       <div className={styles.toolbar}>
-        <Segmented options={VIEWS} value={view} onChange={setView} ariaLabel="Session view" />
+        <Segmented options={views} value={view} onChange={setView} ariaLabel="Session view" />
 
         {slotView && <div className={styles.toolbarPush}>
-          {view === 'open' && (
+          {view === 'open' && campusUnlocked && (
             <Segmented
               ariaLabel="Whose slots"
               value={scope}
@@ -167,6 +172,13 @@ function SessionsView() {
           />
         </div>}
       </div>
+
+      {!campusUnlocked && view === 'open' && (
+        <Banner variant="info" icon={<Lock size={16} />} title="Your campus’s own seniors arrive when it unlocks">
+          Until then, these mentors from other campuses have opted in to help anyone. Bring a friend or two from your batch — enough of you
+          and {me?.campus ?? 'your campus'} gets the full Campus Edition.
+        </Banner>
+      )}
 
       {mentorFilter && view === 'open' && (
         <Banner variant="info" action={<Button size="sm" variant="ghost" onClick={() => router.replace('/sessions')}>Show everyone</Button>}>

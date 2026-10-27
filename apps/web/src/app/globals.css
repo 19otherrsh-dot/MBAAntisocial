@@ -571,7 +571,7 @@ ul, ol { list-style: none; }
 [data-aurora]::before {
   content: '';
   position: absolute;
-  inset: -30% -10% auto -10%;
+  inset: -30% 0 auto 0;
   height: 160%;
   z-index: -1;
   pointer-events: none;

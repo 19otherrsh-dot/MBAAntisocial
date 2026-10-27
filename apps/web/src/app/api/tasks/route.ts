@@ -4,6 +4,8 @@ import { createTaskSchema, updateTaskSchema, taskQuerySchema, objectId } from '@
 import { materialiseRecurringTasks } from '@/lib/recurrence';
 import { award, revoke } from '@/lib/gamification';
 import Task from '@/models/Task';
+import User from '@/models/User';
+import { DEFAULT_TIME_ZONE, localDayBounds } from '@/lib/time';
 import type { QueryFilter } from 'mongoose';
 import type { ITask } from '@/models/Task';
 
@@ -15,7 +17,8 @@ import type { ITask } from '@/models/Task';
  * for a week still sees a correct list the moment they open the page.
  */
 export const GET = route({ query: taskQuerySchema }, async ({ actor, query }) => {
-  await materialiseRecurringTasks(actor.id);
+  const timeZone = (await User.findById(actor.id).select('timezone').lean())?.timezone || DEFAULT_TIME_ZONE;
+  await materialiseRecurringTasks(actor.id, new Date(), timeZone);
 
   const filter: QueryFilter<ITask> = { user: actor.id, isTemplate: false };
   if (query.type) filter.type = query.type;
@@ -34,7 +37,7 @@ export const GET = route({ query: taskQuerySchema }, async ({ actor, query }) =>
     tasks: tasks.map(serialiseTask),
     /** Recurring habits, shown separately from one-off to-dos. */
     habits: templates.map(serialiseTask),
-    summary: summarise(tasks),
+    summary: summarise(tasks, localDayBounds(new Date(), timeZone).dayEnd),
   });
 });
 
@@ -136,15 +139,12 @@ function serialiseTask(task: Omit<ITask, '_id'> & { _id: unknown }) {
   return { ...task, _id: String(task._id) };
 }
 
-function summarise(tasks: Array<{ status: string; dueAt?: Date | null }>) {
+function summarise(tasks: Array<{ status: string; dueAt?: Date | null }>, endOfToday: Date) {
   const now = Date.now();
   let pending = 0;
   let completed = 0;
   let overdue = 0;
   let dueToday = 0;
-
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
 
   for (const task of tasks) {
     if (task.status === 'completed') {

@@ -147,6 +147,8 @@ async function seed() {
           weeklyCapacity: 4,
           headline: person.headline,
           companies: person.companies,
+          // Two seniors also mentor other campuses, so the Open Edition has slots to show.
+          crossCampus: index === 1 || index === 2,
         },
         karma: person.karma,
         points: 180 + index * 40,

@@ -12,11 +12,18 @@
 }
 .block strong { display: block; font-size: 12px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nowLine { position: absolute; left: 0; right: 0; height: 2px; background: var(--rose); z-index: 2; }
-.dayList { display: flex; flex-direction: column; gap: var(--s-2); }
+.dayList { display: flex; flex-direction: column; gap: var(--s-2); container-type: inline-size; }
 .classRow { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
 .swatch { width: 10px; align-self: stretch; border-radius: 6px; flex: none; }
 .time { font-variant-numeric: tabular-nums; font-size: var(--t-sm); color: var(--text-muted); width: 92px; flex: none; }
 .markButtons { display: flex; gap: 4px; margin-left: auto; }
+/* Narrow homes (phones, a side column): the marks drop under the class name. */
+@container (max-width: 480px) {
+  .classRow { flex-wrap: wrap; row-gap: var(--s-2); }
+  .classRow > :global(.stack) { flex: 1 1 0; }
+  .time { width: auto; }
+  .markButtons { margin-left: calc(10px + var(--s-3)); width: 100%; }
+}
 .mark { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: var(--t-xs); font-weight: 600; color: var(--text-secondary); }
 .markOn { background: var(--success); border-color: var(--success); color: #fff; }
 .markOff { background: var(--danger); border-color: var(--danger); color: #fff; }

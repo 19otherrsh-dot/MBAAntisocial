@@ -1,3 +1,4 @@
+import { featureAvailable } from '@mba/shared/campus';
 import { route, ok } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
 import { slotActionSchema, objectId } from '@/lib/validation';
@@ -23,12 +24,12 @@ const MENTEE_FIELDS = 'name image year batch campus';
  * link. Every branch re-reads the slot and checks the caller's relationship to
  * it — holding a slot id is never sufficient authorisation.
  */
-export const PATCH = route({ body: slotActionSchema, rateLimit: 'booking', feature: 'sessions' }, async ({ actor, body, params }) => {
+export const PATCH = route({ body: slotActionSchema, rateLimit: 'booking', feature: 'cross_campus_mentors' }, async ({ actor, body, params }) => {
   const slotId = objectId.parse(params.id);
 
   switch (body.action) {
     case 'book':
-      return book(actor.id, actor.campus, slotId, body.bookingNote, body.templateId, body.consentToRecording);
+      return book(actor.id, actor.campus, featureAvailable('sessions', actor.edition), slotId, body.bookingNote, body.templateId, body.consentToRecording);
     case 'cancel':
       return cancel(actor.id, slotId, body.reason);
     case 'reschedule':
@@ -55,6 +56,8 @@ export const DELETE = route({ rateLimit: 'write' }, async ({ actor, params }) =>
 async function book(
   userId: string,
   campus: string,
+  /** Own-campus booking needs the Campus Edition; cross-campus is open to everyone. */
+  campusUnlocked: boolean,
   slotId: string,
   bookingNote: string,
   templateId: string | undefined,
@@ -66,6 +69,7 @@ async function book(
   if (!slot) throw ApiError.notFound('That slot no longer exists.');
 
   const crossCampus = slot.campus !== campus;
+  if (!crossCampus && !campusUnlocked) throw ApiError.forbidden('Booking your own campus’s mentors unlocks with the Campus Edition.');
   if (crossCampus && !(await canBookAcross(campus, slot.mentor.toString()))) {
     throw ApiError.notFound('That slot no longer exists.');
   }

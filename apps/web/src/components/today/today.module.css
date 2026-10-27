@@ -1,0 +1,25 @@
+.inset { padding: var(--s-3) var(--s-4) var(--s-4); }
+.more { padding: var(--s-2) var(--s-4) var(--s-3); font-size: var(--t-xs); color: var(--text-muted); }
+
+.headline { display: flex; flex-direction: column; gap: 4px; padding: var(--s-2) 0 var(--s-3); border-bottom: 1px solid var(--line); }
+.headlineTitle { font-weight: 600; line-height: 1.35; color: var(--text); transition: color var(--dur-fast) var(--ease); }
+.headline:hover .headlineTitle { color: var(--accent-text); }
+.quizRow { display: flex; align-items: center; gap: var(--s-3); padding-top: var(--s-3); }
+.quizText { flex: 1; font-size: var(--t-sm); color: var(--text-secondary); }
+
+.checkIn {
+  display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); font-size: var(--t-sm);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.checkIn:hover { border-color: color-mix(in srgb, var(--rose) 45%, var(--line)); background: var(--rose-soft); }
+
+.openLinks { display: grid; gap: var(--s-2); }
+.openLink { display: flex; flex-direction: column; gap: 2px; padding: var(--s-3); border-radius: var(--r-md); background: var(--bg-sunken); font-size: var(--t-sm); transition: background var(--dur-fast) var(--ease); }
+.openLink span { color: var(--text-muted); font-size: var(--t-xs); }
+.openLink:hover { background: var(--accent-soft); }
+
+/* The end of the day's list: a stopping point, not a feed. */
+.end { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--s-6) 0 var(--s-4); text-align: center; color: var(--text-muted); font-size: var(--t-sm); }
+.endMark { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--teal-soft); color: var(--teal-text); margin-bottom: 4px; }
+.endTitle { color: var(--text-secondary); font-weight: 600; }

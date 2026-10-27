@@ -8,7 +8,7 @@ import { award } from '@/lib/gamification';
 const querySchema = z.object({ sessionType: z.enum(SESSION_TYPES).optional(), q: z.string().trim().max(60).optional() });
 
 /** Crowd-sourced mock templates for the caller's campus, most useful first. */
-export const GET = route({ query: querySchema, feature: 'sessions' }, async ({ actor, query }) => {
+export const GET = route({ query: querySchema, feature: 'cross_campus_mentors' }, async ({ actor, query }) => {
   const filter: Record<string, unknown> = { campus: actor.campus, hiddenAt: { $exists: false } };
   if (query.sessionType) filter.sessionType = query.sessionType;
   if (query.q) filter.$or = [{ title: new RegExp(query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }, { company: new RegExp(query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }];

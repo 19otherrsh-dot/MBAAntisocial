@@ -99,7 +99,7 @@ export const SECTIONS: NavSection[] = [
     icon: Target,
     description: 'Interviews, applications, and the people who can help.',
     items: [
-      { href: '/sessions', label: 'Mock sessions', short: 'Mocks', icon: CalendarClock, description: 'Book seniors and alumni for mock PIs, GDs, and resume reviews.', feature: 'sessions', keywords: ['mock', 'interview', 'gd', 'senior', 'book', 'slot'] },
+      { href: '/sessions', label: 'Mock sessions', short: 'Mocks', icon: CalendarClock, description: 'Book seniors and alumni for mock PIs, GDs, and resume reviews.', feature: 'cross_campus_mentors', keywords: ['mock', 'interview', 'gd', 'senior', 'book', 'slot'] },
       { href: '/practice', label: 'AI practice', short: 'AI', icon: Bot, description: 'An AI interviewer and GD group when no senior is free.', feature: 'ai_interview', keywords: ['ai', 'claude', 'interview', 'group discussion'] },
       { href: '/intel', label: 'Interview intel', short: 'Intel', icon: BookOpen, description: 'What panels actually asked at your campus, round by round.', feature: 'intel', keywords: ['questions', 'company'] },
       { href: '/pipeline', label: 'Applications', short: 'Pipeline', icon: Target, description: 'Every company, every round, every deadline.', feature: 'pipeline', keywords: ['placement', 'tracker', 'rounds'] },

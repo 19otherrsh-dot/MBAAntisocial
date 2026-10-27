@@ -14,9 +14,9 @@ import ClassSlot from '@/models/academics/ClassSlot';
 import AttendanceMark from '@/models/academics/AttendanceMark';
 
 /** YYYY-MM-DD for `date` in `timeZone`. */
-export function dayKeyIn(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-}
+import { dayKeyIn } from '@/lib/time';
+
+export { dayKeyIn };
 
 export function gradePoints(grade: string, scale: GradeScaleKey): number | null {
   if (!grade) return null;
