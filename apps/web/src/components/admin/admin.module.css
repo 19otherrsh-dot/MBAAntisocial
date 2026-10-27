@@ -1,0 +1,57 @@
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; }
+.note { font-size: var(--t-sm); color: var(--text-secondary); line-height: 1.5; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+@media (max-width: 560px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Metrics: one number, one meter, the counts behind it ── */
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s-4); }
+.metric { display: flex; flex-direction: column; gap: 8px; padding: var(--s-4); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+.metricLabel { font-size: var(--t-sm); font-weight: 600; color: var(--text-secondary); }
+.metricValue { font-size: 2rem; font-weight: 680; letter-spacing: -0.03em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+.metricValueMuted { font-size: 2rem; font-weight: 600; line-height: 1; color: var(--text-muted); }
+.metricCaption { font-size: var(--t-xs); color: var(--text-muted); line-height: 1.45; }
+.meter { position: relative; height: 8px; border-radius: 4px; background: var(--bg-sunken); }
+.meterFill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--accent); }
+.meterTarget { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--text-secondary); }
+
+/* ── Lists ── */
+.list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.personRow, .campusRow, .gameRow { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); text-align: left; width: 100%; background: none; }
+.personRow:last-child, .campusRow:last-child, .gameRow:last-child { border-bottom: none; }
+.campusRow { cursor: pointer; transition: background var(--dur-fast) var(--ease); }
+.campusRow:hover { background: var(--surface-hover); }
+.gameRow { align-items: flex-start; }
+.personMain { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.personMeta { font-size: var(--t-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.personActions { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
+.personActions select { min-width: 150px; }
+@media (max-width: 680px) {
+  .personRow { flex-wrap: wrap; }
+  .personActions { width: 100%; padding-left: calc(34px + var(--s-3)); }
+  .personActions select { flex: 1; min-width: 0; }
+}
+.density { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; width: 190px; flex-shrink: 0; }
+.density .meter { width: 100%; }
+.densityText { font-size: var(--t-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .campusRow { flex-wrap: wrap; } .density { width: 100%; align-items: flex-start; } }
+
+.releases { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: var(--t-xs); color: var(--text-secondary); }
+.releases li { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.inactive { color: var(--text-muted); text-decoration: line-through; }
+.linkButton { display: inline-flex; align-items: center; gap: 3px; background: none; color: var(--accent-text); font-size: var(--t-xs); font-weight: 550; padding: 0; }
+
+/* ── Audit ── */
+.audit { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.auditRow { display: flex; flex-direction: column; gap: 4px; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); font-size: var(--t-sm); }
+.auditRow:last-child { border-bottom: none; }
+.auditDiff { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--t-xs); color: var(--text-secondary); font-family: var(--font-mono); }
+.auditDiff s { color: var(--text-muted); }
+.auditReason { font-size: var(--t-xs); color: var(--text-secondary); font-style: italic; }
+.auditTime { font-size: var(--t-xs); color: var(--text-muted); }
+
+/* ── Campus admin ── */
+.section { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.sectionTitle { font-size: var(--t-md); font-weight: 620; }
+.progressRow { display: grid; grid-template-columns: 120px 1fr 80px; gap: var(--s-3); align-items: center; font-size: var(--t-sm); }
+.progressValue { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }

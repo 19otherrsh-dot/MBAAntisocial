@@ -8,6 +8,7 @@ import { container } from '../../container';
 import { hashToken, numericCode, randomToken } from '../../crypto';
 import * as emails from '../../emails/templates';
 import { maybeUnlockCampus, requestCampus, resolveEmail } from '../campus/service';
+import { invalidateAuthz } from './authz';
 
 /**
  * Identity: every way of proving who you are, all funnelling into one rule —
@@ -157,7 +158,10 @@ async function markVerified(email: string) {
     { $set: { emailVerifiedAt: new Date() } },
     { new: true }
   );
-  if (user) await maybeUnlockCampus(user.campus).catch(() => false);
+  if (user) {
+    await invalidateAuthz(String(user._id));
+    await maybeUnlockCampus(user.campus).catch(() => false);
+  }
   return user ?? (await User.findOne({ email }));
 }
 
@@ -195,6 +199,7 @@ export async function resetPassword(email: string, secret: string, password: str
   if (!user.emailVerifiedAt) user.emailVerifiedAt = new Date();
   if (!user.authProviders.includes('password')) user.authProviders.push('password');
   await user.save();
+  await invalidateAuthz(String(user._id));
 }
 
 /* ───────────────────────── One-time sign-in codes ───────────────────────── */
@@ -275,7 +280,10 @@ export async function provisionSsoUser(profile: SsoProfile) {
     if (!existing.emailVerifiedAt) update.emailVerifiedAt = new Date();
     if (!existing.image && profile.image) update.image = profile.image;
     await User.updateOne({ _id: existing._id }, { $set: update, $addToSet: { authProviders: profile.provider } });
-    if (update.emailVerifiedAt) await maybeUnlockCampus(existing.campus).catch(() => false);
+    if (update.emailVerifiedAt) {
+      await invalidateAuthz(String(existing._id));
+      await maybeUnlockCampus(existing.campus).catch(() => false);
+    }
     return User.findById(existing._id);
   }
 

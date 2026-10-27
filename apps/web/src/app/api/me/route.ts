@@ -8,6 +8,7 @@ import ExternalAccount from '@/models/ExternalAccount';
 import { MENTOR_ROLES, type UserRole } from '@/lib/constants';
 import { campusDensity } from '@/server/modules/campus/service';
 import { container } from '@/server/container';
+import { invalidateAuthz } from '@/server/modules/auth/authz';
 
 /**
  * The live view of the signed-in user.
@@ -160,5 +161,6 @@ export const PATCH = route({ body: updateProfileSchema, rateLimit: 'write', allo
 
   if (!user) throw ApiError.notFound('Your account could not be loaded.');
 
+  if (update.role || update.batch || update.year) await invalidateAuthz(actor.id);
   return ok({ user });
 });

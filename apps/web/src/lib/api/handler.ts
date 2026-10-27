@@ -16,6 +16,7 @@ import { env } from '@/lib/env';
 import { featureAvailable, type FeatureKey, type CampusStatus } from '@mba/shared/campus';
 import { campusEdition } from '@/server/modules/campus/service';
 import { verifyAccessToken, type SessionUser } from '@/server/modules/auth/service';
+import { currentAuthz } from '@/server/modules/auth/authz';
 import { safeEqual } from '@/server/crypto';
 
 /** The authenticated caller, resolved once per request. */
@@ -211,6 +212,10 @@ async function resolveActor(request: NextRequest): Promise<Actor | null> {
   }
 
   await connectDB();
+  // Claims in the token may be weeks old; role and suspension come from the record.
+  const fresh = await currentAuthz(user.id);
+  if (!fresh || fresh.suspended) return null;
+  user = { ...user, role: fresh.role, campus: fresh.campus, batch: fresh.batch, year: fresh.year, verified: fresh.verified };
   const edition = await campusEdition(user.campus);
   return {
     id: user.id,

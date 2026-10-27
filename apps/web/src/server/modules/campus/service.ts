@@ -196,7 +196,12 @@ export async function maybeUnlockCampus(name: string): Promise<boolean> {
   const updated = await Campus.updateOne({ name, status: 'open' }, { $set: { status: 'campus', unlockedAt: new Date() } });
   if (updated.modifiedCount === 0) return false;
   await invalidateCampusEdition(name);
+  await announceUnlock(name);
+  return true;
+}
 
+/** Tells every member their campus just got the Campus Edition. */
+export async function announceUnlock(name: string) {
   const members = await User.find({ campus: name }).select('_id').lean();
   const { notifyMany } = await import('@/lib/notifications');
   await notifyMany(
