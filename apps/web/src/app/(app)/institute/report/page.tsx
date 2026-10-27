@@ -14,7 +14,7 @@ import { useApiQuery } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
 import { STAFF_ROLES, APPLICATION_STAGE_META, type ApplicationStage } from '@/lib/constants';
 import { cn, formatDateTime, pluralise } from '@/lib/utils';
-import styles from '../app.module.css';
+import styles from '../../app.module.css';
 
 interface FunnelStage {
   stage: ApplicationStage;

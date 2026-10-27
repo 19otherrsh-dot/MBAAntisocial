@@ -21,7 +21,8 @@ export class DiskStorage implements FileStorage {
     dir: string,
     private readonly appUrl: string
   ) {
-    this.root = path.resolve(process.cwd(), dir);
+    // The upload root is runtime data, not code: keep the tracer out of it.
+    this.root = path.resolve(/* turbopackIgnore: true */ process.cwd(), dir);
   }
 
   async put(input: PutFileInput): Promise<StoredFile> {

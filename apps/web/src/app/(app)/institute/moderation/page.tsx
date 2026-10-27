@@ -12,7 +12,7 @@ import { useMe } from '@/lib/client/me';
 import { api } from '@/lib/client/api';
 import { REPORT_REASON_META, MODERATOR_ROLES, type ReportReason } from '@/lib/constants';
 import { timeAgo } from '@/lib/utils';
-import styles from '../app.module.css';
+import styles from '../../app.module.css';
 
 /**
  * Campus health as a placement cell would read it.
