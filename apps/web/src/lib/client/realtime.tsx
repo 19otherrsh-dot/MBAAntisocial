@@ -18,9 +18,12 @@ type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 interface RealtimeApi {
   socket: AppSocket | null;
   connected: boolean;
+  /** Reference-counted: the topic is left only when its last subscriber unmounts. */
+  retain: (topic: string) => void;
+  release: (topic: string) => void;
 }
 
-const RealtimeContext = createContext<RealtimeApi>({ socket: null, connected: false });
+const RealtimeContext = createContext<RealtimeApi>({ socket: null, connected: false, retain: () => undefined, release: () => undefined });
 
 /**
  * One socket per tab, opened once the shell mounts. When no realtime service is
@@ -61,7 +64,37 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(() => ({ socket, connected }), [socket, connected]);
+  const counts = useRef(new Map<string, number>());
+
+  // Re-join every retained topic after a reconnect.
+  useEffect(() => {
+    if (!socket || !connected) return;
+    for (const topic of counts.current.keys()) socket.emit('subscribe', topic, () => undefined);
+  }, [socket, connected]);
+
+  const retain = useCallback(
+    (topic: string) => {
+      const next = (counts.current.get(topic) ?? 0) + 1;
+      counts.current.set(topic, next);
+      if (next === 1 && socket?.connected) socket.emit('subscribe', topic, () => undefined);
+    },
+    [socket]
+  );
+
+  const release = useCallback(
+    (topic: string) => {
+      const next = (counts.current.get(topic) ?? 0) - 1;
+      if (next > 0) {
+        counts.current.set(topic, next);
+        return;
+      }
+      counts.current.delete(topic);
+      if (socket?.connected) socket.emit('unsubscribe', topic);
+    },
+    [socket]
+  );
+
+  const value = useMemo(() => ({ socket, connected, retain, release }), [socket, connected, retain, release]);
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
 
@@ -78,7 +111,7 @@ export function useTopic(
   topic: string | null,
   onEvent: (envelope: RealtimeEnvelope) => void
 ): void {
-  const { socket, connected } = useRealtime();
+  const { socket, retain, release } = useRealtime();
   const handler = useRef(onEvent);
 
   useEffect(() => {
@@ -86,17 +119,17 @@ export function useTopic(
   });
 
   useEffect(() => {
-    if (!socket || !connected || !topic) return;
-    socket.emit('subscribe', topic, () => undefined);
+    if (!socket || !topic) return;
+    retain(topic);
     const listener = (envelope: RealtimeEnvelope) => {
       if (envelope.topic === topic) handler.current(envelope);
     };
     socket.on('event', listener);
     return () => {
       socket.off('event', listener);
-      socket.emit('unsubscribe', topic);
+      release(topic);
     };
-  }, [socket, connected, topic]);
+  }, [socket, topic, retain, release]);
 }
 
 /** Typed narrowing helper for envelope handlers. */

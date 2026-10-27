@@ -12,7 +12,9 @@ type SeedModule = { name: string; run: (ctx: SeedContext) => Promise<string> };
 /**
  * Each product area seeds itself; adding one is adding a file here.
  */
-const MODULES: Array<() => Promise<SeedModule>> = [];
+const MODULES: Array<() => Promise<SeedModule>> = [
+  async () => ({ name: 'hub', run: (await import('./hub')).run }),
+];
 
 export async function runSeedModules(ctx: SeedContext) {
   for (const load of MODULES) {

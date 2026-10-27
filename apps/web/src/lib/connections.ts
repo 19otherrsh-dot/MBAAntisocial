@@ -1,5 +1,7 @@
 import InterviewSlot from '@/models/InterviewSlot';
 import Message from '@/models/Message';
+import HubConversation from '@/models/hub/HubConversation';
+import HubMessage from '@/models/hub/HubMessage';
 import Job from '@/models/Job';
 import User from '@/models/User';
 import { ApiError } from './api/errors';
@@ -65,7 +67,9 @@ export async function checkConnection(
   // Alumni keep access to their own campus after graduating.
   if (actor.campus !== peer.campus) return { allowed: false };
 
-  const [sharedSession, priorMessage, openOffer] = await Promise.all([
+  const conversations = await HubConversation.find({ participants: { $all: [actorId, peerId] } }).select('_id').lean();
+
+  const [sharedSession, priorMessage, priorHubMessage, openOffer] = await Promise.all([
     InterviewSlot.exists({
       status: 'completed',
       $or: [
@@ -76,11 +80,14 @@ export async function checkConnection(
     // Only a message *from* the peer opens the thread. A message the actor sent
     // cannot be its own justification, or the gate opens itself.
     Message.exists({ sender: peerId, receiver: actorId }),
+    conversations.length
+      ? HubMessage.exists({ conversation: { $in: conversations.map((c) => c._id) }, author: peerId })
+      : Promise.resolve(null),
     Job.exists({ author: peerId, isActive: true, invitesContact: true }),
   ]);
 
   if (sharedSession) return { allowed: true, reason: 'completed_session' };
-  if (priorMessage) return { allowed: true, reason: 'existing_thread' };
+  if (priorMessage || priorHubMessage) return { allowed: true, reason: 'existing_thread' };
   if (openOffer) return { allowed: true, reason: 'open_to_contact' };
 
   return { allowed: false };

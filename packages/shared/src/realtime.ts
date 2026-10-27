@@ -53,7 +53,10 @@ export interface RealtimeEvents {
   'hub.server.updated': { serverId: string };
   'hub.member.updated': { serverId: string; userId: string };
   'hub.voice.participants': { channelId: string; participants: Array<{ userId: string; name: string }> };
+  /** Lightweight "something happened in this channel" for sidebars and unread badges. */
+  'hub.activity': { serverId: string; channelId: string; messageId: string; authorId: string; mentions: string[]; at: string };
   'dm.message.created': { conversationId: string; message: unknown };
+  'dm.message.updated': { conversationId: string; message: unknown };
   'game.room.updated': { roomId: string; room: unknown };
   'game.room.started': { roomId: string };
   'game.room.finished': { roomId: string; summary: string };
