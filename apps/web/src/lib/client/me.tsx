@@ -18,7 +18,7 @@ export interface MentorProfile {
   weeklyCapacity: number;
   headline: string;
   companies: string[];
-  meetingProvider: 'google_meet' | 'zoom' | 'livekit' | 'manual';
+  meetingProvider: 'google_meet' | 'zoom' | 'livekit' | 'jitsi' | 'manual';
   meetingLink: string;
   crossCampus: boolean;
 }

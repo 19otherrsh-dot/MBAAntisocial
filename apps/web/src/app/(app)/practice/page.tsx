@@ -1,205 +1,289 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Play, SquareSquare } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Send, Bot, Square, RotateCcw, ClipboardCheck, Users, Mic } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Avatar } from '@/components/ui/Display';
-import { Select } from '@/components/ui/Field';
+import { Input, Select, Textarea } from '@/components/ui/Field';
+import { Avatar, Banner, Chip, Segmented, Stat } from '@/components/ui/Display';
 import { useMe } from '@/lib/client/me';
+import { api, errorMessage } from '@/lib/client/api';
+import { streamText } from '@/lib/client/stream';
 import { ROLE_TRACKS, ROLE_TRACK_META, type RoleTrack } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import styles from '../app.module.css';
 
-interface Message {
+type Mode = 'interview' | 'gd';
+type Style = 'case' | 'personal' | 'behavioural' | 'technical' | 'guesstimate';
+interface Turn {
   role: 'user' | 'assistant';
   content: string;
 }
+interface Scorecard {
+  overall: number;
+  summary: string;
+  dimensions: Array<{ name: string; score: number; evidence: string }>;
+  strengths: string[];
+  fixes: string[];
+  drill: string;
+}
 
-export default function AIInterviewPage() {
+const STYLES: Array<{ value: Style; label: string; blurb: string }> = [
+  { value: 'personal', label: 'Personal interview', blurb: '“Walk me through your CV” and everything after.' },
+  { value: 'case', label: 'Case interview', blurb: 'A structured business problem, interviewer-led.' },
+  { value: 'behavioural', label: 'Behavioural', blurb: 'Leadership, conflict, failure — STAR-style probing.' },
+  { value: 'technical', label: 'Domain technical', blurb: 'Fundamentals for your chosen track.' },
+  { value: 'guesstimate', label: 'Guesstimate', blurb: 'Market sizing under time pressure.' },
+];
+
+const GD_SUGGESTIONS = [
+  'Should India adopt a four-day work week?',
+  'Quick commerce: convenience or bubble?',
+  'Is the MBA still worth it in the age of AI?',
+  'Gig workers deserve full employment protections.',
+];
+
+/**
+ * AI practice — a fallback when no senior is free (§6.1 V3), never a
+ * replacement. One-on-one interviews or a simulated GD group, both ending in
+ * a structured scorecard.
+ */
+export default function PracticePage() {
   const { me } = useMe();
+  const [mode, setMode] = useState<Mode>('interview');
   const [track, setTrack] = useState<RoleTrack>('consulting');
+  const [style, setStyle] = useState<Style>('personal');
+  const [company, setCompany] = useState('');
+  const [topic, setTopic] = useState(GD_SUGGESTIONS[0]);
   const [started, setStarted] = useState(false);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [input, setInput] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
+  const [scoring, setScoring] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [turns]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const newMessages: Message[] = [...messages, { role: 'user', content: input }];
-    setMessages(newMessages);
-    setInput('');
-    setIsLoading(true);
-
+  const send = async (history: Turn[]) => {
+    setStreaming(true);
+    setError(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setTurns([...history, { role: 'assistant', content: '' }]);
     try {
-      const response = await fetch('/api/ai/interview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, track: ROLE_TRACK_META[track].label }),
-      });
-
-      if (!response.ok) throw new Error('API error');
-      if (!response.body) throw new Error('No body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      let assistantMessage = '';
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        // The vercel AI SDK returns chunks like 0:"chunk text"\n
-        // We will parse it simply.
-        const lines = chunk.split('\\n');
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-             try {
-                const text = JSON.parse(line.substring(2));
-                assistantMessage += text;
-                setMessages((prev) => {
-                   const updated = [...prev];
-                   updated[updated.length - 1].content = assistantMessage;
-                   return updated;
-                });
-             } catch {
-               // A chunk can split mid-token, so a parse failure here is the
-               // expected case rather than an error — the next chunk completes it.
-             }
-          }
-        }
+      const url = mode === 'interview' ? '/api/ai/interview' : '/api/ai/gd';
+      const body = mode === 'interview' ? { messages: history, track, style, company: company || undefined } : { messages: history, topic };
+      await streamText(url, body, (text) => setTurns([...history, { role: 'assistant', content: text }]), controller.signal);
+    } catch (caught) {
+      if ((caught as Error).name !== 'AbortError') {
+        setError(errorMessage(caught));
+        setTurns(history);
       }
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Connection error. Please try again.' }]);
     } finally {
-      setIsLoading(false);
+      setStreaming(false);
+      abortRef.current = null;
     }
   };
 
-  const stop = () => {
-    // Basic stop: just set isLoading false. We can't cancel fetch unless we use AbortController.
-    setIsLoading(false);
+  const start = () => {
+    setStarted(true);
+    setScorecard(null);
+    void send([]);
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className={styles.pageHead} style={{ paddingBottom: 'var(--s-3)' }}>
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const text = input.trim();
+    if (!text || streaming) return;
+    setInput('');
+    void send([...turns.filter((t) => t.content), { role: 'user', content: text }]);
+  };
+
+  const finish = async () => {
+    setScoring(true);
+    setError(null);
+    try {
+      const transcript = turns.filter((t) => t.content).slice(-80);
+      const { scorecard: card } = await api.post<{ scorecard: Scorecard }>('/api/ai/scorecard', { kind: mode, transcript });
+      setScorecard(card);
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setScoring(false);
+    }
+  };
+
+  const reset = () => {
+    abortRef.current?.abort();
+    setStarted(false);
+    setTurns([]);
+    setScorecard(null);
+    setError(null);
+  };
+
+  const userTurns = turns.filter((t) => t.role === 'user').length;
+
+  if (!started) {
+    return (
+      <>
         <div>
-          <h2 className={styles.pageTitle}>AI Mock Interviewer</h2>
+          <h2 className={styles.pageTitle}>AI practice</h2>
           <p className={styles.pageSubtitle}>
-            Practice your cases and behavioral stories with a brutally honest AI alum.
+            When no senior is free tonight. It pushes back, never hands you the answer, and scores you at the end.
           </p>
         </div>
-        {!started && (
-          <Button onClick={() => setStarted(true)} icon={<Play size={16} />}>
-            Start Interview
+
+        <section className={styles.settingsGroup}>
+          <Segmented
+            ariaLabel="Practice mode"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'interview' as const, label: 'Interview', icon: <Mic size={14} /> },
+              { value: 'gd' as const, label: 'Group discussion', icon: <Users size={14} /> },
+            ]}
+          />
+
+          {mode === 'interview' ? (
+            <>
+              <div className={styles.checkGrid}>
+                {STYLES.map((s) => (
+                  <button key={s.value} type="button" aria-pressed={style === s.value} className={cn(styles.checkTile, style === s.value && styles.checkTileActive)} onClick={() => setStyle(s.value)} title={s.blurb}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <p className="dim" style={{ fontSize: 'var(--t-sm)' }}>{STYLES.find((s) => s.value === style)?.blurb}</p>
+              <div className="row gap-3 wrap">
+                <Select label="Track" value={track} onChange={(e) => setTrack(e.target.value as RoleTrack)} options={ROLE_TRACKS.map((t) => ({ value: t, label: ROLE_TRACK_META[t].label }))} />
+                <Input label="Firm (optional)" placeholder="e.g. Bain, HUL, Goldman" value={company} onChange={(e) => setCompany(e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <>
+              <Textarea label="Topic" rows={2} value={topic} onChange={(e) => setTopic(e.target.value)} />
+              <div className="row gap-2 wrap">
+                {GD_SUGGESTIONS.map((t) => <Chip key={t} outline className="clickable" title="Use this topic"><button type="button" onClick={() => setTopic(t)}>{t}</button></Chip>)}
+              </div>
+              <p className="dim" style={{ fontSize: 'var(--t-sm)' }}>
+                Four AI participants with distinct styles — the data-heavy one, the consensus-builder, the contrarian, the quiet closer.
+              </p>
+            </>
+          )}
+
+          <div className="row gap-3 wrap">
+            <Button size="lg" icon={<Bot size={16} />} onClick={start} disabled={mode === 'gd' && topic.trim().length < 5}>
+              {mode === 'interview' ? 'Start the interview' : 'Start the GD'}
+            </Button>
+            <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>Practice only — say “end {mode === 'gd' ? 'gd' : 'interview'}” any time for a verbal debrief.</span>
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <div className={styles.chatPage}>
+      <div className={styles.pageHead}>
+        <div>
+          <h2 className={styles.pageTitle}>{mode === 'interview' ? STYLES.find((s) => s.value === style)?.label : 'Group discussion'}</h2>
+          <p className={styles.pageSubtitle}>
+            {mode === 'interview' ? `${ROLE_TRACK_META[track].label}${company ? ` · ${company}` : ''}` : topic}
+          </p>
+        </div>
+        <div className="row gap-2 wrap">
+          {streaming && <Button variant="soft" icon={<Square size={14} />} onClick={() => abortRef.current?.abort()}>Stop</Button>}
+          <Button variant="secondary" icon={<ClipboardCheck size={16} />} onClick={finish} loading={scoring} disabled={userTurns < 2 || streaming}>
+            End & score me
           </Button>
-        )}
-        {started && (
-          <Button variant="soft" onClick={stop} icon={<SquareSquare size={16} />} disabled={!isLoading}>
-            Stop Generating
-          </Button>
-        )}
+          <Button variant="ghost" icon={<RotateCcw size={16} />} onClick={reset}>New session</Button>
+        </div>
       </div>
 
-      {!started ? (
-        <div className="surface-card" style={{ maxWidth: 600, margin: '0 auto', marginTop: 'var(--s-6)' }}>
-          <h3 className="h4" style={{ marginBottom: 'var(--s-3)' }}>Interview Setup</h3>
-          <p className="dim" style={{ marginBottom: 'var(--s-4)' }}>
-            The Antisocial AI Interviewer is tough. It won&rsquo;t give you the answers, it will
-            pressure-test your logic, and it expects you to lead the conversation once it gives you
-            a prompt.
-          </p>
-          <div style={{ marginBottom: 'var(--s-4)' }}>
-            <Select
-              label="Select your target track"
-              value={track}
-              onChange={(e) => setTrack(e.target.value as RoleTrack)}
-              options={ROLE_TRACKS.map((t) => ({ value: t, label: ROLE_TRACK_META[t].label }))}
-            />
-          </div>
-          <Button variant="primary" onClick={() => setStarted(true)} style={{ width: '100%' }}>
-            I&rsquo;m ready. Let&rsquo;s go.
-          </Button>
-        </div>
-      ) : (
-        <>
-          {/* Chat History */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--s-4)', background: 'var(--surface)', borderRadius: 'var(--r-md) var(--r-md) 0 0', display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
-            {messages.length === 0 ? (
-              <div className="dim" style={{ textAlign: 'center', marginTop: 'var(--s-6)' }}>
-                Waiting for you to begin. Say hi and state your readiness for the {ROLE_TRACK_META[track].label} interview.
-              </div>
-            ) : (
-              messages.map((msg, i) => {
-                const isMe = msg.role === 'user';
-                return (
-                  <div key={i} style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                    {!isMe && (
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                        <Bot size={18} />
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                      {!isMe && <span className="dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 2 }}>Alumni AI</span>}
-                      <div style={{
-                        padding: '12px 16px',
-                        borderRadius: 'var(--r-md)',
-                        background: isMe ? 'var(--accent)' : 'var(--bg)',
-                        color: isMe ? 'var(--on-accent)' : 'var(--text)',
-                        border: isMe ? 'none' : '1px solid var(--line)',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.5,
-                      }}>
-                        {msg.content}
-                      </div>
-                    </div>
-                    {isMe && (
-                      <Avatar name={me?.name || 'User'} image={me?.image} seed={me?.id} size={32} />
-                    )}
-                  </div>
-                );
-              })
-            )}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: 'flex-start' }}>
-                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                   <Bot size={18} />
-                 </div>
-                 <div style={{ padding: '12px 16px', borderRadius: 'var(--r-md)', background: 'var(--bg)', border: '1px solid var(--line)' }}>
-                   <span className="dim">Typing...</span>
-                 </div>
-              </div>
-            )}
-            <div ref={endRef} />
-          </div>
+      {error && <Banner variant="danger">{error}</Banner>}
 
-          {/* Input Form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 'var(--s-2)', padding: 'var(--s-3)', background: 'var(--surface-raised)', borderTop: '1px solid var(--line)', borderRadius: '0 0 var(--r-md) var(--r-md)' }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Your response..."
-              className="input"
-              style={{ flex: 1, border: 'none', background: 'var(--bg)' }}
-              disabled={isLoading}
-              autoFocus
-            />
-            <Button type="submit" variant="primary" disabled={!input.trim() || isLoading} icon={<Send size={16} />}>
-              Respond
-            </Button>
-          </form>
-        </>
-      )}
+      {scorecard && <ScorecardView card={scorecard} />}
+
+      <div className={styles.chatLog}>
+        {turns.map((turn, i) => (
+          <div key={i} className={cn(styles.chatRow, turn.role === 'user' && styles.chatRowMine)}>
+            {turn.role === 'assistant' ? <span className={styles.chatBot}><Bot size={16} /></span> : <Avatar name={me?.name ?? 'You'} image={me?.image} seed={me?.id} size={30} />}
+            <div className={cn(styles.chatBubble, turn.role === 'user' && styles.chatBubbleMine)}>
+              {turn.content ? <RichText text={turn.content} /> : <span className="dim">Thinking…</span>}
+            </div>
+          </div>
+        ))}
+        <div ref={endRef} />
+      </div>
+
+      <form className={styles.chatComposer} onSubmit={submit}>
+        <textarea
+          className={styles.chatInput}
+          rows={2}
+          placeholder={mode === 'gd' ? 'Make your point…' : 'Your answer…'}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submit(e);
+            }
+          }}
+          disabled={streaming}
+          maxLength={4000}
+        />
+        <Button type="submit" icon={<Send size={16} />} disabled={!input.trim() || streaming} aria-label="Send" />
+      </form>
     </div>
+  );
+}
+
+/** Minimal formatting for model output: bold and line breaks, nothing executable. */
+function RichText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split('\n').map((line, i) => (
+        <p key={i} style={{ minHeight: line ? undefined : '0.6em' }}>
+          {line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
+            part.startsWith('**') && part.endsWith('**') ? <strong key={j}>{part.slice(2, -2)}</strong> : <span key={j}>{part}</span>
+          )}
+        </p>
+      ))}
+    </>
+  );
+}
+
+function ScorecardView({ card }: { card: Scorecard }) {
+  return (
+    <section className={styles.settingsGroup}>
+      <div className="between gap-3 wrap">
+        <h3 className={styles.settingsTitle}>Scorecard</h3>
+        <Stat value={`${card.overall}/10`} label="Overall" tone={card.overall >= 7 ? 'teal' : card.overall >= 5 ? 'amber' : 'rose'} />
+      </div>
+      <p>{card.summary}</p>
+      <div className={styles.feedbackScores}>
+        {card.dimensions.map((d) => (
+          <span key={d.name} className={styles.feedbackScore} title={d.evidence}>
+            {d.name}<span className={styles.feedbackScoreValue}>{d.score}/5</span>
+          </span>
+        ))}
+      </div>
+      <div className="row gap-6 wrap" style={{ alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <span className="eyebrow">What worked</span>
+          <ul className={styles.templatePrompts} style={{ listStyle: 'disc' }}>{card.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </div>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <span className="eyebrow">Fix next</span>
+          <ul className={styles.templatePrompts} style={{ listStyle: 'disc' }}>{card.fixes.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </div>
+      </div>
+      <Banner variant="info" title="Tomorrow’s drill">{card.drill}</Banner>
+      <p className="dim" style={{ fontSize: 'var(--t-xs)' }}>An AI’s read, not a verdict. Book a senior to pressure-test it.</p>
+    </section>
   );
 }

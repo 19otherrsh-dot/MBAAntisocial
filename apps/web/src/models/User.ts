@@ -24,7 +24,7 @@ export interface MentorProfile {
   headline: string;
   companies: string[];
   /** Where booked sessions happen; see `server/ports/meetings`. */
-  meetingProvider: 'google_meet' | 'zoom' | 'livekit' | 'manual';
+  meetingProvider: 'google_meet' | 'zoom' | 'livekit' | 'jitsi' | 'manual';
   /** Standing room link used by the `manual` provider. */
   meetingLink: string;
   /** Visible to students at other campuses that allow cross-campus mentors (§6.1 V3). */
@@ -154,7 +154,7 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
       weeklyCapacity: { type: Number, default: 3, min: 0, max: 20 },
       headline: { type: String, default: '', maxlength: 160 },
       companies: [{ type: String, trim: true, maxlength: 60 }],
-      meetingProvider: { type: String, enum: ['google_meet', 'zoom', 'livekit', 'manual'], default: 'manual' },
+      meetingProvider: { type: String, enum: ['google_meet', 'zoom', 'livekit', 'jitsi', 'manual'], default: 'manual' },
       meetingLink: { type: String, default: '', maxlength: 500 },
       crossCampus: { type: Boolean, default: false },
     },

@@ -24,6 +24,7 @@ import { GoogleMeetProvider } from './adapters/meetings/google-meet';
 import { ZoomProvider } from './adapters/meetings/zoom';
 import { LiveKitMeetingProvider } from './adapters/meetings/livekit';
 import { ManualMeetingProvider } from './adapters/meetings/manual';
+import { JitsiMeetingProvider } from './adapters/meetings/jitsi';
 
 /**
  * Composition root.
@@ -60,6 +61,7 @@ function build(): Container {
   if (env.LIVEKIT_URL && env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET) {
     meetings.set('livekit', new LiveKitMeetingProvider(env.APP_URL));
   }
+  meetings.set('jitsi', new JitsiMeetingProvider(env.JITSI_BASE_URL));
   meetings.set('manual', new ManualMeetingProvider());
 
   return {

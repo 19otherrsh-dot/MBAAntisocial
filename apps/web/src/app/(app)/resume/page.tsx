@@ -6,6 +6,8 @@ import Button from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Display';
 import { useMe } from '@/lib/client/me';
 import { MAX_FILE_SIZE_BYTES } from '@/lib/constants';
+import { streamText } from '@/lib/client/stream';
+import { errorMessage } from '@/lib/client/api';
 import styles from '../app.module.css';
 
 interface Message {
@@ -36,7 +38,8 @@ export default function AIResumeRoasterPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+      formData.append('folder', 'resumes');
+
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
@@ -61,46 +64,16 @@ export default function AIResumeRoasterPage() {
 
     // Trigger AI Roast API
     try {
-      const response = await fetch('/api/ai/roast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfUrl: uploadedUrl }),
-      });
-
-      if (!response.ok) throw new Error('API error');
-      if (!response.body) throw new Error('No body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      let assistantMessage = '';
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\\n');
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-             try {
-                const text = JSON.parse(line.substring(2));
-                assistantMessage += text;
-                setMessages((prev) => {
-                   const updated = [...prev];
-                   updated[updated.length - 1].content = assistantMessage;
-                   return updated;
-                });
-             } catch {
-               // A chunk can split mid-token, so a parse failure here is the
-               // expected case rather than an error — the next chunk completes it.
-             }
-          }
-        }
-      }
+      await streamText('/api/ai/roast', { pdfUrl: uploadedUrl }, (text) =>
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: text };
+          return updated;
+        })
+      );
     } catch (err) {
-      console.error(err);
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'The roasting bot crashed (probably out of disgust). Try again.' }]);
+      setMessages((prev) => [...prev.filter((m) => m.content), { role: 'assistant', content: errorMessage(err) || 'The review failed. Try again.' }]);
     } finally {
       setIsLoading(false);
       setFile(null); // Clear file so they can upload another

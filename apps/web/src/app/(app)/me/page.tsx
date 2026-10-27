@@ -1,5 +1,10 @@
 import SectionLanding from '@/components/layout/SectionLanding';
+import CreditsCard from '@/components/CreditsCard';
 
-export default function Page() {
-  return <SectionLanding id="me" />;
+export default function MePage() {
+  return (
+    <SectionLanding id="me">
+      <CreditsCard />
+    </SectionLanding>
+  );
 }

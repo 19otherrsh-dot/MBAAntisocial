@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { CalendarPlus, CalendarClock, Inbox } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
-import { Input, Select, Textarea } from '@/components/ui/Field';
+import { Input, Select, Switch, Textarea } from '@/components/ui/Field';
 import { Banner, EmptyState, Segmented, Chip } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/useConfirm';
@@ -15,6 +15,8 @@ import { useMe } from '@/lib/client/me';
 import { api } from '@/lib/client/api';
 import SlotCard, { type Slot } from './SlotCard';
 import FeedbackDialog from './FeedbackDialog';
+import GdPanel from './GdPanel';
+import TemplatesPanel, { type Template } from './TemplatesPanel';
 import {
   SESSION_TYPES,
   SESSION_TYPE_META,
@@ -25,12 +27,15 @@ import {
 import { toDateTimeLocalValue, formatDateTime } from '@/lib/utils';
 import styles from '../app.module.css';
 
-type View = 'open' | 'bookings' | 'hosting';
+type View = 'open' | 'bookings' | 'hosting' | 'gd' | 'templates';
+type SlotView = 'open' | 'bookings' | 'hosting';
 
 const VIEWS: Array<{ value: View; label: string }> = [
   { value: 'open', label: 'Open slots' },
   { value: 'bookings', label: 'My bookings' },
   { value: 'hosting', label: 'Hosting' },
+  { value: 'gd', label: 'Group GDs' },
+  { value: 'templates', label: 'Templates' },
 ];
 
 export default function SessionsPage() {
@@ -49,8 +54,11 @@ function SessionsView() {
   const { me } = useMe();
 
   const viewParam = searchParams.get('view');
-  const view: View =
-    viewParam === 'bookings' || viewParam === 'hosting' ? viewParam : 'open';
+  const view: View = VIEWS.some((v) => v.value === viewParam) ? (viewParam as View) : 'open';
+  const slotView: SlotView | null = view === 'gd' || view === 'templates' ? null : view;
+  const mentorFilter = searchParams.get('mentor');
+  const [scope, setScope] = useState<'campus' | 'cross'>('campus');
+  const [linkSlot, setLinkSlot] = useState<Slot | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<SessionType | ''>('');
   const [publishOpen, setPublishOpen] = useState(false);
@@ -60,11 +68,16 @@ function SessionsView() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const query = useMemo(
-    () => ({ view, ...(typeFilter ? { sessionType: typeFilter } : {}) }),
-    [view, typeFilter]
+    () => ({
+      view: slotView ?? 'open',
+      ...(typeFilter ? { sessionType: typeFilter } : {}),
+      ...(slotView === 'open' ? { scope } : {}),
+      ...(mentorFilter ? { mentor: mentorFilter } : {}),
+    }),
+    [slotView, typeFilter, scope, mentorFilter]
   );
 
-  const { data, loading, error, refetch } = useApiQuery<{ slots: Slot[] }>('/api/sessions', query);
+  const { data, loading, error, refetch } = useApiQuery<{ slots: Slot[] }>(slotView ? '/api/sessions' : null, query);
   const slots = data?.slots ?? [];
 
   const setView = (next: View) => {
@@ -105,10 +118,16 @@ function SessionsView() {
           <h2 className={styles.pageTitle}>Mock prep</h2>
           <p className={styles.pageSubtitle}>
             {view === 'open'
-              ? `Open slots at ${me?.campus ?? 'your campus'}. Book up to ${MAX_ACTIVE_BOOKINGS_PER_MENTEE} at a time.`
+              ? scope === 'cross'
+                ? 'Seniors and alumni at other campuses who opted in to cross-campus mentoring.'
+                : `Open slots at ${me?.campus ?? 'your campus'}. Book up to ${MAX_ACTIVE_BOOKINGS_PER_MENTEE} at a time.`
               : view === 'bookings'
                 ? 'Sessions you have booked, and the feedback from them.'
-                : 'Slots you have published and the people who took them.'}
+                : view === 'hosting'
+                  ? 'Slots you have published and the people who took them.'
+                  : view === 'gd'
+                    ? 'Practise group discussions with four to eight people from your campus.'
+                    : 'How real rounds ran, written up by people who sat them.'}
           </p>
         </div>
 
@@ -122,7 +141,18 @@ function SessionsView() {
       <div className={styles.toolbar}>
         <Segmented options={VIEWS} value={view} onChange={setView} ariaLabel="Session view" />
 
-        <div className={styles.toolbarPush}>
+        {slotView && <div className={styles.toolbarPush}>
+          {view === 'open' && (
+            <Segmented
+              ariaLabel="Whose slots"
+              value={scope}
+              onChange={setScope}
+              options={[
+                { value: 'campus' as const, label: 'My campus' },
+                { value: 'cross' as const, label: 'Other campuses' },
+              ]}
+            />
+          )}
           <Select
             aria-label="Filter by session type"
             value={typeFilter}
@@ -135,8 +165,17 @@ function SessionsView() {
               })),
             ]}
           />
-        </div>
+        </div>}
       </div>
+
+      {mentorFilter && view === 'open' && (
+        <Banner variant="info" action={<Button size="sm" variant="ghost" onClick={() => router.replace('/sessions')}>Show everyone</Button>}>
+          Showing one mentor’s open slots.
+        </Banner>
+      )}
+
+      {view === 'gd' && <GdPanel />}
+      {view === 'templates' && <TemplatesPanel />}
 
       {view === 'bookings' && activeBookings >= MAX_ACTIVE_BOOKINGS_PER_MENTEE && (
         <Banner variant="info" icon={<Inbox size={16} />} title="You are at your booking limit">
@@ -157,7 +196,7 @@ function SessionsView() {
 
       {error && <div className={styles.errorBox}>{error}</div>}
 
-      {loading ? (
+      {!slotView ? null : loading ? (
         <div className={styles.cardList}>
           {[0, 1, 2].map((i) => (
             <div key={i} className="skeleton" style={{ height: 132 }} />
@@ -196,8 +235,13 @@ function SessionsView() {
             <SlotCard
               key={slot._id}
               slot={slot}
-              view={view}
+              view={slotView!}
+              showCampus={scope === 'cross' && view === 'open'}
               busy={busyId === slot._id}
+              onConsent={(target, value) =>
+                act(target._id, { action: 'consent', consentToRecording: value }, value ? 'You agreed to recording' : 'Recording consent withdrawn')
+              }
+              onSetLink={setLinkSlot}
               onBook={setBookingSlot}
               onReschedule={setRescheduleSlot}
               onFeedback={setFeedbackSlot}
@@ -279,10 +323,20 @@ function SessionsView() {
       <BookDialog
         slot={bookingSlot}
         onClose={() => setBookingSlot(null)}
-        onConfirm={async (slot, note) => {
-          await act(slot._id, { action: 'book', bookingNote: note }, 'Slot booked');
+        onConfirm={async (slot, note, templateId, consentToRecording) => {
+          await act(slot._id, { action: 'book', bookingNote: note, templateId, consentToRecording }, 'Slot booked — the meeting link is on the card');
           setBookingSlot(null);
           setView('bookings');
+        }}
+        busy={busyId !== null}
+      />
+
+      <SetLinkDialog
+        slot={linkSlot}
+        onClose={() => setLinkSlot(null)}
+        onConfirm={async (slot, link) => {
+          await act(slot._id, { action: 'set_link', meetingLink: link }, 'Meeting link updated');
+          setLinkSlot(null);
         }}
         busy={busyId !== null}
       />
@@ -423,7 +477,7 @@ function PublishDialog({
         value={meetingLink}
         onChange={(event) => setMeetingLink(event.target.value)}
         optional
-        hint="Your standing room works fine. Without one, whoever books cannot join."
+        hint="Usually leave this empty: a meeting is created on booking from your hosting settings (Meet, Zoom, built-in, or a free Jitsi room)."
         error={fieldErrors.meetingLink}
       />
 
@@ -451,10 +505,13 @@ function BookDialog({
 }: {
   slot: Slot | null;
   onClose: () => void;
-  onConfirm: (slot: Slot, note: string) => Promise<void>;
+  onConfirm: (slot: Slot, note: string, templateId: string | undefined, consent: boolean) => Promise<void>;
   busy: boolean;
 }) {
   const [note, setNote] = useState('');
+  const [templateId, setTemplateId] = useState('');
+  const [consent, setConsent] = useState(false);
+  const { data: templates } = useApiQuery<{ templates: Template[] }>(slot ? '/api/session-templates' : null, slot ? { sessionType: slot.sessionType } : undefined);
 
   if (!slot) return null;
 
@@ -473,8 +530,10 @@ function BookDialog({
           </Button>
           <Button
             onClick={async () => {
-              await onConfirm(slot, note.trim());
+              await onConfirm(slot, note.trim(), templateId || undefined, consent);
               setNote('');
+              setTemplateId('');
+              setConsent(false);
             }}
             loading={busy}
           >
@@ -500,6 +559,27 @@ function BookDialog({
         rows={4}
         hint="Only your mentor sees this. A specific ask gets you a much better session."
         optional
+      />
+
+      {(templates?.templates ?? []).length > 0 && (
+        <Select
+          label="Run it like a real round"
+          value={templateId}
+          onChange={(event) => setTemplateId(event.target.value)}
+          options={[
+            { value: '', label: 'No template — free-form' },
+            ...templates!.templates.map((t) => ({ value: t._id, label: `${t.title}${t.company ? ` · ${t.company}` : ''}` })),
+          ]}
+          hint="Templates are written by people who sat the actual round."
+          optional
+        />
+      )}
+
+      <Switch
+        label="I’m happy for this to be recorded"
+        hint="Only for self-review, and only if your mentor also agrees. Either of you can change your mind before it starts."
+        checked={consent}
+        onChange={setConsent}
       />
 
       <Banner variant="info">
@@ -575,6 +655,39 @@ function RescheduleDialog({
         value={value}
         onChange={(event) => setStartAt(event.target.value)}
       />
+    </Dialog>
+  );
+}
+
+/* ───────────────────────── Own link ───────────────────────── */
+
+function SetLinkDialog({
+  slot,
+  onClose,
+  onConfirm,
+  busy,
+}: {
+  slot: Slot | null;
+  onClose: () => void;
+  onConfirm: (slot: Slot, link: string) => Promise<void>;
+  busy: boolean;
+}) {
+  const [link, setLink] = useState('');
+  if (!slot) return null;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Use your own meeting link"
+      description="Replaces the generated meeting. Whoever booked is told about the change."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button onClick={() => onConfirm(slot, link.trim())} loading={busy} disabled={!link.startsWith('https://')}>Save link</Button>
+        </>
+      }
+    >
+      <Input label="Meeting link" type="url" placeholder="https://meet.google.com/abc-defg-hij" value={link} onChange={(e) => setLink(e.target.value)} />
     </Dialog>
   );
 }

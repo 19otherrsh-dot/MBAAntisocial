@@ -4,7 +4,7 @@
  * booking flow neither knows nor cares whether a Meet, Zoom, or built-in room
  * came back.
  */
-export const MEETING_PROVIDER_IDS = ['google_meet', 'zoom', 'livekit', 'manual'] as const;
+export const MEETING_PROVIDER_IDS = ['google_meet', 'zoom', 'livekit', 'jitsi', 'manual'] as const;
 export type MeetingProviderId = (typeof MEETING_PROVIDER_IDS)[number];
 
 export interface MeetingParticipant {

@@ -37,6 +37,18 @@ export interface IInterviewSlot {
   /** Optional prep context the mentor wants before the call. */
   notes: string;
   meetingLink: string;
+  /** Which provider produced `meetingLink` (see server/ports/meetings). */
+  meetingProvider: 'google_meet' | 'zoom' | 'livekit' | 'manual' | 'jitsi' | '';
+  /** Provider-side id, for cancellation. */
+  meetingExternalId: string;
+  /** Host-only start link where a provider has one (Zoom). Mentor-only. */
+  meetingHostUrl: string;
+  /** Crowd-sourced prep template the junior picked (company/round specific). */
+  template?: Types.ObjectId;
+  /** §6.1 V2: recording only with both parties' explicit consent, for self-review. */
+  recordingConsent: { mentor: boolean; mentee: boolean };
+  /** The junior's campus, when different from the slot's (cross-campus booking). */
+  menteeCampus: string;
 
   status: SlotStatus;
   bookedBy?: Types.ObjectId;
@@ -87,6 +99,15 @@ const InterviewSlotSchema = new Schema<IInterviewSlot, InterviewSlotModel>(
     sessionType: { type: String, enum: SESSION_TYPES, required: true },
     notes: { type: String, default: '', maxlength: 500 },
     meetingLink: { type: String, default: '', maxlength: 500 },
+    meetingProvider: { type: String, enum: ['google_meet', 'zoom', 'livekit', 'manual', 'jitsi', ''], default: '' },
+    meetingExternalId: { type: String, default: '' },
+    meetingHostUrl: { type: String, default: '', maxlength: 1000 },
+    template: { type: Schema.Types.ObjectId, ref: 'SessionTemplate' },
+    recordingConsent: {
+      mentor: { type: Boolean, default: false },
+      mentee: { type: Boolean, default: false },
+    },
+    menteeCampus: { type: String, default: '' },
 
     status: { type: String, enum: SLOT_STATUSES, default: 'available' },
     bookedBy: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -121,6 +142,8 @@ InterviewSlotSchema.pre('validate', async function ensureOrdering() {
   }
 });
 
+// Cross-campus browse: open slots, soonest first, any campus.
+InterviewSlotSchema.index({ status: 1, startAt: 1 });
 // Browse: open slots on a campus, soonest first.
 InterviewSlotSchema.index({ campus: 1, status: 1, startAt: 1 });
 // "My slots" and mentor overlap checks.

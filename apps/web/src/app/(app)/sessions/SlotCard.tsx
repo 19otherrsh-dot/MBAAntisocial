@@ -10,7 +10,13 @@ import {
   Link2Off,
   Clock,
   Calendar,
+  Circle,
+  CircleDot,
+  Globe2,
+  ClipboardList,
+  Link2,
 } from 'lucide-react';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Avatar, Chip } from '@/components/ui/Display';
 import { useNow } from '@/lib/client/hooks';
@@ -35,6 +41,7 @@ import styles from '../app.module.css';
 export interface Person {
   _id: string;
   name: string;
+  campus?: string;
   image?: string;
   year?: 1 | 2;
   mentorProfile?: { headline?: string; companies?: string[] };
@@ -56,7 +63,12 @@ export interface Slot {
   status: SlotStatus;
   notes: string;
   meetingLink: string;
+  meetingProvider?: string;
+  meetingHostUrl?: string;
   bookingNote: string;
+  template?: { _id: string; title: string; company: string; roundType: string; prompts: string[]; lookFor: string };
+  recordingConsent?: { mentor: boolean; mentee: boolean };
+  crossCampus?: boolean;
   mentor: Person;
   bookedBy?: Person;
   viewerRole: 'mentor' | 'mentee' | 'observer';
@@ -75,6 +87,10 @@ interface SlotCardProps {
   onReschedule: (slot: Slot) => void;
   onFeedback: (slot: Slot) => void;
   onWithdraw: (slot: Slot) => void;
+  onConsent: (slot: Slot, value: boolean) => void;
+  onSetLink: (slot: Slot) => void;
+  /** Show the mentor's campus (cross-campus browsing). */
+  showCampus?: boolean;
 }
 
 function averageOf(summary?: { sum: number; count: number }): string | null {
@@ -92,6 +108,9 @@ export default function SlotCard({
   onReschedule,
   onFeedback,
   onWithdraw,
+  onConsent,
+  onSetLink,
+  showCampus,
 }: SlotCardProps) {
   const now = useNow();
   const meta = SESSION_TYPE_META[slot.sessionType];
@@ -107,6 +126,11 @@ export default function SlotCard({
   const theirRubric = isMentor ? MENTEE_RUBRIC : MENTOR_RUBRIC;
 
   const rating = averageOf(slot.mentor?.mentorRating);
+
+  const consent = slot.recordingConsent ?? { mentor: false, mentee: false };
+  const myConsent = isMentor ? consent.mentor : consent.mentee;
+  const bothConsent = consent.mentor && consent.mentee;
+  const internalRoom = slot.meetingLink.includes('/meet/');
 
   const hoursUntil = (start.getTime() - now) / 3_600_000;
   const insideNotice = slot.status === 'booked' && hoursUntil < CANCELLATION_NOTICE_HOURS && hoursUntil > 0;
@@ -130,6 +154,9 @@ export default function SlotCard({
           {slot.status === 'cancelled' && <Chip tone="rose">Cancelled</Chip>}
           {slot.status === 'no_show' && <Chip tone="rose">No-show</Chip>}
           {slot.status === 'booked' && view !== 'open' && <Chip tone="blue">Confirmed</Chip>}
+          {(slot.crossCampus || showCampus) && (
+            <Chip tone="violet" icon={<Globe2 size={12} />}>{slot.mentor.campus ?? 'Cross-campus'}</Chip>
+          )}
         </div>
 
         {counterpart ? (
@@ -163,6 +190,23 @@ export default function SlotCard({
 
         {slot.notes && <p className={styles.slotNote}>{slot.notes}</p>}
 
+        {slot.template && (
+          <div className={styles.feedbackBlock}>
+            <span className="eyebrow row gap-2">
+              <ClipboardList size={13} /> Prep template: {slot.template.title}
+              {slot.template.company && ` · ${slot.template.company}`}
+            </span>
+            {isMentor && (
+              <>
+                <ol className={styles.templatePrompts}>
+                  {slot.template.prompts.map((prompt, i) => <li key={i}>{prompt}</li>)}
+                </ol>
+                {slot.template.lookFor && <p className={styles.feedbackComment}><strong>Look for: </strong>{slot.template.lookFor}</p>}
+              </>
+            )}
+          </div>
+        )}
+
         {/* The junior's context is shown to the mentor only; the API withholds
             it from anyone who is not a participant. */}
         {isMentor && slot.bookingNote && (
@@ -175,22 +219,49 @@ export default function SlotCard({
         {slot.status === 'booked' && (
           <div className={styles.slotStats}>
             {slot.meetingLink ? (
-              <a
-                href={slot.meetingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.slotStat}
-                style={{ color: 'var(--accent-text)', fontWeight: 550 }}
-              >
-                <Video size={13} />
-                Join on {hostnameOf(slot.meetingLink)}
-              </a>
+              internalRoom ? (
+                <Link href={new URL(slot.meetingLink).pathname} className={styles.slotStat} style={{ color: 'var(--accent-text)', fontWeight: 550 }}>
+                  <Video size={13} />
+                  Join video room
+                </Link>
+              ) : (
+                <a
+                  href={slot.meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.slotStat}
+                  style={{ color: 'var(--accent-text)', fontWeight: 550 }}
+                >
+                  <Video size={13} />
+                  Join on {hostnameOf(slot.meetingLink)}
+                </a>
+              )
             ) : (
               <span className={styles.slotStat} style={{ color: 'var(--amber-text)' }}>
                 <Link2Off size={13} />
                 {isMentor ? 'Add a meeting link before this starts' : 'Host has not added a link yet'}
               </span>
             )}
+            {isMentor && slot.meetingHostUrl && (
+              <a href={slot.meetingHostUrl} target="_blank" rel="noopener noreferrer" className={styles.slotStat} style={{ fontWeight: 550 }}>
+                <Video size={13} />
+                Start as host
+              </a>
+            )}
+            <button
+              type="button"
+              className={styles.slotStat}
+              onClick={() => onConsent(slot, !myConsent)}
+              title="Recording is only for self-review, and only if you both agree."
+              style={{ color: bothConsent ? 'var(--teal-text)' : undefined }}
+            >
+              {myConsent ? <CircleDot size={13} /> : <Circle size={13} />}
+              {bothConsent
+                ? 'Both agreed to recording (self-review only)'
+                : myConsent
+                  ? 'You agreed to recording · waiting on them'
+                  : 'Recording off · tap to agree'}
+            </button>
             {insideNotice && (
               <span className={styles.slotStat} style={{ color: 'var(--amber-text)' }}>
                 <Clock size={13} />
@@ -261,9 +332,14 @@ export default function SlotCard({
                 </>
               )}
               {isMentor && !isPast && (
-                <Button size="sm" variant="secondary" onClick={() => onReschedule(slot)}>
-                  Move
-                </Button>
+                <>
+                  <Button size="sm" variant="secondary" onClick={() => onReschedule(slot)}>
+                    Move
+                  </Button>
+                  <Button size="sm" variant="ghost" icon={<Link2 size={15} />} onClick={() => onSetLink(slot)}>
+                    Use my own link
+                  </Button>
+                </>
               )}
               <Button
                 size="sm"

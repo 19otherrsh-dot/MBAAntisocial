@@ -93,6 +93,8 @@ const envSchema = z.object({
   GOOGLE_CALENDAR_CLIENT_SECRET: optional,
   ZOOM_CLIENT_ID: optional,
   ZOOM_CLIENT_SECRET: optional,
+  /** Jitsi deployment for free rooms when a mentor has no link of their own. */
+  JITSI_BASE_URL: z.string().url().default('https://meet.jit.si'),
   LIVEKIT_URL: optional,
   LIVEKIT_API_KEY: optional,
   LIVEKIT_API_SECRET: optional,

@@ -158,7 +158,7 @@ export const updateProfileSchema = z.object({
       weeklyCapacity: z.coerce.number().int().min(0).max(20),
       headline: trimmed(160),
       companies: z.array(trimmed(60)).max(6),
-      meetingProvider: z.enum(['google_meet', 'zoom', 'livekit', 'manual']),
+      meetingProvider: z.enum(['google_meet', 'zoom', 'livekit', 'jitsi', 'manual']),
       meetingLink: z.union([httpsUrl, z.literal('')]),
       crossCampus: z.boolean(),
     })
@@ -203,7 +203,14 @@ export const createSlotSchema = z
 
 /** Actions on an existing slot, dispatched by `PATCH /api/sessions/[id]`. */
 export const slotActionSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('book'), bookingNote: trimmed(500).default('') }),
+  z.object({
+    action: z.literal('book'),
+    bookingNote: trimmed(500).default(''),
+    templateId: objectId.optional(),
+    consentToRecording: z.boolean().default(false),
+  }),
+  z.object({ action: z.literal('consent'), consentToRecording: z.boolean() }),
+  z.object({ action: z.literal('set_link'), meetingLink: httpsUrl }),
   z.object({ action: z.literal('cancel'), reason: trimmed(500).default('') }),
   z.object({
     action: z.literal('reschedule'),
@@ -239,6 +246,9 @@ export function assertCompleteRubric(
 export const slotQuerySchema = z.object({
   view: z.enum(['open', 'bookings', 'hosting']).default('open'),
   sessionType: z.enum(SESSION_TYPES).optional(),
+  /** `cross` adds slots from opted-in mentors at other campuses (§6.1 V3). */
+  scope: z.enum(['campus', 'cross']).default('campus'),
+  mentor: objectId.optional(),
   page: z.coerce.number().int().min(1).max(200).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -578,3 +588,44 @@ export const claimBountySchema = z.object({
 });
 
 export { objectId };
+
+// ───────────────────────── Templates & GD ─────────────────────────
+
+export const sessionTemplateSchema = z.object({
+  title: requiredText(4, 120, 'Title'),
+  company: trimmed(80).default(''),
+  roundType: z.enum(ROUND_TYPES),
+  sessionType: z.enum(SESSION_TYPES),
+  prompts: z.array(requiredText(3, 400, 'Prompt')).min(1, 'Add at least one prompt.').max(15),
+  lookFor: trimmed(1500).default(''),
+});
+
+export const gdHostSchema = z.object({
+  topic: requiredText(5, 240, 'Topic'),
+  brief: trimmed(2000).default(''),
+  startAt: isoDate.refine(futureWindow, 'Pick a time in the future.'),
+  durationMinutes: z.coerce.number().int().min(10).max(120).default(30),
+  capacity: z.coerce.number().int().min(4).max(10).default(8),
+});
+
+export const gdQueueSchema = z.object({
+  windows: z
+    .array(isoDate)
+    .min(1, 'Pick at least one window.')
+    .max(12)
+    .refine((ws) => ws.every((w) => w.getTime() > Date.now()), 'Windows must be in the future.'),
+  track: trimmed(40).default(''),
+});
+
+export const gdFeedbackSchema = z.object({
+  feedback: z
+    .array(
+      z.object({
+        userId: objectId,
+        scores: z.record(z.string().max(30), z.number().int().min(1).max(5)),
+        comment: trimmed(1000).default(''),
+      })
+    )
+    .min(1)
+    .max(10),
+});
