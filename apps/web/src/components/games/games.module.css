@@ -1,0 +1,79 @@
+/* ───────── Player ───────── */
+.player { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--text); }
+.playerBar {
+  display: flex; align-items: center; gap: var(--s-2); padding: 6px var(--s-3);
+  padding-top: max(6px, env(safe-area-inset-top)); border-bottom: 1px solid var(--line);
+  background: var(--surface); min-height: 48px; z-index: 2;
+}
+.playerTitle { font-weight: 650; white-space: nowrap; }
+.playerStatus { flex: 1; min-width: 0; color: var(--text-muted); font-size: var(--t-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barButton { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r-md); color: var(--text-muted); }
+.barButton:hover { background: var(--surface-hover); color: var(--text); }
+.stage { position: relative; flex: 1; min-height: 0; }
+.frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: var(--s-5);
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(4px); z-index: 3; text-align: center;
+}
+.overlayCard {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-3); max-width: 420px; width: 100%;
+  padding: var(--s-6); border-radius: var(--r-xl); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-lg);
+}
+.overlayTitle { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
+.spinner { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.delta { font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.deltaUp { color: var(--success); }
+.deltaDown { color: var(--danger); }
+.rotateHint { display: none; }
+@media (orientation: portrait) and (max-width: 700px) {
+  .landscapeOnly .rotateHint { display: grid; }
+}
+
+/* ───────── Catalog ───────── */
+.hero { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; justify-content: space-between; }
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s-4); }
+.card {
+  position: relative; display: flex; flex-direction: column; border-radius: var(--r-xl); overflow: hidden;
+  border: 1px solid var(--line); background: var(--surface); transition: transform .12s, box-shadow .12s, border-color .12s;
+  color: inherit; text-decoration: none;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--line-strong); }
+.cardArt { aspect-ratio: 16 / 10; display: grid; place-items: center; font-size: 46px; position: relative; overflow: hidden; }
+.cardArt img { width: 100%; height: 100%; object-fit: cover; }
+.cardBody { display: flex; flex-direction: column; gap: 6px; padding: var(--s-3) var(--s-4) var(--s-4); }
+.cardTitle { font-weight: 650; font-size: var(--t-md); }
+.cardTagline { color: var(--text-muted); font-size: var(--t-sm); line-height: 1.35; min-height: 2.7em; }
+.cardMeta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--t-xs); color: var(--text-muted); }
+.soon { position: absolute; top: 10px; right: 10px; }
+.liveDot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent); }
+
+/* ───────── Detail & lobby ───────── */
+.detailHead { display: grid; grid-template-columns: 140px 1fr; gap: var(--s-5); align-items: center; }
+@media (max-width: 640px) { .detailHead { grid-template-columns: 1fr; } }
+.detailArt { aspect-ratio: 1; border-radius: var(--r-xl); display: grid; place-items: center; font-size: 64px; overflow: hidden; }
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-3); }
+.modeCard { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); }
+.modeTitle { display: flex; align-items: center; gap: var(--s-2); font-weight: 650; }
+.seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s-3); }
+.seat { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); min-height: 64px; }
+.seatEmpty { border-style: dashed; color: var(--text-muted); justify-content: center; }
+.seatReady { border-color: color-mix(in srgb, var(--success) 60%, var(--line)); }
+.code { font-family: var(--font-mono); font-size: 26px; font-weight: 700; letter-spacing: 0.18em; }
+.board { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.board td, .board th { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.board th { color: var(--text-muted); font-weight: 600; font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .04em; }
+.board .num { text-align: right; font-variant-numeric: tabular-nums; }
+.meRow { background: var(--accent-soft); }
+
+/* ───────── Bracket ───────── */
+.bracket { display: flex; gap: var(--s-5); overflow-x: auto; padding-bottom: var(--s-3); }
+.round { display: flex; flex-direction: column; justify-content: space-around; gap: var(--s-3); min-width: 220px; }
+.roundTitle { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; color: var(--text-muted); letter-spacing: .05em; }
+.match { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
+.matchMine { border-color: var(--accent); }
+.matchPlayer { display: flex; align-items: center; gap: var(--s-2); padding: 6px 10px; font-size: var(--t-sm); }
+.matchPlayer + .matchPlayer { border-top: 1px solid var(--line); }
+.matchWinner { font-weight: 650; }
+.matchLoser { color: var(--text-muted); }

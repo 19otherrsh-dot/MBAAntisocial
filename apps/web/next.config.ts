@@ -2,6 +2,28 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   turbopack: {},
   transpilePackages: ['@mba/shared'],
+  /**
+   * Game builds and the player page are cross-origin isolated so threaded
+   * Godot exports get SharedArrayBuffer. Builds live under versioned paths,
+   * so they can be cached forever.
+   */
+  async headers() {
+    const isolation = [
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+      { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+    ];
+    return [
+      { source: '/player/:path*', headers: isolation },
+      {
+        source: '/game-builds/:path*',
+        headers: [
+          ...isolation,
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+    ];
+  },
   /** Old paths keep working after the navigation rename. */
   async redirects() {
     return [

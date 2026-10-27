@@ -32,3 +32,13 @@ export async function verifyGameTicket(token: string): Promise<GameTicketClaims 
     return null;
   }
 }
+
+/** Token a dedicated Godot server presents when reporting results or verifying tickets. */
+export async function verifyServerToken(token: string): Promise<{ room: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, key(), { algorithms: ['HS256'] });
+    return payload.use === 'game-server' && typeof payload.room === 'string' ? { room: payload.room } : null;
+  } catch {
+    return null;
+  }
+}

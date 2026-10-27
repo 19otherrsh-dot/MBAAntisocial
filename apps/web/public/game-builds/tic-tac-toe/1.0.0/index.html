@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tic-Tac-Toe</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --surface: #ffffff; --text: #1d1b16; --muted: #6f6a60; --line: #e3ded3;
+    --x: #5b4bdb; --o: #d9480f; --win: #2b8a3e;
+  }
+  :root[data-theme='dark'] {
+    --bg: #15140f; --surface: #201e18; --text: #f1eee6; --muted: #a39d90; --line: #36332b;
+    --x: #9d92ff; --o: #ff8a50; --win: #69db7c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 16px; user-select: none; -webkit-user-select: none; }
+  .players { display: flex; gap: 12px; width: min(92vw, 420px); }
+  .player { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 2px solid var(--line); transition: border-color .2s; min-width: 0; }
+  .player.turn { border-color: currentColor; }
+  .player .mark { font-weight: 800; font-size: 22px; width: 24px; text-align: center; }
+  .player .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .player .meta { font-size: 12px; color: var(--muted); }
+  .px { color: var(--x); } .po { color: var(--o); }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: min(92vw, 420px); aspect-ratio: 1; }
+  .cell { border: 0; border-radius: 18px; background: var(--surface); box-shadow: 0 1px 0 var(--line), inset 0 0 0 2px var(--line); font-size: min(18vw, 84px); font-weight: 800; cursor: pointer; color: var(--text); display: grid; place-items: center; transition: transform .08s, background .2s; }
+  .cell:active { transform: scale(.97); }
+  .cell:disabled { cursor: default; }
+  .cell.x { color: var(--x); } .cell.o { color: var(--o); }
+  .cell.win { background: color-mix(in srgb, var(--win) 18%, var(--surface)); box-shadow: inset 0 0 0 3px var(--win); }
+  .cell .pop { animation: pop .18s ease-out; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .status { min-height: 24px; font-weight: 600; text-align: center; }
+  .sub { color: var(--muted); font-size: 14px; text-align: center; min-height: 20px; }
+  button.again { border: 0; border-radius: 999px; padding: 10px 22px; font-weight: 700; font-size: 15px; background: var(--x); color: white; cursor: pointer; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .cell .pop { animation: none; } }
+</style>
+</head>
+<body>
+  <div class="players">
+    <div class="player px" id="p0"><span class="mark">✕</span><div style="min-width:0"><div class="name" id="n0">…</div><div class="meta" id="m0"></div></div></div>
+    <div class="player po" id="p1"><span class="mark">◯</span><div style="min-width:0"><div class="name" id="n1">…</div><div class="meta" id="m1"></div></div></div>
+  </div>
+  <div class="board" id="board" role="grid" aria-label="Board"></div>
+  <div class="status" id="status" aria-live="polite">Loading…</div>
+  <div class="sub" id="sub"></div>
+  <button class="again" id="again" hidden>Play again</button>
+
+<script src="antisocial-sdk.js"></script>
+<script>
+(function () {
+  'use strict';
+  var sdk = AntisocialSDK.create({ sdk: 'tic-tac-toe/1.0.0', gameId: 'tic-tac-toe' });
+  var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  var MARK = ['✕', '◯'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var boardEl = $('board');
+  var cells = [];
+  for (var i = 0; i < 9; i++) {
+    var b = document.createElement('button');
+    b.className = 'cell';
+    b.setAttribute('aria-label', 'Square ' + (i + 1));
+    b.dataset.i = i;
+    b.addEventListener('click', onCell);
+    boardEl.appendChild(b);
+    cells.push(b);
+  }
+
+  var state = { board: Array(9).fill(-1), turn: 0, n: 0, over: false, winLine: null, winner: null };
+  var ctx = { mode: 'local', mySeat: 0, players: [], relay: null, startedAt: Date.now(), reported: false, spectating: false, difficulty: 'medium' };
+
+  function winnerOf(board) {
+    for (var k = 0; k < LINES.length; k++) {
+      var l = LINES[k];
+      if (board[l[0]] !== -1 && board[l[0]] === board[l[1]] && board[l[1]] === board[l[2]]) return { seat: board[l[0]], line: l };
+    }
+    return board.indexOf(-1) === -1 ? { seat: null, line: null } : null;
+  }
+
+  function render() {
+    for (var i = 0; i < 9; i++) {
+      var v = state.board[i];
+      var c = cells[i];
+      var had = c.textContent;
+      if (v === -1) c.textContent = '';
+      else if (!had) c.innerHTML = '<span class="pop">' + MARK[v] + '</span>';
+      else if (had !== MARK[v]) c.textContent = MARK[v];
+      c.className = 'cell' + (v === 0 ? ' x' : v === 1 ? ' o' : '') + (state.winLine && state.winLine.indexOf(i) !== -1 ? ' win' : '');
+      c.disabled = state.over || v !== -1 || !myTurn();
+    }
+    $('p0').classList.toggle('turn', !state.over && state.turn === 0);
+    $('p1').classList.toggle('turn', !state.over && state.turn === 1);
+    var status;
+    if (state.over) {
+      if (state.winner === null) status = "It's a draw.";
+      else status = (ctx.mode === 'local' || ctx.spectating ? nameOf(state.winner) + ' wins!' : state.winner === ctx.mySeat ? 'You win! 🎉' : nameOf(state.winner) + ' wins.');
+    } else if (ctx.mode === 'local' || ctx.spectating) status = nameOf(state.turn) + "'s turn";
+    else status = myTurn() ? 'Your turn' : 'Waiting for ' + nameOf(state.turn) + '…';
+    $('status').textContent = status;
+    sdk.status(status);
+    $('again').hidden = !(state.over && (ctx.mode === 'bot' || ctx.mode === 'local'));
+  }
+
+  function nameOf(seat) { return (ctx.players[seat] && ctx.players[seat].name) || (seat === 0 ? 'X' : 'O'); }
+  function myTurn() {
+    if (state.over || ctx.spectating) return false;
+    if (ctx.mode === 'local') return true;
+    return state.turn === ctx.mySeat;
+  }
+
+  function apply(index, seat, n) {
+    if (state.over || state.board[index] !== -1 || seat !== state.turn) return false;
+    if (n !== undefined && n !== state.n) return false;
+    state.board[index] = seat;
+    state.n += 1;
+    state.turn = 1 - seat;
+    var w = winnerOf(state.board);
+    if (w) { state.over = true; state.winner = w.seat; state.winLine = w.line; finish(); }
+    sdk.haptic('light');
+    render();
+    return true;
+  }
+
+  function onCell(event) {
+    var index = Number(event.currentTarget.dataset.i);
+    var seat = ctx.mode === 'local' ? state.turn : ctx.mySeat;
+    var n = state.n;
+    if (!apply(index, seat)) return;
+    if (ctx.mode === 'online' && ctx.relay) ctx.relay.send(JSON.stringify({ t: 'move', i: index, n: n, seat: seat }));
+    if (ctx.mode === 'bot' && !state.over) setTimeout(botMove, 350 + Math.random() * 300);
+  }
+
+  /* ── Bot: minimax, softened by difficulty ── */
+  function minimax(board, seat, me, depth) {
+    var w = winnerOf(board);
+    if (w) return { score: w.seat === null ? 0 : w.seat === me ? 10 - depth : depth - 10 };
+    var best = { score: seat === me ? -Infinity : Infinity, index: -1 };
+    for (var i = 0; i < 9; i++) {
+      if (board[i] !== -1) continue;
+      board[i] = seat;
+      var r = minimax(board, 1 - seat, me, depth + 1);
+      board[i] = -1;
+      if ((seat === me && r.score > best.score) || (seat !== me && r.score < best.score)) best = { score: r.score, index: i };
+    }
+    return best;
+  }
+  function botMove() {
+    var botSeat = 1 - ctx.mySeat;
+    if (state.over || state.turn !== botSeat) return;
+    var free = [];
+    state.board.forEach(function (v, i) { if (v === -1) free.push(i); });
+    var sloppy = { easy: 0.6, medium: 0.25, hard: 0 }[ctx.difficulty] || 0.25;
+    var index = Math.random() < sloppy ? free[Math.floor(Math.random() * free.length)] : minimax(state.board.slice(), botSeat, botSeat, 0).index;
+    apply(index, botSeat);
+  }
+
+  function finish() {
+    if (ctx.reported || ctx.spectating) return;
+    ctx.reported = true;
+    var standings;
+    var ids = ctx.players.map(function (p) { return p.id; });
+    if (state.winner === null) standings = ids.map(function (id) { return { playerId: id, placement: 1 }; });
+    else standings = ids.map(function (id, seat) { return { playerId: id, placement: seat === state.winner ? 1 : 2 }; });
+    var summary = state.winner === null ? 'Draw in ' + state.n + ' moves' : nameOf(state.winner) + ' won in ' + state.n + ' moves';
+    sdk.reportResult({ standings: standings, summary: summary, durationSeconds: Math.round((Date.now() - ctx.startedAt) / 1000) });
+  }
+
+  function reset() {
+    state = { board: Array(9).fill(-1), turn: 0, n: 0, over: false, winLine: null, winner: null };
+    ctx.reported = false;
+    ctx.startedAt = Date.now();
+    // Alternate who starts against the bot.
+    if (ctx.mode === 'bot') ctx.mySeat = 1 - ctx.mySeat, setupPlayers();
+    render();
+    if (ctx.mode === 'bot' && ctx.mySeat === 1) setTimeout(botMove, 500);
+  }
+  $('again').addEventListener('click', reset);
+
+  function setupPlayers() {
+    if (ctx.mode === 'bot') {
+      var me = ctx.me;
+      var bot = { id: 'bot', name: 'Bot (' + ctx.difficulty + ')', rating: null };
+      ctx.players = ctx.mySeat === 0 ? [me, bot] : [bot, me];
+    }
+    for (var s = 0; s < 2; s++) {
+      var p = ctx.players[s] || {};
+      $('n' + s).textContent = p.name || '—';
+      $('m' + s).textContent = p.rating ? 'Rating ' + p.rating : (ctx.mode === 'online' && s === ctx.mySeat ? 'You' : '');
+    }
+  }
+
+  sdk.on('theme', function (p) { document.documentElement.dataset.theme = p.theme; });
+  sdk.on('player_left', function () { $('sub').textContent = 'Your opponent left the table.'; });
+
+  sdk.on('init', function (init) {
+    document.documentElement.dataset.theme = init.environment.theme;
+    ctx.mode = init.mode === 'tournament' ? 'online' : init.mode;
+    ctx.me = { id: init.player.id, name: init.player.name, rating: init.player.rating };
+    ctx.difficulty = (init.bot && init.bot.difficulty) || 'medium';
+
+    if (ctx.mode === 'online' && init.room) {
+      ctx.players = init.room.players.slice().sort(function (a, b) { return a.seat - b.seat; });
+      ctx.spectating = init.room.spectating;
+      ctx.mySeat = init.player.seat == null ? -1 : init.player.seat;
+      setupPlayers();
+      $('sub').textContent = 'Connecting…';
+      ctx.relay = sdk.connectRelay();
+      ctx.relay.on('open', function () {
+        $('sub').textContent = ctx.spectating ? 'Watching' : '';
+        ctx.relay.send(JSON.stringify({ t: 'sync' }));
+      });
+      ctx.relay.on('close', function (e) { if (!e.final) $('sub').textContent = 'Reconnecting…'; });
+      ctx.relay.on('message', function (m) {
+        var msg; try { msg = JSON.parse(m.data); } catch (err) { return; }
+        if (msg.t === 'move') apply(msg.i, msg.seat, msg.n);
+        else if (msg.t === 'sync' && ctx.mySeat === 0) ctx.relay.send(JSON.stringify({ t: 'state', s: state }), m.from);
+        else if (msg.t === 'state' && msg.s.n > state.n) {
+          state = msg.s;
+          if (state.over) finish();
+          render();
+        }
+      });
+      ctx.relay.on('peer_joined', function () { $('sub').textContent = ctx.spectating ? 'Watching' : ''; });
+    } else if (ctx.mode === 'local') {
+      ctx.players = [{ id: init.player.id, name: init.player.name || 'Player 1' }, { id: 'local-2', name: 'Player 2' }];
+      setupPlayers();
+    } else {
+      ctx.mySeat = 0;
+      setupPlayers();
+    }
+    sdk.started();
+    render();
+  });
+
+  sdk.ready();
+})();
+</script>
+</body>
+</html>

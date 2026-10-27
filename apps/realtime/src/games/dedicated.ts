@@ -52,8 +52,8 @@ export class DedicatedServerManager {
 
   /** Resolves a manifest-relative pack path, refusing anything outside the assets dir. */
   private packPath(relative: string): string | null {
-    const root = path.resolve(process.cwd(), config.GAME_ASSETS_DIR);
-    const full = path.resolve(root, relative.replace(/^\/?games\//, ''));
+    const root = path.resolve(process.cwd(), config.GAME_SERVERS_DIR);
+    const full = path.resolve(root, relative.replace(/^\/?game-servers\//, ''));
     return full.startsWith(root + path.sep) && full.endsWith('.pck') ? full : null;
   }
 

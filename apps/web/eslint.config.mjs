@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Published game builds are third-party output, not our source.
+    "public/game-builds/**",
+    "public/sw.js",
   ]),
 ]);
 

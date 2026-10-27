@@ -14,6 +14,7 @@ type SeedModule = { name: string; run: (ctx: SeedContext) => Promise<string> };
  */
 const MODULES: Array<() => Promise<SeedModule>> = [
   async () => ({ name: 'hub', run: (await import('./hub')).run }),
+  async () => ({ name: 'games', run: (await import('./games')).run }),
 ];
 
 export async function runSeedModules(ctx: SeedContext) {

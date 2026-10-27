@@ -23,7 +23,8 @@ const schema = z.object({
 
   // Dedicated Godot servers
   GODOT_BIN: z.string().optional(),
-  GAME_ASSETS_DIR: z.string().default('../web/public/games'),
+  /** Where dedicated server packs live: never under a public folder. */
+  GAME_SERVERS_DIR: z.string().default('../../game-servers'),
   GAME_SERVER_PORT_MIN: z.coerce.number().int().default(20000),
   GAME_SERVER_PORT_MAX: z.coerce.number().int().default(20200),
   GAME_SERVER_MAX_PROCESSES: z.coerce.number().int().default(20),

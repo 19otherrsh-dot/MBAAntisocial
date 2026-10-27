@@ -21,7 +21,7 @@ const PUBLIC_PATHS = [
 ];
 
 /** Prefixes readable signed out: policies, uploaded files, static game builds, native-app handoff. */
-const PUBLIC_PREFIXES = ['/legal/', '/files/', '/games/', '/mobile/', '/u/'];
+const PUBLIC_PREFIXES = ['/legal/', '/files/', '/game-builds/', '/mobile/', '/u/'];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

@@ -20,6 +20,6 @@ export const config = {
      * cannot act on. API routes are guarded by the `route()` wrapper instead,
      * which returns a real 401 JSON body.
      */
-    '/((?!api/|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|robots.txt|sitemap.xml).*)',
+    '/((?!api/|_next/static|_next/image|game-builds/|favicon.ico|icon.svg|apple-icon.png|robots.txt|sitemap.xml).*)',
   ],
 };

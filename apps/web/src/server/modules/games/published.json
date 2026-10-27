@@ -1,0 +1,12 @@
+{
+  "tic-tac-toe": {
+    "build": {
+      "version": "1.0.0",
+      "entry": "index.html",
+      "assetBase": "/game-builds/tic-tac-toe/1.0.0",
+      "threads": false,
+      "sizeMb": 0,
+      "publishedAt": "2026-10-27T20:11:55.672Z"
+    }
+  }
+}
