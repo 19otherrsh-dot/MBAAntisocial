@@ -13,15 +13,18 @@ export const USER_ROLES = [
   'moderator',
   /** Institute staff: reads the campus report, moderates nothing. */
   'placement_office',
+  /** Institute administrator: campus settings, clubs, moderation, and the report. */
+  'campus_admin',
+  /** Platform operator: every campus, domain approvals, curation. */
   'admin',
 ] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 /** Roles permitted to publish availability and host sessions. */
-export const MENTOR_ROLES: readonly UserRole[] = ['mentor', 'alumni', 'moderator', 'admin'];
+export const MENTOR_ROLES: readonly UserRole[] = ['mentor', 'alumni', 'moderator', 'campus_admin', 'admin'];
 
 /** Roles permitted to act on reports and hide content. */
-export const MODERATOR_ROLES: readonly UserRole[] = ['moderator', 'admin'];
+export const MODERATOR_ROLES: readonly UserRole[] = ['moderator', 'campus_admin', 'admin'];
 
 /**
  * Roles permitted to read the aggregate campus report.
@@ -30,7 +33,20 @@ export const MODERATOR_ROLES: readonly UserRole[] = ['moderator', 'admin'];
  * but has no business hiding a student's feed post, and a student moderator
  * should not become staff by implication. Granting one must not grant the other.
  */
-export const STAFF_ROLES: readonly UserRole[] = ['placement_office', 'admin'];
+export const STAFF_ROLES: readonly UserRole[] = ['placement_office', 'campus_admin', 'admin'];
+
+/** Roles that administer a campus (settings, clubs, domains for their own campus). */
+export const CAMPUS_ADMIN_ROLES: readonly UserRole[] = ['campus_admin', 'admin'];
+
+export const ROLE_META: Record<UserRole, { label: string }> = {
+  student: { label: 'Student' },
+  mentor: { label: 'Senior' },
+  alumni: { label: 'Alumni' },
+  moderator: { label: 'Moderator' },
+  placement_office: { label: 'Placement office' },
+  campus_admin: { label: 'Campus admin' },
+  admin: { label: 'Platform admin' },
+};
 
 /**
  * Minimum cohort size before a breakdown row is published.
@@ -476,6 +492,25 @@ export const POINT_RULES = {
   question_contributed: { points: 35, track: 'karma', label: 'Logged an interview question', dailyCap: 12 },
   question_upvoted: { points: 5, track: 'karma', label: 'Question found useful', dailyCap: 20 },
   round_logged: { points: 6, track: 'points', label: 'Updated your pipeline', dailyCap: 8 },
+
+  // Open Edition habit loop (§15, §16): small, capped, never punitive.
+  quiz_completed: { points: 10, track: 'points', label: 'Finished the daily quiz', dailyCap: 1 },
+  quiz_perfect: { points: 10, track: 'points', label: 'Perfect quiz score', dailyCap: 1 },
+  news_read: { points: 2, track: 'points', label: 'Read the briefing', dailyCap: 3 },
+  wellness_checkin: { points: 3, track: 'points', label: 'Checked in with yourself', dailyCap: 1 },
+
+  game_completed: { points: 2, track: 'points', label: 'Finished a game', dailyCap: 5 },
+  tournament_won: { points: 40, track: 'points', label: 'Won a tournament', dailyCap: 2 },
+
+  event_attended: { points: 6, track: 'points', label: 'Showed up to an event', dailyCap: 3 },
+  event_hosted: { points: 20, track: 'karma', label: 'Ran a campus event', dailyCap: 2 },
+
+  // Giving back (karma) beyond mocks and notes.
+  referral_given: { points: 40, track: 'karma', label: 'Referred a junior', dailyCap: 5 },
+  tip_shared: { points: 15, track: 'karma', label: 'Shared a professor or course tip', dailyCap: 5 },
+  wiki_edited: { points: 8, track: 'karma', label: 'Improved the company wiki', dailyCap: 6 },
+  hub_answer_useful: { points: 8, track: 'karma', label: 'Answer marked useful in the hub', dailyCap: 10 },
+  gd_moderated: { points: 30, track: 'karma', label: 'Moderated a group GD', dailyCap: 4 },
 } as const satisfies Record<string, PointRule>;
 
 export type PointAction = keyof typeof POINT_RULES;
@@ -511,7 +546,18 @@ export const BADGES: readonly BadgeDefinition[] = [
   { id: 'debrief', label: 'Full Debrief', description: 'Logged intel for every round of one process.', track: 'karma' },
 ];
 
-export const BADGE_BY_ID = new Map(BADGES.map((b) => [b.id, b]));
+export const EXTRA_BADGES: readonly BadgeDefinition[] = [
+  { id: 'quiz_7', label: 'Current Affairs', description: 'Seven daily quizzes in a row.', track: 'points' },
+  { id: 'connector', label: 'Connector', description: 'Gave three alumni referrals.', track: 'karma' },
+  { id: 'gamer', label: 'Board Room', description: 'Finished twenty-five games.', track: 'points' },
+  { id: 'champion', label: 'Champion', description: 'Won a campus tournament.', track: 'milestone' },
+  { id: 'host', label: 'Host', description: 'Ran a campus event.', track: 'karma' },
+  { id: 'gd_moderator', label: 'Chair', description: 'Moderated five group discussions.', track: 'karma' },
+];
+
+export const ALL_BADGES: readonly BadgeDefinition[] = [...BADGES, ...EXTRA_BADGES];
+
+export const BADGE_BY_ID = new Map(ALL_BADGES.map((b) => [b.id, b]));
 
 // ───────────────────────── Notifications (§7) ─────────────────────────
 
@@ -531,7 +577,89 @@ export const NOTIFICATION_KINDS = [
   'round_upcoming',
   'intel_requested',
   'question_upvoted',
+  'mention',
+  'hub_message',
+  'dm_message',
+  'game_invite',
+  'game_result',
+  'tournament_match',
+  'event_reminder',
+  'event_update',
+  'club_update',
+  'team_invite',
+  'team_update',
+  'marketplace_interest',
+  'referral_update',
+  'campus_unlocked',
+  'campus_request',
+  'credit_earned',
+  'gd_matched',
+  'wellness_nudge',
+  'system',
 ] as const;
+
+/**
+ * Which preference category gates each notification kind. A kind not listed
+ * here is always delivered in-app (security, moderation, system).
+ */
+export const NOTIFICATION_CATEGORIES = [
+  'sessionReminders',
+  'deadlineReminders',
+  'feedComments',
+  'community',
+  'games',
+  'events',
+  'career',
+] as const;
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
+export const NOTIFICATION_CATEGORY_META: Record<NotificationCategory, { label: string; hint: string }> = {
+  sessionReminders: { label: 'Mock sessions', hint: 'Bookings, cancellations, and reminders before a session.' },
+  deadlineReminders: { label: 'Deadlines', hint: 'Tasks, rounds, and competitions coming due.' },
+  feedComments: { label: 'Feed replies', hint: 'Replies to your posts and comments.' },
+  community: { label: 'Hub & messages', hint: 'Mentions, direct messages, and channels you follow.' },
+  games: { label: 'Games', hint: 'Invites, your turn, and tournament matches.' },
+  events: { label: 'Events & clubs', hint: 'RSVP reminders and updates from clubs you are in.' },
+  career: { label: 'Career', hint: 'Referrals, team invites, and marketplace interest.' },
+};
+
+export const NOTIFICATION_KIND_CATEGORY: Partial<Record<NotificationKind, NotificationCategory>> = {
+  session_reminder: 'sessionReminders',
+  slot_booked: 'sessionReminders',
+  slot_cancelled: 'sessionReminders',
+  slot_rescheduled: 'sessionReminders',
+  feedback_requested: 'sessionReminders',
+  gd_matched: 'sessionReminders',
+  task_due_soon: 'deadlineReminders',
+  comp_deadline: 'deadlineReminders',
+  round_upcoming: 'deadlineReminders',
+  post_reply: 'feedComments',
+  mention: 'community',
+  hub_message: 'community',
+  dm_message: 'community',
+  game_invite: 'games',
+  game_result: 'games',
+  tournament_match: 'games',
+  event_reminder: 'events',
+  event_update: 'events',
+  club_update: 'events',
+  team_invite: 'career',
+  team_update: 'career',
+  marketplace_interest: 'career',
+  referral_update: 'career',
+};
+
+/** Kinds worth an email when the user has email delivery on. Everything else is in-app and push only. */
+export const EMAIL_WORTHY_KINDS: ReadonlySet<NotificationKind> = new Set<NotificationKind>([
+  'slot_booked',
+  'slot_cancelled',
+  'slot_rescheduled',
+  'session_reminder',
+  'referral_update',
+  'team_invite',
+  'campus_unlocked',
+  'tournament_match',
+]);
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 // ───────────────────────── Shared UI vocabulary ─────────────────────────

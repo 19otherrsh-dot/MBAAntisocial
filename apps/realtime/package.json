@@ -1,0 +1,32 @@
+{
+  "name": "@mba/realtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Realtime fan-out (Socket.IO), Godot game networking (WebRTC signaling, relay, dedicated-server proxy), and the job scheduler.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js --packages=external --alias:@mba/shared=../../packages/shared/src",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mba/shared": "*",
+    "ioredis": "^5.4.1",
+    "jose": "^6.0.0",
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/ws": "^8.5.12",
+    "esbuild": "^0.25.0",
+    "socket.io-client": "^4.8.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}

@@ -6,7 +6,8 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useApiQuery } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
-import { pusherClient } from '@/lib/pusherClient';
+import { useTopic, isEvent } from '@/lib/client/realtime';
+import { topics } from '@mba/shared/realtime';
 import { cn, timeAgo } from '@/lib/utils';
 import styles from './shell.module.css';
 
@@ -61,27 +62,27 @@ export default function NotificationBell() {
     if (serverUnread !== undefined) setUnread(serverUnread);
   }, [serverUnread, setUnread]);
 
-  // Real-time notifications
-  useEffect(() => {
-    if (!me?.id) return;
-    const channel = pusherClient.subscribe(`user-${me.id}`);
-    channel.bind('new-notification', (notification: NotificationRow) => {
-      setUnread(unread + 1);
-      if (open) {
-        mutate((current) => {
-          if (!current) return { unread: 1, notifications: [notification] };
-          return {
-            unread: current.unread + 1,
-            notifications: [notification, ...current.notifications].slice(0, 20),
-          };
-        });
-      }
-    });
-
-    return () => {
-      pusherClient.unsubscribe(`user-${me.id}`);
-    };
-  }, [me?.id, open, setUnread, unread, mutate]);
+  // Live updates: the server publishes the new row and the authoritative count.
+  useTopic(me?.id ? topics.user(me.id) : null, (envelope) => {
+    if (isEvent(envelope, 'notification.count')) {
+      setUnread(envelope.data.unread);
+      return;
+    }
+    if (isEvent(envelope, 'notification.created')) {
+      const row: NotificationRow = {
+        _id: envelope.data.id,
+        kind: envelope.data.kind,
+        title: envelope.data.title,
+        body: envelope.data.body,
+        href: envelope.data.href,
+        createdAt: envelope.data.createdAt,
+      };
+      mutate((current) => ({
+        unread: current.unread + 1,
+        notifications: [row, ...current.notifications].slice(0, 20),
+      }));
+    }
+  });
 
   const markAllRead = async () => {
     // Optimistic: the list is already on screen, and re-fetching to confirm a

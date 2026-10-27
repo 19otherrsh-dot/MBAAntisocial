@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { env } from '@/lib/env';
+import { AiRefusalError, AiUnavailableError } from '@/server/ports/ai';
 
 /**
  * Every failure the API returns deliberately, as opposed to a crash. Carrying a
@@ -96,6 +97,13 @@ export function toErrorResponse(error: unknown): NextResponse<ApiErrorBody> {
       },
       { status: 422 }
     );
+  }
+
+  if (error instanceof AiUnavailableError) {
+    return NextResponse.json({ error: { code: 'ai_unavailable', message: error.message } }, { status: 503 });
+  }
+  if (error instanceof AiRefusalError) {
+    return NextResponse.json({ error: { code: 'ai_refused', message: error.message } }, { status: 422 });
   }
 
   // Mongoose duplicate-key violations map cleanly onto 409.

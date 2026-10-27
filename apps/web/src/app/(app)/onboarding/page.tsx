@@ -1,15 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Switch, Textarea } from '@/components/ui/Field';
+import { Select, Switch, Textarea } from '@/components/ui/Field';
 import { Banner, Chip } from '@/components/ui/Display';
 import { useAction } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
 import { api } from '@/lib/client/api';
-import { SESSION_TYPES, SESSION_TYPE_META, type SessionType } from '@/lib/constants';
+import { SESSION_TYPES, SESSION_TYPE_META, getBatchOptions, type SessionType } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import styles from '../app.module.css';
 
@@ -33,7 +34,14 @@ const INTEREST_TAGS = [
  */
 export default function OnboardingPage() {
   const router = useRouter();
+  const { update } = useSession();
   const { me, loading, patch } = useMe();
+  const batches = useMemo(() => getBatchOptions(), []);
+
+  // Batch and year can only be set here; SSO sign-ups arrive without them.
+  const [batch, setBatch] = useState<string | null>(null);
+  const [year, setYear] = useState<1 | 2 | null>(null);
+  const [isAlumni, setIsAlumni] = useState<boolean | null>(null);
 
   const [bio, setBio] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
@@ -41,17 +49,28 @@ export default function OnboardingPage() {
   const [offers, setOffers] = useState<SessionType[]>([...SESSION_TYPES]);
   const [optIn, setOptIn] = useState(false);
 
+  const effectiveYear = year ?? me?.year ?? 1;
+  const effectiveAlumni = isAlumni ?? me?.role === 'alumni';
+  const willMentor = me?.canMentor || effectiveYear === 2 || effectiveAlumni;
+
   const finish = useAction(async () => {
-    await api.patch('/api/me', {
+    const result = await api.patch<{ user: { role: string; batch: string; year: 1 | 2; onboardedAt: string } }>('/api/me', {
       bio: bio.trim(),
       specializations: interests,
       leaderboardOptIn: optIn,
-      ...(me?.canMentor
-        ? { mentorProfile: { acceptingBookings: wantsToHost, offers } }
-        : {}),
+      ...(me?.onboardedAt ? {} : { batch: batch ?? me?.batch, year: effectiveYear, isAlumni: effectiveAlumni }),
+      ...(willMentor ? { mentorProfile: { acceptingBookings: wantsToHost, offers } } : {}),
     });
 
-    patch({ onboardedAt: new Date().toISOString() });
+    // The session token carries role and batch, so refresh it in place.
+    await update({
+      batch: result.user.batch,
+      year: result.user.year,
+      role: result.user.role,
+      onboardedAt: result.user.onboardedAt,
+    });
+    patch({ onboardedAt: result.user.onboardedAt, batch: result.user.batch, year: result.user.year });
+    router.refresh();
     router.push('/home');
   });
 
@@ -69,6 +88,40 @@ export default function OnboardingPage() {
       </div>
 
       {finish.error && <Banner variant="danger">{finish.error}</Banner>}
+
+      {!me.onboardedAt && (
+        <section className={styles.settingsGroup}>
+          <div>
+            <h3 className={styles.settingsTitle}>Your batch at {me.campus}</h3>
+            <p className={styles.settingsHint}>
+              This decides whose slots you see and who can book you. It’s fixed once you finish here, so check it.
+            </p>
+          </div>
+          <div className="row gap-3 wrap">
+            <Select
+              label="Batch"
+              value={batch ?? me.batch}
+              onChange={(event) => setBatch(event.target.value)}
+              options={[...new Set([me.batch, ...batches])].map((b) => ({ value: b, label: b }))}
+            />
+            <Select
+              label="Year"
+              value={String(effectiveYear)}
+              onChange={(event) => setYear(Number(event.target.value) as 1 | 2)}
+              options={[
+                { value: '1', label: 'First year' },
+                { value: '2', label: 'Second year' },
+              ]}
+            />
+          </div>
+          <Switch
+            label="I’ve graduated (alumni)"
+            hint="Alumni can mentor and take referral requests on their own terms."
+            checked={effectiveAlumni}
+            onChange={setIsAlumni}
+          />
+        </section>
+      )}
 
       <section className={styles.settingsGroup}>
         <div>
@@ -115,7 +168,7 @@ export default function OnboardingPage() {
         />
       </section>
 
-      {me.canMentor && (
+      {willMentor && (
         <section className={styles.settingsGroup}>
           <div>
             <h3 className={styles.settingsTitle}>

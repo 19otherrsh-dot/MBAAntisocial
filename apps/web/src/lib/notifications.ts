@@ -1,16 +1,16 @@
 import type { Types } from 'mongoose';
 import Notification from '@/models/Notification';
 import User from '@/models/User';
-import type { NotificationKind } from './constants';
-import { pusherServer } from './pusherServer';
+import { NOTIFICATION_KIND_CATEGORY, type NotificationKind } from './constants';
+import { CHANNELS } from '@/server/modules/notifications/channels';
 
 /**
  * Central notification engine (§7).
  *
  * Every module routes through `notify` rather than writing to the collection,
- * so preference checks, self-notification suppression, and copy conventions are
- * enforced once. Delivery today is in-app only; email and push are additional
- * transports behind this same call, not a second call site.
+ * so preference checks, self-notification suppression, and delivery are
+ * enforced once. The in-app row is the source of truth; realtime, email, and
+ * push are channels offered the stored notification afterwards.
  */
 
 export interface NotifyInput {
@@ -25,53 +25,52 @@ export interface NotifyInput {
   actor?: string | Types.ObjectId;
 }
 
-/** Which preference flag, if any, gates each kind. */
-const PREFERENCE_GATE: Partial<Record<NotificationKind, keyof PrefFlags>> = {
-  session_reminder: 'sessionReminders',
-  slot_booked: 'sessionReminders',
-  slot_cancelled: 'sessionReminders',
-  slot_rescheduled: 'sessionReminders',
-  task_due_soon: 'deadlineReminders',
-  comp_deadline: 'deadlineReminders',
-  post_reply: 'feedComments',
-};
-
-interface PrefFlags {
-  sessionReminders: boolean;
-  deadlineReminders: boolean;
-  feedComments: boolean;
-  digest: boolean;
-}
-
 export async function notify(input: NotifyInput): Promise<void> {
   const userId = String(input.user);
 
   // Nobody needs telling about something they just did themselves.
   if (input.actor && String(input.actor) === userId) return;
 
-  const gate = PREFERENCE_GATE[input.kind];
-  if (gate) {
-    const recipient = await User.findById(userId).select('notificationPrefs').lean();
-    if (!recipient) return;
-    if (recipient.notificationPrefs?.[gate] === false) return;
-  }
+  const recipient = await User.findById(userId).select('email notificationPrefs timezone suspendedAt').lean();
+  if (!recipient || recipient.suspendedAt) return;
+
+  const category = NOTIFICATION_KIND_CATEGORY[input.kind];
+  if (category && recipient.notificationPrefs?.[category] === false) return;
 
   const notification = await Notification.create({
     user: userId,
     kind: input.kind,
-    title: input.title,
-    body: input.body ?? '',
+    title: input.title.slice(0, 160),
+    body: (input.body ?? '').slice(0, 500),
     href: input.href ?? '/home',
     entityType: input.entityType,
     entity: input.entity,
     actor: input.actor,
   });
 
-  try {
-    await pusherServer.trigger(`user-${userId}`, 'new-notification', notification);
-  } catch (err) {
-    console.error('[pusher] failed to trigger new-notification:', err);
-  }
+  const unread = await unreadCount(userId);
+  const deliverable = {
+    id: notification._id.toString(),
+    userId,
+    email: recipient.email,
+    kind: input.kind,
+    title: notification.title,
+    body: notification.body,
+    href: notification.href,
+    createdAt: notification.createdAt,
+    prefs: recipient.notificationPrefs,
+    timezone: recipient.timezone ?? 'Asia/Kolkata',
+    unread,
+  };
+
+  // Channels are isolated from each other and from the caller: a dead push
+  // endpoint must not stop the email, and neither may fail the action.
+  const results = await Promise.allSettled(CHANNELS.map((channel) => channel.deliver(deliverable)));
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      console.error(`[notifications] ${CHANNELS[i].name} delivery failed:`, result.reason);
+    }
+  });
 }
 
 /**

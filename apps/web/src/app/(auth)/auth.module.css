@@ -141,3 +141,58 @@
   background: var(--line);
   transition: background var(--dur) var(--ease);
 }
+
+/* ───────────────────────── SSO & alternatives ───────────────────────── */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--text-muted);
+  font-size: var(--t-xs);
+  margin: var(--s-4) 0 0;
+}
+.divider::before,
+.divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+.ssoList { display: grid; gap: var(--s-2); margin-top: var(--s-3); }
+
+.linkRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--t-sm);
+  margin-top: calc(var(--s-2) * -1);
+}
+.linkRow a, .textButton { color: var(--accent-text); font-weight: 550; font-size: var(--t-sm); }
+.linkRow a:hover, .textButton:hover { text-decoration: underline; }
+
+.detected {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-sm);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+}
+
+.codeInput input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.4em;
+  font-size: var(--t-lg);
+  text-align: center;
+}
+
+.statusArt {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: var(--s-4);
+}

@@ -10,11 +10,22 @@ import type { NextAuthConfig } from 'next-auth';
  * for the Node.js runtime.
  */
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/legal/honor-code', '/legal/privacy'];
+const PUBLIC_PATHS = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/offline',
+];
+
+/** Prefixes readable signed out: policies, uploaded files, static game builds, native-app handoff. */
+const PUBLIC_PREFIXES = ['/legal/', '/files/', '/games/', '/mobile/', '/u/'];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
-  return pathname.startsWith('/legal/');
+  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 export const authConfig = {
@@ -44,6 +55,7 @@ export const authConfig = {
         token.year = user.year ?? 1;
         token.role = user.role ?? 'student';
         token.onboardedAt = user.onboardedAt ?? null;
+        token.verified = user.verified ?? false;
       }
 
       // `useSession().update(...)` after profile edits, so the sidebar and
@@ -55,12 +67,16 @@ export const authConfig = {
           year: 1 | 2;
           role: typeof token.role;
           onboardedAt: string | null;
+          verified: boolean;
+          name: string;
         }>;
         if (patch.campus) token.campus = patch.campus;
         if (patch.batch) token.batch = patch.batch;
         if (patch.year) token.year = patch.year;
         if (patch.role) token.role = patch.role;
         if (patch.onboardedAt !== undefined) token.onboardedAt = patch.onboardedAt;
+        if (patch.verified !== undefined) token.verified = patch.verified;
+        if (patch.name) token.name = patch.name;
       }
 
       return token;
@@ -74,6 +90,7 @@ export const authConfig = {
         session.user.year = token.year;
         session.user.role = token.role;
         session.user.onboardedAt = token.onboardedAt;
+        session.user.verified = token.verified ?? false;
       }
       return session;
     },

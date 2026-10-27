@@ -25,7 +25,6 @@ import {
   MAX_SLOT_LEAD_DAYS,
   RATING_MIN,
   RATING_MAX,
-  CAMPUSES,
   MENTOR_RUBRIC,
   MENTEE_RUBRIC,
 } from './constants';
@@ -65,29 +64,90 @@ export const registerSchema = z.object({
     .string()
     .min(10, 'Use at least 10 characters — length beats punctuation.')
     .max(200, 'That password is too long.'),
-  // A custom message, because zod's default enumerates all nineteen campuses.
-  campus: z.enum(CAMPUSES, { message: 'Pick your institute from the list.' }),
   batch: requiredText(4, 20, 'Batch'),
-  year: z.coerce.number().int().refine((v) => v === 1 || v === 2, 'Pick year 1 or 2.'),
+  year: z.coerce
+    .number()
+    .int()
+    .refine((v) => v === 1 || v === 2, 'Pick year 1 or 2.')
+    .transform((v) => v as 1 | 2),
   isAlumni: z.boolean().default(false),
+  /** Only when the email's institute is not yet in the registry. */
+  institutionName: z.string().trim().max(120).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+const emailField = z.string().trim().toLowerCase().email('Enter a valid email address.');
+const passwordField = z
+  .string()
+  .min(10, 'Use at least 10 characters — length beats punctuation.')
+  .max(200, 'That password is too long.');
+
+export const emailOnlySchema = z.object({ email: emailField });
+export const verifyEmailSchema = z.object({ email: emailField, token: z.string().min(10).max(200) });
+export const resetPasswordSchema = z.object({
+  email: emailField,
+  token: z.string().min(10).max(200),
+  password: passwordField,
+});
+export const mobileLoginSchema = z.union([
+  z.object({ email: emailField, password: z.string().min(1).max(200) }),
+  z.object({ email: emailField, code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code.') }),
+]);
+export const handoffSchema = z.object({ code: z.string().min(16).max(100) });
+export const pushSubscribeSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('web'),
+    endpoint: z.string().url().max(1000),
+    keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
+    platform: z.string().max(60).default('web'),
+  }),
+  z.object({
+    kind: z.literal('expo'),
+    token: z.string().regex(/^(Exponent|Expo)PushToken\[.+\]$/, 'Not an Expo push token.'),
+    platform: z.string().max(60).default('native'),
+  }),
+]);
+
 // ───────────────────────── Profile ─────────────────────────
+
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM.');
 
 export const updateProfileSchema = z.object({
   name: requiredText(2, 80, 'Name').optional(),
-  image: httpsUrl.optional(),
+  image: z.union([httpsUrl, z.string().url().startsWith('http://localhost')]).optional(),
   bio: trimmed(500).optional(),
   specializations: z.array(trimmed(40)).max(8, 'Pick at most eight.').optional(),
   leaderboardOptIn: z.boolean().optional(),
+  timezone: z
+    .string()
+    .max(60)
+    .refine((tz) => {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: tz });
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Unknown time zone.')
+    .optional(),
+  /** Only accepted until onboarding completes; after that, batch and year are fixed. */
+  batch: requiredText(4, 20, 'Batch').optional(),
+  year: z.union([z.literal(1), z.literal(2)]).optional(),
+  isAlumni: z.boolean().optional(),
   notificationPrefs: z
     .object({
       sessionReminders: z.boolean(),
       deadlineReminders: z.boolean(),
       feedComments: z.boolean(),
+      community: z.boolean(),
+      games: z.boolean(),
+      events: z.boolean(),
+      career: z.boolean(),
       digest: z.boolean(),
+      email: z.boolean(),
+      push: z.boolean(),
+      quietHours: z.object({ enabled: z.boolean(), start: hhmm, end: hhmm }),
     })
     .partial()
     .optional(),
@@ -98,6 +158,20 @@ export const updateProfileSchema = z.object({
       weeklyCapacity: z.coerce.number().int().min(0).max(20),
       headline: trimmed(160),
       companies: z.array(trimmed(60)).max(6),
+      meetingProvider: z.enum(['google_meet', 'zoom', 'livekit', 'manual']),
+      meetingLink: z.union([httpsUrl, z.literal('')]),
+      crossCampus: z.boolean(),
+    })
+    .partial()
+    .optional(),
+  alumniProfile: z
+    .object({
+      graduationYear: z.coerce.number().int().min(1950).max(2100),
+      company: trimmed(80),
+      designation: trimmed(80),
+      referralsOpen: z.boolean(),
+      referralCapacity: z.coerce.number().int().min(0).max(20),
+      linkedinUrl: z.union([httpsUrl.refine((u) => /linkedin\.com\//.test(u), 'Use a linkedin.com profile URL.'), z.literal('')]),
     })
     .partial()
     .optional(),

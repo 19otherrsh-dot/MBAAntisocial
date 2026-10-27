@@ -11,7 +11,7 @@
  * Every account uses the same password, printed at the end.
  */
 
-import 'dotenv/config';
+import './load-env';
 import mongoose from 'mongoose';
 import connectDB from '../src/lib/mongodb';
 import User from '../src/models/User';
@@ -25,11 +25,15 @@ import Notification from '../src/models/Notification';
 import Report from '../src/models/Report';
 import Application, { companyKeyOf } from '../src/models/Application';
 import InterviewQuestion from '../src/models/InterviewQuestion';
+import Campus from '../src/models/Campus';
+import { ensureCampusDirectory } from '../src/server/modules/campus/service';
+import { runSeedModules } from './seed/index';
 
 const CAMPUS = 'IIM Ahmedabad';
 const BATCH = '2025-27';
 const PASSWORD = 'seedpassword123';
 const STAFF_EMAIL = 'placements@iima.ac.in';
+const ADMIN_EMAIL = 'admin@iima.ac.in';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -96,7 +100,7 @@ async function seed() {
   await connectDB();
   console.log(`Connected to ${mongoose.connection.name}`);
 
-  const emails = [...SENIORS, ...JUNIORS].map((person) => person.email).concat(STAFF_EMAIL);
+  const emails = [...SENIORS, ...JUNIORS].map((person) => person.email).concat(STAFF_EMAIL, ADMIN_EMAIL);
 
   // Scoped to the seeded campus so a shared database is not destroyed.
   const existing = await User.find({ email: { $in: emails } }).select('_id').lean();
@@ -200,8 +204,31 @@ async function seed() {
     onboardedAt: new Date(),
   });
 
+  const admin = await User.create({
+    name: 'Platform Admin',
+    email: ADMIN_EMAIL,
+    password: PASSWORD,
+    campus: CAMPUS,
+    batch: 'Staff',
+    year: 2,
+    role: 'admin',
+    bio: 'Runs the platform: campuses, domains, curation.',
+    onboardedAt: new Date(),
+  });
+
+  // Every seeded address is an official one, already proven.
+  await User.updateMany({ campus: CAMPUS, email: { $in: emails } }, { $set: { emailVerifiedAt: new Date(), authProviders: ['password'] } });
+
+  // The registry: the starter directory, with the seeded campus unlocked.
+  await ensureCampusDirectory();
+  await Campus.updateOne(
+    { name: CAMPUS },
+    { $set: { status: 'campus', unlockedAt: new Date(), approvedAt: new Date() } },
+    { upsert: true, setDefaultsOnInsert: true }
+  );
+
   console.log(
-    `Created ${seniors.length} seniors, ${juniors.length} juniors, and 1 staff account (${staff.email}).`
+    `Created ${seniors.length} seniors, ${juniors.length} juniors, 1 staff account (${staff.email}), and 1 admin (${admin.email}).`
   );
 
   // ── Slots: a mix of open, booked, and completed with real feedback ────────
@@ -773,10 +800,15 @@ async function seed() {
   );
   console.log(`Created ${intel.length} interview questions.`);
 
+  // Hub, games, events, clubs, Open Edition content — one module per area.
+  const everyone = await User.find({ campus: CAMPUS, email: { $in: emails } }).lean();
+  await runSeedModules({ campus: CAMPUS, users: everyone, at });
+
   console.log('\n─────────────────────────────────────────');
   console.log('Seed complete.\n');
   console.log(`Campus:   ${CAMPUS}`);
   console.log(`Password: ${PASSWORD}   (every account)\n`);
+  console.log(`Platform admin:    ${ADMIN_EMAIL}   (admin console)`);
   console.log(`Placement office:  ${STAFF_EMAIL}   (campus report)`);
   console.log(`Senior/moderator:  ${SENIORS[0].email}`);
   console.log(`Senior (mentor):   ${SENIORS[2].email}`);

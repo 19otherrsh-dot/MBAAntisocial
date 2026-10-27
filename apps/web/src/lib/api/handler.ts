@@ -5,7 +5,18 @@ import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { ApiError, toErrorResponse } from './errors';
 import { consume, type RateLimitName, clientIdentifier } from './rate-limit';
-import { MENTOR_ROLES, MODERATOR_ROLES, STAFF_ROLES, type UserRole } from '@/lib/constants';
+import {
+  CAMPUS_ADMIN_ROLES,
+  MENTOR_ROLES,
+  MODERATOR_ROLES,
+  STAFF_ROLES,
+  type UserRole,
+} from '@/lib/constants';
+import { env } from '@/lib/env';
+import { featureAvailable, type FeatureKey, type CampusStatus } from '@mba/shared/campus';
+import { campusEdition } from '@/server/modules/campus/service';
+import { verifyAccessToken, type SessionUser } from '@/server/modules/auth/service';
+import { safeEqual } from '@/server/crypto';
 
 /** The authenticated caller, resolved once per request. */
 export interface Actor {
@@ -13,12 +24,20 @@ export interface Actor {
   name: string;
   email: string;
   campus: string;
+  campusSlug: string;
+  campusStatus: CampusStatus;
+  edition: 'open' | 'campus' | 'none';
   batch: string;
   year: 1 | 2;
   role: UserRole;
+  verified: boolean;
+  /** How the request authenticated: a browser session or a native-app bearer token. */
+  via: 'session' | 'bearer';
   canMentor: boolean;
   canModerate: boolean;
   canReadReport: boolean;
+  canAdminCampus: boolean;
+  isPlatformAdmin: boolean;
 }
 
 export interface RouteContext<TBody, TQuery> {
@@ -42,6 +61,20 @@ interface RouteOptions<TBody, TQuery> {
   requireModerator?: boolean;
   /** Restrict the route to institute staff reading the campus report. */
   requireStaff?: boolean;
+  /** Restrict the route to campus administrators (and platform admins). */
+  requireCampusAdmin?: boolean;
+  /** Restrict the route to platform administrators. */
+  requirePlatformAdmin?: boolean;
+  /**
+   * The product surface this route serves. Campus-Edition surfaces answer 403
+   * until the caller's campus has unlocked (PRD §15).
+   */
+  feature?: FeatureKey;
+  /**
+   * Routes an unverified account may still call: its own profile, resending the
+   * verification email, onboarding. Everything else needs a proven address.
+   */
+  allowUnverified?: boolean;
 }
 
 type Handler<TBody, TQuery> = (
@@ -62,21 +95,28 @@ export function route<TBody = undefined, TQuery = undefined>(
 ) {
   return async (request: NextRequest, routeArgs?: NextRouteArgs): Promise<Response> => {
     try {
-      const session = await auth();
-      if (!session?.user?.id) throw ApiError.unauthorized();
+      const actor = await resolveActor(request);
+      if (!actor) throw ApiError.unauthorized();
 
-      const actor: Actor = {
-        id: session.user.id,
-        name: session.user.name ?? '',
-        email: session.user.email ?? '',
-        campus: session.user.campus,
-        batch: session.user.batch,
-        year: session.user.year,
-        role: session.user.role,
-        canMentor: MENTOR_ROLES.includes(session.user.role),
-        canModerate: MODERATOR_ROLES.includes(session.user.role),
-        canReadReport: STAFF_ROLES.includes(session.user.role),
-      };
+      if (!actor.verified && !options.allowUnverified) {
+        throw new ApiError(403, 'email_unverified', 'Confirm your institute email first — check your inbox.');
+      }
+      if (actor.edition === 'none' && !options.allowUnverified) {
+        throw new ApiError(403, 'campus_suspended', 'Your campus is paused on MBAAntisocial.');
+      }
+      if (options.feature && !featureAvailable(options.feature, actor.edition)) {
+        throw new ApiError(
+          403,
+          'campus_locked',
+          'This unlocks when enough of your campus joins. Invite your batch and seniors to get there sooner.'
+        );
+      }
+      if (options.requirePlatformAdmin && !actor.isPlatformAdmin) {
+        throw ApiError.forbidden('Platform administrators only.');
+      }
+      if (options.requireCampusAdmin && !actor.canAdminCampus) {
+        throw ApiError.forbidden('Campus administrators only.');
+      }
 
       if (options.requireMentor && !actor.canMentor) {
         throw ApiError.forbidden('Only seniors, alumni, and staff can do this.');
@@ -89,7 +129,7 @@ export function route<TBody = undefined, TQuery = undefined>(
       }
 
       // Throttle on identity so one account cannot burn a shared IP's budget.
-      if (options.rateLimit) consume(options.rateLimit, actor.id);
+      if (options.rateLimit) await consume(options.rateLimit, actor.id);
 
       /*
        * Input is validated before the database is touched. A malformed request
@@ -123,7 +163,7 @@ export function publicRoute<TBody = undefined, TQuery = undefined>(
 ) {
   return async (request: NextRequest, routeArgs?: NextRouteArgs): Promise<Response> => {
     try {
-      if (options.rateLimit) consume(options.rateLimit, clientIdentifier(request));
+      if (options.rateLimit) await consume(options.rateLimit, clientIdentifier(request));
 
       // Validate before connecting, as in `route` above.
       const body = options.body ? await parseBody(request, options.body) : (undefined as TBody);
@@ -134,6 +174,105 @@ export function publicRoute<TBody = undefined, TQuery = undefined>(
       const params = routeArgs ? await routeArgs.params : {};
 
       return await handler({ request, body, query, params });
+    } catch (error) {
+      return toErrorResponse(error);
+    }
+  };
+}
+
+/**
+ * Resolves the caller from a native-app bearer token or the browser session.
+ * Bearer is checked first so a WebView carrying both behaves like the app.
+ */
+async function resolveActor(request: NextRequest): Promise<Actor | null> {
+  let user: SessionUser | null = null;
+  let via: Actor['via'] = 'session';
+
+  const header = request.headers.get('authorization');
+  if (header?.startsWith('Bearer ')) {
+    user = await verifyAccessToken(header.slice(7).trim());
+    via = 'bearer';
+    if (!user) return null;
+  } else {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+    user = {
+      id: session.user.id,
+      name: session.user.name ?? '',
+      email: session.user.email ?? '',
+      image: session.user.image ?? null,
+      campus: session.user.campus,
+      batch: session.user.batch,
+      year: session.user.year,
+      role: session.user.role,
+      onboardedAt: session.user.onboardedAt,
+      verified: session.user.verified ?? false,
+    };
+  }
+
+  await connectDB();
+  const edition = await campusEdition(user.campus);
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    campus: user.campus,
+    campusSlug: edition.slug,
+    campusStatus: edition.status,
+    // Platform admins see every surface, whatever their own campus has unlocked.
+    edition: user.role === 'admin' ? 'campus' : edition.edition,
+    batch: user.batch,
+    year: user.year,
+    role: user.role,
+    verified: user.verified,
+    via,
+    canMentor: MENTOR_ROLES.includes(user.role),
+    canModerate: MODERATOR_ROLES.includes(user.role),
+    canReadReport: STAFF_ROLES.includes(user.role),
+    canAdminCampus: CAMPUS_ADMIN_ROLES.includes(user.role),
+    isPlatformAdmin: user.role === 'admin',
+  };
+}
+
+/**
+ * Service-to-service routes (apps/realtime → web). Authenticated by a shared
+ * secret in `x-internal-secret`, compared in constant time.
+ */
+export function internalRoute<TBody = undefined>(
+  options: { body?: ZodType<TBody> },
+  handler: (ctx: { request: NextRequest; body: TBody; params: Record<string, string> }) => Promise<Response>
+) {
+  return async (request: NextRequest, routeArgs?: NextRouteArgs): Promise<Response> => {
+    try {
+      const provided = request.headers.get('x-internal-secret') ?? '';
+      if (!provided || !safeEqual(provided, env.internalApiSecret)) throw ApiError.unauthorized('Unknown caller.');
+      const body = options.body ? await parseBody(request, options.body) : (undefined as TBody);
+      await connectDB();
+      const params = routeArgs ? await routeArgs.params : {};
+      return await handler({ request, body, params });
+    } catch (error) {
+      return toErrorResponse(error);
+    }
+  };
+}
+
+/**
+ * Scheduled jobs. Vercel Cron and the docker worker both send
+ * `Authorization: Bearer $CRON_SECRET`. Without a configured secret the routes
+ * only answer in development, so production can never run them unauthenticated.
+ */
+export function cronRoute(handler: (ctx: { request: NextRequest }) => Promise<Response>) {
+  return async (request: NextRequest): Promise<Response> => {
+    try {
+      const secret = env.CRON_SECRET;
+      const header = request.headers.get('authorization') ?? '';
+      if (secret) {
+        if (!safeEqual(header, `Bearer ${secret}`)) throw ApiError.unauthorized('Bad cron credentials.');
+      } else if (env.isProduction) {
+        throw new ApiError(503, 'cron_disabled', 'Set CRON_SECRET to enable scheduled jobs.');
+      }
+      await connectDB();
+      return await handler({ request });
     } catch (error) {
       return toErrorResponse(error);
     }

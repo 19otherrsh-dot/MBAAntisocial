@@ -1,33 +1,14 @@
 import { ApiError } from './errors';
+import { container } from '@/server/container';
 
 /**
- * Fixed-window rate limiter backed by an in-process map.
+ * Fixed-window rate limiter on the key-value port.
  *
- * This is intentionally simple and has a known limitation: each serverless
- * instance keeps its own counters, so the effective limit scales with instance
- * count. It is sufficient to stop a single client hammering an endpoint, which
- * is what the write paths here need. Moving to a shared store (Redis, Upstash)
- * is a drop-in change behind `consume` when the deployment goes multi-instance.
+ * With `REDIS_URL` set the counters live in Redis, so a limit is a limit
+ * however many instances serve traffic. Without it the in-process fallback
+ * still stops a single client hammering one instance — which is the failure
+ * the write paths actually need protecting from in development.
  */
-interface Window {
-  count: number;
-  resetAt: number;
-}
-
-const buckets = new Map<string, Window>();
-
-// Reclaim expired windows periodically so the map cannot grow without bound.
-const SWEEP_INTERVAL_MS = 60_000;
-let lastSweep = Date.now();
-
-function sweep(now: number) {
-  if (now - lastSweep < SWEEP_INTERVAL_MS) return;
-  lastSweep = now;
-  for (const [key, window] of buckets) {
-    if (window.resetAt <= now) buckets.delete(key);
-  }
-}
-
 export interface RateLimitRule {
   /** Requests permitted per window. */
   limit: number;
@@ -38,6 +19,8 @@ export interface RateLimitRule {
 export const RATE_LIMITS = {
   register: { limit: 5, windowSeconds: 3600 },
   login: { limit: 10, windowSeconds: 900 },
+  otp: { limit: 5, windowSeconds: 900 },
+  verify: { limit: 10, windowSeconds: 900 },
   write: { limit: 60, windowSeconds: 60 },
   post: { limit: 12, windowSeconds: 300 },
   upload: { limit: 20, windowSeconds: 3600 },
@@ -49,6 +32,9 @@ export const RATE_LIMITS = {
    */
   ai: { limit: 40, windowSeconds: 3600 },
   chat: { limit: 60, windowSeconds: 300 },
+  hub: { limit: 120, windowSeconds: 60 },
+  game: { limit: 60, windowSeconds: 60 },
+  search: { limit: 120, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;
@@ -56,23 +42,19 @@ export type RateLimitName = keyof typeof RATE_LIMITS;
 /**
  * Records one hit against `identifier` and throws once the window is exhausted.
  */
-export function consume(name: RateLimitName, identifier: string): void {
+export async function consume(name: RateLimitName, identifier: string): Promise<void> {
   const rule = RATE_LIMITS[name];
-  const now = Date.now();
-  sweep(now);
-
-  const key = `${name}:${identifier}`;
-  const existing = buckets.get(key);
-
-  if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + rule.windowSeconds * 1000 });
+  let result: { value: number; ttlMs: number };
+  try {
+    result = await container().kv.incr(`rl:${name}:${identifier}`, rule.windowSeconds);
+  } catch (error) {
+    // A broken limiter must not take the product down with it.
+    console.error('[rate-limit] store unavailable:', error instanceof Error ? error.message : error);
     return;
   }
 
-  existing.count += 1;
-
-  if (existing.count > rule.limit) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetAt - now) / 1000));
+  if (result.value > rule.limit) {
+    const retryAfterSeconds = Math.max(1, Math.ceil(result.ttlMs / 1000));
     throw ApiError.tooManyRequests(
       `Too many requests. Try again in ${formatRetry(retryAfterSeconds)}.`,
       retryAfterSeconds

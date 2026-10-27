@@ -12,6 +12,7 @@ interface AppUserFields {
   year: 1 | 2;
   role: UserRole;
   onboardedAt: string | null;
+  verified: boolean;
 }
 
 declare module 'next-auth' {

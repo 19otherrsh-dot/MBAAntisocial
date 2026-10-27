@@ -13,6 +13,8 @@ import AppShell from '@/components/layout/AppShell';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect('/login');
+  // An unproven address sees nothing campus-scoped until it is proven.
+  if (!session.user.verified) redirect('/verify-email');
 
   return <AppShell>{children}</AppShell>;
 }

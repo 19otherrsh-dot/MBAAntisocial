@@ -18,13 +18,41 @@ export interface MentorProfile {
   weeklyCapacity: number;
   headline: string;
   companies: string[];
+  meetingProvider: 'google_meet' | 'zoom' | 'livekit' | 'manual';
+  meetingLink: string;
+  crossCampus: boolean;
+}
+
+export interface AlumniProfile {
+  graduationYear?: number;
+  company: string;
+  designation: string;
+  referralsOpen: boolean;
+  referralCapacity: number;
+  linkedinUrl: string;
 }
 
 export interface NotificationPrefs {
   sessionReminders: boolean;
   deadlineReminders: boolean;
   feedComments: boolean;
+  community: boolean;
+  games: boolean;
+  events: boolean;
+  career: boolean;
   digest: boolean;
+  email: boolean;
+  push: boolean;
+  quietHours: { enabled: boolean; start: string; end: string };
+}
+
+export interface CampusProgress {
+  members: number;
+  mentors: number;
+  memberPct: number;
+  mentorPct: number;
+  overall: number;
+  ready: boolean;
 }
 
 export interface Me {
@@ -33,15 +61,25 @@ export interface Me {
   email: string;
   image: string;
   campus: string;
+  campusSlug: string;
+  campusStatus: 'requested' | 'open' | 'campus' | 'suspended';
+  edition: 'open' | 'campus' | 'none';
   batch: string;
   year: 1 | 2;
   role: UserRole;
   bio: string;
   specializations: string[];
   mentorProfile: MentorProfile;
+  alumniProfile: AlumniProfile;
+  timezone: string;
   canMentor: boolean;
+  canModerate: boolean;
+  canReadReport: boolean;
+  canAdminCampus: boolean;
+  isPlatformAdmin: boolean;
   points: number;
   karma: number;
+  credits: number;
   streak: number;
   longestStreak: number;
   badges: string[];
@@ -55,6 +93,10 @@ export interface Me {
   notificationPrefs: NotificationPrefs;
   honorCodeAcceptedAt: string | null;
   onboardedAt: string | null;
+  verified: boolean;
+  authProviders: string[];
+  connections: Array<{ provider: string; accountEmail: string }>;
+  meetingProviders: Array<{ id: string; label: string; requiresConnection: boolean }>;
   joinedAt: string;
 }
 
@@ -67,6 +109,7 @@ interface CheckIn {
 
 interface MeResponse {
   user: Me;
+  campusProgress: CampusProgress | null;
   unreadNotifications: number;
   checkIn: CheckIn;
 }
@@ -76,6 +119,9 @@ interface MeApi {
   loading: boolean;
   unread: number;
   checkIn: CheckIn | null;
+  campusProgress: CampusProgress | null;
+  /** Whether the caller's campus has a given edition-gated surface. */
+  hasCampusEdition: boolean;
   refresh: () => Promise<void>;
   /** Applies a local patch so the shell updates without a round trip. */
   patch: (changes: Partial<Me>) => void;
@@ -129,6 +175,8 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
       loading,
       unread,
       checkIn: data?.checkIn ?? null,
+      campusProgress: data?.campusProgress ?? null,
+      hasCampusEdition: me?.edition === 'campus',
       refresh,
       patch,
       setUnread,
