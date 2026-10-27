@@ -1,0 +1,11 @@
+.md { display: flex; flex-direction: column; gap: var(--s-3); line-height: 1.6; color: var(--text); max-width: 72ch; }
+.md h2 { font-size: var(--t-lg); margin-top: var(--s-3); }
+.md h3 { font-size: var(--t-md); margin-top: var(--s-2); }
+.md h4 { font-size: var(--t-base); }
+.md ul, .md ol { display: flex; flex-direction: column; gap: 6px; padding-left: 1.4em; }
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md li::marker { color: var(--text-muted); }
+.md blockquote { border-left: 3px solid var(--line-strong); padding-left: var(--s-3); color: var(--text-secondary); }
+.md hr { border: 0; border-top: 1px solid var(--line); }
+.md strong { font-weight: 620; }

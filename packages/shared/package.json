@@ -12,7 +12,8 @@
     "./games": "./src/games.ts",
     "./campus": "./src/campus.ts",
     "./academics": "./src/academics.ts",
-    "./money": "./src/money.ts"
+    "./money": "./src/money.ts",
+    "./resume": "./src/resume.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",

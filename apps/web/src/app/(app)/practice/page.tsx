@@ -11,6 +11,7 @@ import { streamText } from '@/lib/client/stream';
 import { ROLE_TRACKS, ROLE_TRACK_META, type RoleTrack } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import styles from '../app.module.css';
+import Markdown from '@/components/Markdown';
 
 type Mode = 'interview' | 'gd';
 type Style = 'case' | 'personal' | 'behavioural' | 'technical' | 'guesstimate';
@@ -213,7 +214,7 @@ export default function PracticePage() {
           <div key={i} className={cn(styles.chatRow, turn.role === 'user' && styles.chatRowMine)}>
             {turn.role === 'assistant' ? <span className={styles.chatBot}><Bot size={16} /></span> : <Avatar name={me?.name ?? 'You'} image={me?.image} seed={me?.id} size={30} />}
             <div className={cn(styles.chatBubble, turn.role === 'user' && styles.chatBubbleMine)}>
-              {turn.content ? <RichText text={turn.content} /> : <span className="dim">Thinking…</span>}
+              {turn.content ? <Markdown text={turn.content} /> : <span className="dim">Thinking…</span>}
             </div>
           </div>
         ))}
@@ -239,21 +240,6 @@ export default function PracticePage() {
         <Button type="submit" icon={<Send size={16} />} disabled={!input.trim() || streaming} aria-label="Send" />
       </form>
     </div>
-  );
-}
-
-/** Minimal formatting for model output: bold and line breaks, nothing executable. */
-function RichText({ text }: { text: string }) {
-  return (
-    <>
-      {text.split('\n').map((line, i) => (
-        <p key={i} style={{ minHeight: line ? undefined : '0.6em' }}>
-          {line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-            part.startsWith('**') && part.endsWith('**') ? <strong key={j}>{part.slice(2, -2)}</strong> : <span key={j}>{part}</span>
-          )}
-        </p>
-      ))}
-    </>
   );
 }
 

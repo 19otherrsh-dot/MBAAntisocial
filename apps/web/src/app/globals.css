@@ -581,3 +581,14 @@ ul, ol { list-style: none; }
     radial-gradient(30% 40% at 60% 80%, color-mix(in srgb, var(--rose) 9%, transparent), transparent 70%);
   filter: blur(8px);
 }
+
+/* ───────────────────────── Print ─────────────────────────
+   A page that wants a clean print portals its printable content into
+   [data-print-root]; everything else in <body> is dropped from the print. */
+[data-print-root] { display: none; }
+@page sheet { size: A4; margin: 12mm; }
+@media print {
+  body:has([data-print-root]) > *:not([data-print-root]) { display: none !important; }
+  [data-print-root] { display: block; page: sheet; }
+  html, body { background: #fff !important; }
+}

@@ -1,206 +1,56 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Bot, SquareSquare, UploadCloud, FileText } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import { Avatar } from '@/components/ui/Display';
-import { useMe } from '@/lib/client/me';
-import { MAX_FILE_SIZE_BYTES } from '@/lib/constants';
-import { streamText } from '@/lib/client/stream';
-import { errorMessage } from '@/lib/client/api';
+import { useCallback, useRef, useState } from 'react';
+import { Flame, PenLine } from 'lucide-react';
+import type { ResumeData } from '@mba/shared/resume';
+import { Segmented } from '@/components/ui/Display';
+import Builder, { type ResumeDoc } from '@/components/resume/Builder';
+import Roaster from '@/components/resume/Roaster';
+import { useApiQuery } from '@/lib/client/hooks';
 import styles from '../app.module.css';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+type Tab = 'build' | 'roast';
 
-export default function AIResumeRoasterPage() {
-  const { me } = useMe();
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const endRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleStartRoast = async () => {
-    if (!file || isLoading) return;
-
-    setUploading(true);
-    let uploadedUrl = '';
-    
-    // Upload PDF to Cloudinary
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'resumes');
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-      
-      const data = await response.json();
-      uploadedUrl = data.url;
-    } catch (e) {
-      setUploading(false);
-      console.error(e);
-      setMessages([{ role: 'assistant', content: 'Could not upload that file. Try again.' }]);
-      return;
-    }
-    
-    setUploading(false);
-    setIsLoading(true);
-    setMessages([{ role: 'user', content: `(Uploaded Resume: ${file.name})` }]);
-
-    // Trigger AI Roast API
-    try {
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-      await streamText('/api/ai/roast', { pdfUrl: uploadedUrl }, (text) =>
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: text };
-          return updated;
-        })
-      );
-    } catch (err) {
-      setMessages((prev) => [...prev.filter((m) => m.content), { role: 'assistant', content: errorMessage(err) || 'The review failed. Try again.' }]);
-    } finally {
-      setIsLoading(false);
-      setFile(null); // Clear file so they can upload another
-    }
-  };
-
-  const hasStarted = messages.length > 0 || uploading || isLoading;
+export default function ResumeStudioPage() {
+  const [tab, setTab] = useState<Tab>('build');
+  const { data, error } = useApiQuery<{ data: ResumeData; target: string }>('/api/resume');
+  // The live draft lives in the builder; the roaster reads it on demand.
+  const draft = useRef<ResumeDoc | null>(null);
+  const trackDraft = useCallback((doc: ResumeDoc) => {
+    draft.current = doc;
+  }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className={styles.pageHead} style={{ paddingBottom: 'var(--s-3)' }}>
+    <div className="stack gap-4">
+      <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>AI Resume Roaster</h2>
-          <p className={styles.pageSubtitle}>
-            Submit your resume. Get roasted by an elite recruiter. Fix your fluff.
-          </p>
+          <h2 className={styles.pageTitle}>Resume studio</h2>
+          <p className={styles.pageSubtitle}>Build a one-page resume that prints right, then get it torn apart before a recruiter does.</p>
         </div>
-        {isLoading && (
-          <Button variant="soft" onClick={() => setIsLoading(false)} icon={<SquareSquare size={16} />} disabled={!isLoading}>
-            Stop Roasting
-          </Button>
-        )}
+        <Segmented
+          ariaLabel="Resume studio"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'build', label: 'Build', icon: <PenLine size={14} /> },
+            { value: 'roast', label: 'Roast', icon: <Flame size={14} /> },
+          ]}
+        />
       </div>
 
-      {!hasStarted ? (
-        <div className="surface-card" style={{ maxWidth: 600, margin: '0 auto', marginTop: 'var(--s-6)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--s-4)', color: 'var(--accent)' }}>
-             <FileText size={48} strokeWidth={1} />
-          </div>
-          <h3 className="h4" style={{ marginBottom: 'var(--s-3)', textAlign: 'center' }}>Upload Your Resume</h3>
-          <p className="dim" style={{ marginBottom: 'var(--s-6)', textAlign: 'center' }}>
-            Upload your PDF. The Antisocial MBA bot will tear apart every meaningless buzzword and force you to quantify your impact.
-          </p>
-          
-          <div className="stack gap-2" style={{ marginBottom: 'var(--s-6)' }}>
-            <input
-              id="resume-file"
-              type="file"
-              accept=".pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              style={{
-                padding: 'var(--s-6)',
-                border: '2px dashed var(--line-strong)',
-                borderRadius: 'var(--r-md)',
-                background: 'var(--bg-sunken)',
-                color: 'var(--text)',
-                fontSize: 'var(--t-sm)',
-                width: '100%',
-                cursor: 'pointer',
-              }}
-            />
-            <span className="dim" style={{ fontSize: 'var(--t-xs)', textAlign: 'center' }}>
-              PDF only, max {Math.round(MAX_FILE_SIZE_BYTES / 1_048_576)} MB
-            </span>
-          </div>
+      {error && <div className={styles.errorBox}>{error}</div>}
 
-          <Button 
-            variant="primary" 
-            onClick={handleStartRoast} 
-            disabled={!file} 
-            loading={uploading || isLoading}
-            style={{ width: '100%' }}
-            icon={<UploadCloud size={16} />}
-          >
-            Roast Me
-          </Button>
-        </div>
-      ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--s-4)', background: 'var(--surface)', borderRadius: 'var(--r-md) var(--r-md) 0 0', display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
-            {uploading && (
-              <div className="dim" style={{ textAlign: 'center', marginTop: 'var(--s-6)' }}>
-                Uploading PDF... 
-              </div>
-            )}
-            
-            {messages.map((msg, i) => {
-              const isMe = msg.role === 'user';
-              return (
-                <div key={i} style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                  {!isMe && (
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                      <Bot size={18} />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                    {!isMe && <span className="dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 2 }}>Alumni AI</span>}
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: 'var(--r-md)',
-                      background: isMe ? 'var(--accent)' : 'var(--bg)',
-                      color: isMe ? 'var(--on-accent)' : 'var(--text)',
-                      border: isMe ? 'none' : '1px solid var(--line)',
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.5,
-                    }}>
-                      {msg.content}
-                    </div>
-                  </div>
-                  {isMe && (
-                    <Avatar name={me?.name || 'User'} image={me?.image} seed={me?.id} size={32} />
-                  )}
-                </div>
-              );
-            })}
-            
-            {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
-              <div style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: 'flex-start' }}>
-                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                   <Bot size={18} />
-                 </div>
-                 <div style={{ padding: '12px 16px', borderRadius: 'var(--r-md)', background: 'var(--bg)', border: '1px solid var(--line)' }}>
-                   <span className="dim">Reading your resume... and cringing...</span>
-                 </div>
-              </div>
-            )}
-            
-            {!isLoading && messages.length > 1 && (
-              <div style={{ marginTop: 'var(--s-6)', textAlign: 'center' }}>
-                <Button variant="secondary" onClick={() => setMessages([])}>
-                  Submit another Resume
-                </Button>
-              </div>
-            )}
-            
-            <div ref={endRef} />
-        </div>
-      )}
+      {/* Both stay mounted, so switching tabs never loses a draft or a review. */}
+      <div hidden={tab !== 'build'}>
+        {data ? (
+          <Builder initial={{ data: data.data, target: data.target }} onRoast={() => setTab('roast')} onDocChange={trackDraft} />
+        ) : (
+          !error && <div className={styles.skeletonWide} aria-busy="true" />
+        )}
+      </div>
+      <div hidden={tab !== 'roast'}>
+        {data && <Roaster initialTarget={data.target} getDraft={() => draft.current} onEdit={() => setTab('build')} />}
+      </div>
     </div>
   );
 }

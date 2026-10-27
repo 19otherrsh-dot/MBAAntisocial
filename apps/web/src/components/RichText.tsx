@@ -43,6 +43,11 @@ function renderInline(text: string, resolver: MentionResolver, keyPrefix: string
   });
 }
 
+/** One line of inline formatting (no line breaks), for callers that own the block structure. */
+export function InlineText({ text, resolver = {} }: { text: string; resolver?: MentionResolver }) {
+  return <>{renderInline(text, resolver, 'i')}</>;
+}
+
 export default function RichText({ text, resolver = {} }: { text: string; resolver?: MentionResolver }) {
   // Code blocks may span lines, so split on them before splitting lines.
   const blocks = text.split(/(```[\s\S]+?```)/g);
