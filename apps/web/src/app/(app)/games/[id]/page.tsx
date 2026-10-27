@@ -13,6 +13,7 @@ import { api, errorMessage } from '@/lib/client/api';
 import { useMe } from '@/lib/client/me';
 import { cn, formatDateTime, timeAgo } from '@/lib/utils';
 import GameArt from '@/components/games/GameArt';
+import Morph from '@/components/motion/Morph';
 import type { GameDetail, RoomView } from '@/components/games/types';
 import gs from '@/components/games/games.module.css';
 import styles from '../../app.module.css';
@@ -51,7 +52,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
       <Link href="/games" className="row gap-1 dim" style={{ fontSize: 'var(--t-sm)' }}><ArrowLeft size={14} /> All games</Link>
 
       <div className={gs.detailHead}>
-        <GameArt id={game.id} thumbnail={game.thumbnail} title={game.title} className={gs.detailArt} />
+        <Morph name={`game-art-${game.id}`}><GameArt id={game.id} thumbnail={game.thumbnail} title={game.title} className={gs.detailArt} /></Morph>
         <div className="stack gap-2">
           <div className="row gap-2 wrap">
             <Chip tone="violet">{GAME_CATEGORY_META[game.category].label}</Chip>

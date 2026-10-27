@@ -62,7 +62,7 @@ function Marketplace() {
       ) : data.listings.length === 0 ? (
         <EmptyState art={<ShoppingBag size={36} strokeWidth={1.4} />} title={scope === 'mine' ? 'You are not selling anything' : 'Nothing listed yet'} body="Post the thing gathering dust — it takes a minute." action={<Button onClick={() => setCreating(true)}>Sell something</Button>} />
       ) : (
-        <div className={cs.grid}>
+        <div className={cs.grid} data-reveal="">
           {data.listings.map((l) => (
             <button key={l._id} className={cs.card} onClick={() => router.push(`/marketplace?listing=${l._id}`, { scroll: false })}>
               <div className={cs.cover} style={{ aspectRatio: '4 / 3' }}>

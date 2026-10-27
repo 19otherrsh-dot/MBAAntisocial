@@ -57,7 +57,7 @@ export default function GradesPage() {
             <Stat value={data.cgpa !== null ? data.cgpa.toFixed(2) : '—'} label="CGPA" meta="all graded courses" />
             <Stat value={data.courses.reduce((n, c) => n + c.credits, 0)} label="Credits this term" />
           </div>
-          <div className={ac.courses}>
+          <div className={ac.courses} data-reveal="">
             {data.courses.map((c) => <GradeCard key={c._id} course={c} scale={data.scale} onSaved={refetch} />)}
           </div>
         </>

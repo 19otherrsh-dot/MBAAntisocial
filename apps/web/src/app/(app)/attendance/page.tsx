@@ -59,7 +59,7 @@ export default function AttendancePage() {
             <div className={styles.sectionHead}>Today</div>
             <TodayClasses classes={data.today} onChanged={refetch} compact />
           </section>
-          <div className={ac.courses}>
+          <div className={ac.courses} data-reveal="">
             {data.courses.map((c) => {
               const v = verdict(c);
               const pct = c.attendance.percent;

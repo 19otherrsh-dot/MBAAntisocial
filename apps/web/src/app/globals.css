@@ -494,3 +494,90 @@ ul, ol { list-style: none; }
 .rt-mention-self { background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--amber-text); }
 .rt-link { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
 .rt-quote { display: inline-block; border-left: 3px solid var(--line-strong); padding-left: 8px; color: var(--text-secondary); }
+
+/* ───────────────────────── Motion ─────────────────────────
+ * Cinematic, but never at the cost of speed or comfort:
+ * - Scroll-driven effects use CSS scroll timelines (compositor-only, zero JS).
+ *   Browsers without them simply show the content.
+ * - Everything sits behind prefers-reduced-motion: no-preference.
+ * - Only opacity and transform animate.
+ */
+/* Individual translate/scale (not transform) so a reveal composes with hover tilts. */
+@keyframes reveal-rise {
+  from { opacity: 0; translate: 0 28px; scale: 0.985; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes hero-recede {
+  to { opacity: 0.35; translate: 0 -40px; scale: 0.96; }
+}
+@keyframes aurora-drift {
+  to { transform: translate3d(0, 18%, 0) rotate(8deg) scale(1.15); }
+}
+@keyframes title-in {
+  from { opacity: 0; translate: 0 0.35em; filter: blur(6px); }
+  to { opacity: 1; translate: 0 0; filter: blur(0); }
+}
+@keyframes page-in {
+  from { opacity: 0; translate: 0 14px; }
+}
+@keyframes page-out {
+  to { opacity: 0; translate: 0 -8px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    /* Children of a [data-reveal] container rise in as they enter the viewport. */
+    [data-reveal] > * {
+      animation: reveal-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+    [data-reveal] > *:nth-child(3n + 2) { animation-range: entry 6% entry 61%; }
+    [data-reveal] > *:nth-child(3n + 3) { animation-range: entry 12% entry 67%; }
+
+    /* A hero recedes into depth as the page scrolls past it. */
+    [data-hero-recede] {
+      animation: hero-recede linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+    [data-aurora]::before {
+      animation: aurora-drift linear both;
+      animation-timeline: scroll(nearest);
+      animation-range: 0 100vh;
+    }
+  }
+
+  /* Headlines settle in once, on arrival. */
+  [data-title-in] { animation: title-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+  /* Route changes: a short, soft cut. */
+  ::view-transition-old(.page) { animation: 160ms ease-in both page-out; }
+  ::view-transition-new(.page) { animation: 320ms cubic-bezier(0.2, 0.8, 0.2, 1) 60ms both page-in; }
+  /* Shared elements (a game card's art becoming the detail hero) glide. */
+  ::view-transition-group(.morph) { animation-duration: 420ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+}
+::view-transition { pointer-events: none; }
+
+/* Spotlight cards: a light that follows the pointer, and a slight tilt toward it. */
+[data-spotlight] [data-spot-on] {
+  background-image: radial-gradient(420px circle at var(--spot-x, 50%) var(--spot-y, 50%), color-mix(in srgb, var(--accent) 9%, transparent), transparent 60%);
+  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateZ(0);
+  transition: transform 120ms ease-out, border-color 120ms, box-shadow 120ms;
+}
+
+/* An ambient wash behind section heroes. */
+[data-aurora] { position: relative; isolation: isolate; }
+[data-aurora]::before {
+  content: '';
+  position: absolute;
+  inset: -30% -10% auto -10%;
+  height: 160%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 50% at 18% 30%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(35% 45% at 80% 20%, color-mix(in srgb, var(--teal) 12%, transparent), transparent 70%),
+    radial-gradient(30% 40% at 60% 80%, color-mix(in srgb, var(--rose) 9%, transparent), transparent 70%);
+  filter: blur(8px);
+}

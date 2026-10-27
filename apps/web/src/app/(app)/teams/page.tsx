@@ -59,7 +59,7 @@ function Teams() {
       {!data ? <div className="skeleton" style={{ height: 240 }} /> : data.teams.length === 0 ? (
         <EmptyState art={<UsersRound size={36} strokeWidth={1.4} />} title={scope === 'mine' ? 'You are not on a team yet' : 'No teams looking right now'} body="Form one and list the roles you need — people can ask to join." action={<Button onClick={() => setCreating(true)}>Form a team</Button>} />
       ) : (
-        <div className={cs.grid}>
+        <div className={cs.grid} data-reveal="">
           {data.teams.map((t) => (
             <div key={t._id} className={cs.card} style={openTeam === t._id ? { borderColor: 'var(--accent)' } : undefined}>
               <div className={cs.cardBody} style={{ paddingTop: 'var(--s-4)' }}>

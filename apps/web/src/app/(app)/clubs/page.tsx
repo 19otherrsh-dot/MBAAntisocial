@@ -12,6 +12,8 @@ import { useToast } from '@/components/ui/Toast';
 import { useApiQuery, useDebounced } from '@/lib/client/hooks';
 import { api, errorMessage } from '@/lib/client/api';
 import { ClubLogo, CLUB_CATEGORY_LABEL } from '@/components/campus/clubs';
+import Morph from '@/components/motion/Morph';
+import Spotlight from '@/components/motion/Spotlight';
 import cs from '@/components/campus/campus.module.css';
 import styles from '../app.module.css';
 
@@ -45,12 +47,13 @@ export default function ClubsPage() {
       ) : data.clubs.length === 0 ? (
         <EmptyState art={<Flag size={36} strokeWidth={1.4} />} title={scope === 'mine' ? 'You have not joined a club yet' : 'No clubs yet'} body="Start one — it comes with its own hub server, events, and a budget tracker." action={<Button onClick={() => setCreating(true)}>Start a club</Button>} />
       ) : (
-        <div className={cs.grid}>
+        <Spotlight>
+        <div className={cs.grid} data-reveal="">
           {data.clubs.map((c) => (
-            <Link key={c._id} href={`/clubs/${c.slug}`} className={cs.card}>
+            <Link key={c._id} href={`/clubs/${c.slug}`} className={cs.card} data-spot="">
               <div className={cs.cardBody} style={{ paddingTop: 'var(--s-4)' }}>
                 <div className={cs.head}>
-                  <ClubLogo name={c.name} logo={c.logo} />
+                  <Morph name={`club-logo-${c.slug}`}><ClubLogo name={c.name} logo={c.logo} /></Morph>
                   <div className="stack" style={{ minWidth: 0 }}>
                     <span className={cs.cardTitle}>{c.name} {c.official && <BadgeCheck size={15} style={{ color: 'var(--accent)', verticalAlign: '-2px' }} aria-label="Official" />}</span>
                     <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>{CLUB_CATEGORY_LABEL[c.category]}</span>
@@ -66,6 +69,7 @@ export default function ClubsPage() {
             </Link>
           ))}
         </div>
+        </Spotlight>
       )}
       {creating && <CreateClubDialog onClose={() => setCreating(false)} onCreated={(slug) => router.push(`/clubs/${slug}`)} />}
     </div>

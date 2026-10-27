@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/Field';
 import { Chip, EmptyState, Segmented } from '@/components/ui/Display';
 import { useApiQuery } from '@/lib/client/hooks';
 import GameArt from '@/components/games/GameArt';
+import Morph from '@/components/motion/Morph';
+import Spotlight from '@/components/motion/Spotlight';
 import JoinByCode from '@/components/games/JoinByCode';
 import type { GameCardView, RoomView } from '@/components/games/types';
 import gs from '@/components/games/games.module.css';
@@ -75,10 +77,11 @@ export default function GamesPage() {
       ) : games.length === 0 ? (
         <EmptyState title="No games match" body="Try another category or search." />
       ) : (
-        <div className={gs.grid}>
+        <Spotlight>
+        <div className={gs.grid} data-reveal="">
           {games.map((g) => (
-            <Link key={g.id} href={`/games/${g.id}`} className={gs.card}>
-              <GameArt id={g.id} thumbnail={g.thumbnail} title={g.title} />
+            <Link key={g.id} href={`/games/${g.id}`} className={gs.card} data-spot="">
+              <Morph name={`game-art-${g.id}`}><GameArt id={g.id} thumbnail={g.thumbnail} title={g.title} /></Morph>
               {!g.playable && <span className={gs.soon}><Chip tone="slate">Coming soon</Chip></span>}
               <div className={gs.cardBody}>
                 <div className="row gap-2" style={{ justifyContent: 'space-between' }}>
@@ -95,6 +98,7 @@ export default function GamesPage() {
             </Link>
           ))}
         </div>
+        </Spotlight>
       )}
     </div>
   );

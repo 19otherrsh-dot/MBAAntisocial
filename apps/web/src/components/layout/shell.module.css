@@ -635,9 +635,38 @@
 }
 
 /* Section landing */
-.landingTitle { font-size: var(--t-2xl); font-weight: 680; letter-spacing: -0.03em; }
-.landingSubtitle { color: var(--text-secondary); margin-top: var(--s-1); }
-.tileGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s-3); }
+.landingHero {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-6) 0 var(--s-4);
+  min-height: 180px;
+}
+.landingHeroWithPiece { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 360px; }
+.landingHeroText { display: flex; flex-direction: column; gap: var(--s-3); max-width: 640px; }
+.landingEyebrow {
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  padding: 4px 10px; border-radius: var(--r-full); border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 75%, transparent); backdrop-filter: blur(6px);
+  font-size: var(--t-xs); font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary);
+}
+.landingTitle {
+  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 3rem); font-weight: 720; letter-spacing: -0.035em; line-height: 1.08;
+  text-wrap: balance;
+  background: linear-gradient(120deg, var(--text) 30%, color-mix(in srgb, var(--accent) 70%, var(--text)));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.landingSubtitle { color: var(--text-secondary); }
+.landingPieceWrap { width: 100%; display: flex; justify-content: center; }
+/* Never taller than ~60% of the viewport, whatever the piece's proportions. */
+.landingPiece { width: 100%; max-width: min(520px, calc(60vh * var(--ar, 1))); }
+@media (max-width: 860px) {
+  .landingHeroWithPiece { grid-template-columns: 1fr; min-height: 0; }
+  .landingPiece { max-width: min(420px, calc(48vh * var(--ar, 1))); }
+}
+.tileGrid { display: block; }
+.tileGridInner { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s-3); }
 .tile {
   display: flex;
   align-items: flex-start;

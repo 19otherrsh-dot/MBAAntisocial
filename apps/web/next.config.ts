@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
     ];
     return [
       { source: '/player/:path*', headers: isolation },
+      // 3D showpieces: large, rarely changed; revalidate in the background.
+      { source: '/models/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }] },
       {
         source: '/game-builds/:path*',
         headers: [

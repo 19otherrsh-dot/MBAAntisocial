@@ -12,6 +12,8 @@ import { formatTime } from '@/lib/utils';
 import EventDialog, { EVENT_CATEGORY_LABEL } from '@/components/campus/EventDialog';
 import CalendarFeedButton from '@/components/academics/CalendarFeedButton';
 import cs from '@/components/campus/campus.module.css';
+import Morph from '@/components/motion/Morph';
+import Spotlight from '@/components/motion/Spotlight';
 import styles from '../app.module.css';
 
 interface EventCard {
@@ -52,12 +54,13 @@ function Events() {
       ) : data.events.length === 0 ? (
         <EmptyState art={<PartyPopper size={36} strokeWidth={1.4} />} title={scope === 'mine' ? 'Nothing on your calendar' : 'No events yet'} body="Host one — a study jam, a fireside chat, a Sunday cricket match." action={<Button onClick={() => setCreating(true)}>Host an event</Button>} />
       ) : (
-        <div className={cs.grid}>
+        <Spotlight>
+        <div className={cs.grid} data-reveal="">
           {data.events.map((e) => {
             const start = new Date(e.startAt);
             return (
-              <Link key={e._id} href={`/events/${e._id}`} className={cs.card}>
-                <div className={cs.cover}>
+              <Link key={e._id} href={`/events/${e._id}`} className={cs.card} data-spot="">
+                <Morph name={`event-cover-${e._id}`}><div className={cs.cover}>
                   {e.coverImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={e.coverImage} alt="" loading="lazy" />
@@ -65,7 +68,7 @@ function Events() {
                     <CalendarDays size={36} strokeWidth={1.3} className="dim" />
                   )}
                   <div className={cs.dateBadge}><span>{start.toLocaleDateString('en-IN', { month: 'short' })}</span><strong>{start.getDate()}</strong></div>
-                </div>
+                </div></Morph>
                 <div className={cs.cardBody}>
                   <div className="row gap-2 wrap">
                     <Chip>{EVENT_CATEGORY_LABEL[e.category] ?? e.category}</Chip>
@@ -85,6 +88,7 @@ function Events() {
             );
           })}
         </div>
+        </Spotlight>
       )}
       {creating && <EventDialog onClose={() => setCreating(false)} onCreated={(id) => router.push(`/events/${id}`)} />}
     </div>

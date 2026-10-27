@@ -16,6 +16,7 @@ import { formatDate, formatDateTime, toDateTimeLocalValue } from '@/lib/utils';
 import RichText from '@/components/RichText';
 import EventDialog from '@/components/campus/EventDialog';
 import { ClubLogo, CLUB_CATEGORY_LABEL } from '@/components/campus/clubs';
+import Morph from '@/components/motion/Morph';
 import cs from '@/components/campus/campus.module.css';
 import styles from '../../app.module.css';
 
@@ -81,7 +82,7 @@ export default function ClubPage({ params }: { params: Promise<{ slug: string }>
       <Link href="/clubs" className="row gap-1 dim" style={{ fontSize: 'var(--t-sm)' }}><ArrowLeft size={14} /> Clubs</Link>
       <div className={styles.pageHead}>
         <div className={cs.head}>
-          <ClubLogo name={club.name} logo={club.logo} size={64} />
+          <Morph name={`club-logo-${club.slug}`}><ClubLogo name={club.name} logo={club.logo} size={64} /></Morph>
           <div className="stack gap-1">
             <h1 className={styles.pageTitle}>{club.name} {club.official && <BadgeCheck size={20} style={{ color: 'var(--accent)', verticalAlign: '-2px' }} aria-label="Official club" />}</h1>
             <span className="muted">{club.tagline}</span>

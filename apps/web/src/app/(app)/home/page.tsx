@@ -177,8 +177,8 @@ export default function HomePage() {
 
   return (
     <>
-      <div>
-        <h2 className={styles.greeting}>
+      <div data-aurora="">
+        <h2 className={styles.greeting} data-title-in="">
           {greetingFor()}, {firstName}
         </h2>
         <p className={styles.pageSubtitle}>
@@ -202,7 +202,7 @@ export default function HomePage() {
       )}
 
       {me && (
-        <div className={styles.statStrip}>
+        <div className={styles.statStrip} data-reveal="">
           <Stat value={me.karma} label="Karma" meta="For helping others" tone="teal" />
           <Stat value={me.points} label="Points" meta="For your own work" tone="violet" />
           <Stat

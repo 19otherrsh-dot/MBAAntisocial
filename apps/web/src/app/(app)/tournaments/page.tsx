@@ -69,7 +69,7 @@ function Tournaments() {
           body={data.games.length === 0 ? 'Tournaments open up once a tournament-ready game is published.' : 'Start one — pick a game, a time, and share the link.'}
         />
       ) : (
-        <div className={gs.grid}>
+        <div className={gs.grid} data-reveal="">
           {data.tournaments.map((t) => (
             <Link key={t._id} href={`/tournaments/${t._id}`} className={gs.card}>
               <GameArt id={t.game} title={t.gameTitle} />

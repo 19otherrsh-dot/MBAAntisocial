@@ -16,6 +16,7 @@ import { formatDateTime, formatTime } from '@/lib/utils';
 import RichText from '@/components/RichText';
 import { EVENT_CATEGORY_LABEL } from '@/components/campus/EventDialog';
 import cs from '@/components/campus/campus.module.css';
+import Morph from '@/components/motion/Morph';
 import styles from '../../app.module.css';
 
 interface EventDetail {
@@ -64,7 +65,7 @@ export default function EventPage({ params }: { params: Promise<{ id: string }> 
       <Link href="/events" className="row gap-1 dim" style={{ fontSize: 'var(--t-sm)' }}><ArrowLeft size={14} /> Events</Link>
       {e.coverImage && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={e.coverImage} alt="" style={{ width: '100%', aspectRatio: '21 / 9', objectFit: 'cover', borderRadius: 'var(--r-xl)' }} />
+        <Morph name={`event-cover-${e._id}`}><img src={e.coverImage} alt="" style={{ width: '100%', aspectRatio: '21 / 9', objectFit: 'cover', borderRadius: 'var(--r-xl)' }} /></Morph>
       )}
       <div className="stack gap-2">
         <div className="row gap-2 wrap">

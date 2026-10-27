@@ -58,7 +58,7 @@ export default function LostFoundPage() {
       ) : data.items.length === 0 ? (
         <EmptyState art={<SearchX size={36} strokeWidth={1.4} />} title={resolved ? 'Nothing reunited yet' : 'Nothing lost right now'} body="Good news, probably." />
       ) : (
-        <div className={cs.grid}>
+        <div className={cs.grid} data-reveal="">
           {data.items.map((i) => (
             <div key={i._id} className={cs.card}>
               {i.image && (
