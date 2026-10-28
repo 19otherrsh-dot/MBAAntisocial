@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import AppShell from '@/components/layout/AppShell';
@@ -16,5 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // An unproven address sees nothing campus-scoped until it is proven.
   if (!session.user.verified) redirect('/verify-email');
 
-  return <AppShell>{children}</AppShell>;
+  // Inside the native app's WebView the app supplies navigation; drop ours.
+  const embedded = (await cookies()).get('mba-embed')?.value === '1';
+  return <AppShell embedded={embedded}>{children}</AppShell>;
 }

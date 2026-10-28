@@ -16,11 +16,29 @@ const nextConfig: NextConfig = {
    * so they can be cached forever.
    */
   async headers() {
+    /**
+     * Opt-in CORS for bearer-token API calls from listed origins (the Expo web
+     * preview in development). Exact origins only and never credentials, so a
+     * cookie session cannot be used cross-origin.
+     */
+    const corsOrigins = (process.env.API_CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+    const cors = corsOrigins.map((origin) => ({
+      source: '/api/:path*',
+      has: [{ type: 'header' as const, key: 'origin', value: origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }],
+      headers: [
+        { key: 'Access-Control-Allow-Origin', value: origin },
+        { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PATCH, PUT, DELETE, OPTIONS' },
+        { key: 'Access-Control-Allow-Headers', value: 'Authorization, Content-Type' },
+        { key: 'Access-Control-Max-Age', value: '600' },
+        { key: 'Vary', value: 'Origin' },
+      ],
+    }));
     const isolation = [
       { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
       { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
     ];
     return [
+      ...cors,
       { source: '/player/:path*', headers: isolation },
       // 3D showpieces: large, rarely changed; revalidate in the background.
       { source: '/models/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }] },

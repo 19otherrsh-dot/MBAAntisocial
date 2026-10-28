@@ -696,3 +696,6 @@
 .tileBody { font-size: var(--t-sm); color: var(--text-secondary); line-height: 1.5; }
 .tileArrow { color: var(--text-muted); margin-top: 2px; flex-shrink: 0; }
 .tile:hover .tileArrow { color: var(--accent); }
+
+/* Inside the native app's WebView: the app supplies navigation. */
+.embedded { min-height: 100dvh; background: var(--bg); }

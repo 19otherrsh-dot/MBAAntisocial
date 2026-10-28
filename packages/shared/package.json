@@ -13,7 +13,8 @@
     "./campus": "./src/campus.ts",
     "./academics": "./src/academics.ts",
     "./money": "./src/money.ts",
-    "./resume": "./src/resume.ts"
+    "./resume": "./src/resume.ts",
+    "./today": "./src/today.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",

@@ -33,5 +33,7 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(new URL(safeNext, env.APP_URL));
   response.cookies.set(cookieName, token, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: MAX_AGE });
+  // Opened inside the native app: render pages without the web's own navigation.
+  if (url.searchParams.get('embed') === '1') response.cookies.set('mba-embed', '1', { httpOnly: true, sameSite: 'lax', secure, path: '/' });
   return response;
 }

@@ -1,4 +1,7 @@
 import { featureAvailable, type FeatureKey } from '@mba/shared/campus';
+import type { PersonRef, TodayCards } from '@mba/shared/today';
+
+export type { TodayCards };
 import type { Actor } from '@/lib/api/handler';
 import { materialiseRecurringTasks } from '@/lib/recurrence';
 import Task from '@/models/Task';
@@ -35,32 +38,6 @@ export interface TodayContext {
   dayEnd: Date;
 }
 
-interface PersonRef {
-  id: string;
-  name: string;
-  image?: string;
-}
-
-export interface TodayCards {
-  classes: Awaited<ReturnType<typeof todaysClasses>>;
-  tasks: {
-    items: Array<{ id: string; title: string; course: string; type: string; dueAt: string | null; overdue: boolean }>;
-    overdue: number;
-    dueToday: number;
-    pending: number;
-  };
-  agenda: Array<
-    | { kind: 'session'; id: string; startAt: string; endAt: string; sessionType: string; role: 'host' | 'guest'; with: PersonRef | null }
-    | { kind: 'round'; id: string; startAt: string; company: string; label: string; roundType: string }
-  >;
-  briefing: { day: string; count: number; headline: { title: string; source: string; url: string } | null };
-  quiz: { ready: boolean; played: boolean; score: number | null; total: number };
-  checkIn: { done: boolean };
-  events: Array<{ id: string; title: string; startAt: string; endAt: string; venue: string; category: string; going: boolean; goingCount: number }>;
-  comps: Array<{ id: string; title: string; host: string; registrationDeadline: string }>;
-  games: Array<{ id: string; game: string; gameName: string; status: string; tournament: boolean }>;
-  openEdition: { crossCampusSlots: number };
-}
 
 interface CardProvider<K extends keyof TodayCards> {
   key: K;

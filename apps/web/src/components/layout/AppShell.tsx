@@ -22,17 +22,17 @@ import styles from './shell.module.css';
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({ children, embedded = false }: { children: React.ReactNode; embedded?: boolean }) {
   return (
     <MeProvider>
       <RealtimeProvider>
-        <ShellFrame>{children}</ShellFrame>
+        <ShellFrame embedded={embedded}>{children}</ShellFrame>
       </RealtimeProvider>
     </MeProvider>
   );
 }
 
-function ShellFrame({ children }: { children: React.ReactNode }) {
+function ShellFrame({ children, embedded }: { children: React.ReactNode; embedded: boolean }) {
   const pathname = usePathname();
   const { me } = useMe();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -63,6 +63,14 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
   // One edition gate for every page, instead of each page checking for itself.
   const item = itemForPath(pathname);
   const locked = Boolean(me && item?.feature && !featureAvailable(item.feature, me.edition));
+
+  if (embedded) {
+    return (
+      <div className={styles.embedded}>
+        <main className={styles.content}>{locked && item ? <CampusLocked item={item} /> : children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(styles.shell, collapsed && styles.shellCollapsed)}>
