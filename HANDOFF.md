@@ -135,11 +135,12 @@ Process rules the owner or the environment set:
 | 7e | Resume studio: builder with print-exact A4 preview, AI bullet rewrites, roaster | ✅ done | `4b5bbac` |
 | 7f | Today rework (`/api/today` card providers), time-zone fixes, Open Edition mocks | ✅ done | `c442837` |
 | 8 | Admin consoles `/admin` + `/institute/admin`, PRD §9 metrics, audit log, live revocation | ✅ done | `f7dae88` |
-| 9 | **Expo native app** (iOS + Android) | ⬜ **not started**; backend endpoints exist (see §12) | — |
+| 9 | Native app (Expo SDK 58): Today, Prep, Tasks, Hub chat, More via signed-in web, SSO, push | ✅ done (browser preview and native bundles verified; not yet run on a device) | `b69f29e` |
 | 10 | Infra: Dockerfiles, compose, Vercel crons, env templates, CI + smoke suite, setup scripts, README/INSTALL, page titles | ✅ done | `cca09b3` … `fce2d28` |
 
 `next build` passes cleanly (no warnings). Typecheck, lint, 71 unit tests and the
-browser smoke suite (`npm run e2e -w @mba/web`) pass. Both Docker images were built and
+browser smoke suite (`npm run e2e -w @mba/web`) pass. The mobile app type-checks, lints, and exports
+Hermes bundles for iOS and Android. Both Docker images were built and
 run, and the compose stack was brought up from an empty database, seeded, and exercised
 (see §10).
 
@@ -157,6 +158,7 @@ MBAAntisocial/
 ├── HANDOFF.md                # this file
 ├── docs/PRD.md               # the product requirements document
 ├── apps/
+│   ├── mobile/               # Expo app (iOS + Android); NOT an npm workspace: own lockfile; see apps/mobile/README.md
 │   ├── web/                  # Next 16 App Router: UI + REST API + crons (@mba/web)
 │   │   ├── next.config.ts    # security/isolation headers, redirects from legacy paths
 │   │   ├── .env.example      # STALE (mentions Gemini/Pusher); rewrite (see §12)
@@ -672,6 +674,29 @@ See §5.6. Supporting pieces:
   - Any new code that changes those fields must call it too.
 - **Accessibility:** danger `Banner`s have `role="alert"`.
 
+### 7.13 Native app (`apps/mobile`)
+
+- **Stack:** Expo SDK 58 with expo-router (routes in `src/app`), React Native 0.88, React 19.3, and the React Compiler on.
+- **Not an npm workspace:** it has its own `package-lock.json`. Run npm inside `apps/mobile`. For native modules use the versions from `expo/bundledNativeModules.json`, since `npx expo install` needs Expo's API, which this sandbox blocks.
+- **`@mba/shared`** comes through a `file:` link; `metro.config.js` watches `packages/shared`. The Today contract is in `@mba/shared/today` and is used by both apps.
+- **Navigation:** native tabs (`components/app-tabs.tsx`, `NativeTabs` with `sf`/`md` icons) and a web-preview bar (`app-tabs.web.tsx`). The root `Stack` uses `Stack.Protected` guards to switch between `sign-in` and the app.
+- **Auth** (`src/lib/auth.tsx`):
+  - Password or OTP via `/api/mobile/auth/login`.
+  - SSO via `WebBrowser.openAuthSessionAsync(APP_URL/mobile/sso?provider=…, 'mbaantisocial://auth')`, then `/api/mobile/auth/exchange`.
+  - The token is stored with `expo-secure-store` (`localStorage` on web).
+  - **The bearer is handed to the API client synchronously in `adopt()`**, because child effects run before parent effects and an effect would be too late.
+  - A 401 on any authenticated call signs the user out.
+- **Screens:**
+  - Today renders `/api/today`.
+  - Prep uses `/api/sessions`, with a cross scope on the Open Edition.
+  - Tasks uses `/api/tasks`; habit instances are hidden until due.
+  - Hub uses `/api/hub/servers`, `/servers/[id]` and `/dm`; chat goes to `/channels/[id]/messages` or `/dm/[id]`, with `useTopic` live updates and `canSend` respected.
+  - More opens web pages through `app/web.tsx` (`/api/mobile/auth/web-code`, then `/mobile/web-login?code=…&next=…&embed=1`).
+- **Embed mode:** `web-login?embed=1` sets an `mba-embed` cookie, and `(app)/layout.tsx` passes `embedded` to `AppShell`, which drops the sidebar, top bar and bottom nav.
+- **Push** (`src/lib/push.ts`): needs `extra.eas.projectId` (`eas init`). Taps route through `src/lib/links.ts`, which maps a web `href` to a native screen and falls back to the web screen.
+- **CORS for the web preview:** `API_CORS_ORIGINS` (web env) adds exact-origin CORS for `/api/*` without credentials. Next anchors `has` values as `^…$`, and the origin is regex-escaped.
+- **Icons** are rendered from the brand mark (`components/brand/Logo.tsx`) with sharp. The generator lives in the session scratchpad; regenerate with the same SVG if the brand changes.
+
 ## 8. Running it locally
 
 The quick paths are now `./setup.sh --seed` / `setup.ps1 -Seed` and `docker compose up -d --build` (see README and INSTALL). The manual steps below still work. Env templates: `apps/web/.env.example` and `apps/realtime/.env.example`. The realtime service loads its own `.env`.
@@ -760,6 +785,7 @@ Realtime (`apps/realtime/src/config.ts`): `PORT`, `HOST`, `REALTIME_SECRET`, `AU
 | `priya@iima.ac.in` | Senior mentor: completed session with feedback |
 | `sneha@iima.ac.in` | Junior: bookings, tasks, overdue item, timetable, money, check-ins (the best all-round demo account) |
 | `arjun@`, `rohit@`, `karthik@`, `meera@`, `tanvi@`, `devansh@iima.ac.in` | Other students and mentors (hub members, game players, club members) |
+| `kabir@iimb.ac.in` | Open Edition first-year (IIM Bangalore is `open`): cross-campus mocks, no campus features |
 | `vikram@`, `aisha@`, `rahul@alumni.iima.ac.in` | Alumni: referrals (Vikram has a pending request to mark "referred") |
 | `admin@iima.ac.in` | Platform admin (role `admin`); emails in `PLATFORM_ADMIN_EMAILS` are also promoted |
 
@@ -823,6 +849,15 @@ The seed creates:
   - `next start` and the standalone Docker image: headers, uploads written as the non-root user, sign-in, Today.
   - Compose from an empty database: the replica set initiates via the healthcheck; `tools` seeds; the realtime scheduler gets 200s from every cron endpoint.
 
+- **Native app (web preview at 390×844, against the real API):**
+  - sign-in;
+  - Today, with one-tap attendance (`aria-checked`);
+  - Prep, Tasks and Hub;
+  - #announcements shows read-only, a message posted in #general appears;
+  - More → Resume studio opens signed in, with no web chrome;
+  - zero console or API errors.
+  - `expo export` produced Hermes bundles for iOS (2.9 MB) and Android (3.2 MB).
+
 **Not exercised:**
 
 - AI calls (no Anthropic key in the sandbox; the error path was verified).
@@ -830,12 +865,13 @@ The seed creates:
 - Live RSS fetching (blocked here).
 - LiveKit voice.
 - Dedicated Godot servers.
+- The native app on a real device or simulator, native SSO, or push delivery (needs an EAS project).
 
 ---
 
 ## 11. Known gaps, bugs and debts
 
-1. **No native app yet.** See §12.
+1. **The native app has not run on a device or simulator.** Only the web preview and the Metro bundles were checked. See §12, step 1.
 2. **The Godot addon has never been parsed by Godot.** `godot.yml` will do it on the first push that touches `packages/game-sdk`. Fix whatever it reports. The risks reviewed by hand:
    - `:=` with a Variant from `await`;
    - the `JavaScriptObject` annotation;
@@ -845,7 +881,7 @@ The seed creates:
    - `publish-game` (or Admin → Games for a CDN build);
    - a bridge check.
    - Transport: `webrtc` for `WebRTCMultiplayerPeer`, `relay` or `dedicated` for `WebSocketMultiplayerPeer`.
-4. **Open Edition demo user is not seeded.** Add a student on an `open` campus (e.g. IIM Bangalore) to `scripts/seed/career.ts`, or a new module, so the Open Edition can be demoed without hand-made data.
+4. **`docs.expo.dev` is outside this sandbox's network allowlist.** SDK 58 APIs were taken from the installed packages' type definitions. Allow the domain to follow the template `AGENTS.md`'s advice to read the versioned docs.
 5. **Detail pages inherit their section's tab title** (`/games/ludo` shows "Games"). Add `generateMetadata` in those segments for names.
 6. **The admin overview runs about 20 queries per load.** That's fine at current scale. Cache it, e.g. 5 minutes in KV, before many campuses.
 7. **Game cache invalidation is per process.** After publishing a release, other web instances serve the old manifest for up to 60 s (documented in the UI).
@@ -868,34 +904,26 @@ Each step ends with `npm run verify`, `npm run e2e -w @mba/web` against a seeded
 then a push. Commit in small steps: this environment's worker has restarted several
 times mid-task.
 
-### Step 1: Expo native app (Task 9)
+### Step 1: Put the native app on devices
 
-Create `apps/mobile` (Expo SDK, expo-router, TypeScript), consuming `@mba/shared`. Add
-it to the root workspaces; `.gitignore` already ignores `apps/mobile/ios` and `apps/mobile/android`.
-
-- **Auth:**
-  - Password: POST `/api/mobile/auth/login` returns a bearer token. Store it in `expo-secure-store` and send `Authorization: Bearer`.
-  - Email OTP: `/api/auth/otp`.
-  - SSO: open `APP_URL/mobile/sso?provider=…` in `expo-web-browser` `openAuthSessionAsync`. The deep link carries a one-time code; exchange it at `/api/mobile/auth/exchange`.
-  - `resolveActor` already accepts bearer tokens and re-checks role and suspension on every request (`server/modules/auth/authz.ts`).
-- **Tabs:**
-  - Today: render `/api/today` cards.
-  - Prep: sessions list and booking via `/api/sessions`.
-  - Tasks.
-  - Hub: Socket.IO to `NEXT_PUBLIC_REALTIME_URL` with a token from `/api/realtime/token`; subscribe to `hubChannel`/`dm` topics.
-  - More.
-- **Games:** a WebView of `APP_URL/player/<id>?room=…`. The page needs COOP/COEP, so test Android WebView `SharedArrayBuffer`; prefer `--no-threads` builds for mobile.
-- **Push:** get an Expo push token and POST `/api/push/subscribe` with `{ kind: 'expo', token, platform }`. The `ExpoPushSender` adapter already sends.
-- **"More":** the rest of the app opens signed in, via `/api/mobile/auth/web-code` then `/mobile/web-login?code=…` in a WebView or in-app browser.
-- **Builds and quality:**
-  - EAS (`eas.json`) with development, preview and production profiles; icons and splash in the current brand (`apps/web/public` has the icons).
-  - Reuse `packages/shared` for maths (attendance, GPA, EMI) so numbers match the web.
-  - A CI job: `npx expo-doctor` and `tsc` for `apps/mobile`.
+1. `cd apps/mobile && npx eas-cli@latest init` to create the EAS project and `extra.eas.projectId`.
+2. Run `eas build --profile development` for iOS and Android, then install on devices.
+3. Point `EXPO_PUBLIC_API_URL` at a reachable web app (LAN IP or staging).
+4. Check each of these on a device:
+   - SSO round trip through `mbaantisocial://auth`;
+   - push registration and a tapped notification routing to its screen;
+   - games in the WebView (`SharedArrayBuffer` on Android; prefer `--no-threads` exports);
+   - the keyboard over the chat composer;
+   - native tab icons.
+5. Then add, as needed:
+   - native booking notes and template choice;
+   - the tasks due-date picker;
+   - unread badges from `hub.activity` events.
 
 ### Step 2: Small follow-ups
 
-1. Seed an Open Edition student (gap 4).
-2. `generateMetadata` for detail pages (gap 5).
+1. `generateMetadata` for detail pages (gap 5).
+2. Allow `docs.expo.dev` and re-check the app against the SDK 58 docs (gap 4).
 3. Cache the admin overview (gap 6).
 4. Watch the first `godot.yml` run and fix the addon (gap 2).
 5. With an Anthropic key: try every AI surface once and tune prompts in `server/modules/ai/prompts.ts`. The surfaces are the interviewer, GD simulator, scorecard, roast, bullet rewrites, timetable import, quiz generation and jargon.
@@ -1028,7 +1056,7 @@ Legend: ✅ built · 🟡 partial · ⬜ not built
 | Owner: Discord-like hub plus bridge | ✅ | §7.6 |
 | Owner: Meet/Zoom first, all video options | ✅ | meetings port |
 | Owner: SSO plus official emails only | ✅ | §5.4 |
-| Owner: native iOS/Android | ⬜ | §12, step 1 |
+| Owner: native iOS/Android | ✅ | `apps/mobile` (device runs pending, §12) |
 | Owner: Docker and Vercel deployable | ✅ | Dockerfiles, `docker-compose.yml`, `apps/web/vercel.json`, INSTALL §6 |
 | Owner: cinematic motion with revered 3D | ✅ | §6 Motion |
 | Owner: resume builder | ✅ | `/resume` |

@@ -37,6 +37,7 @@ guilt-based streak copy and no infinite feed. Today ends with "That's today."
 | **Play** | Godot games embedded in a cross-origin-isolated player: online (WebRTC, relay or dedicated server), vs bot, pass-and-play, rated tournaments. |
 | **Discover** | Daily briefing, daily quiz, jargon buster, placement insights. |
 | **Me** | Profile, money (loan EMI, budget), wellbeing (non-clinical, with real helplines and the campus counsellor), settings. |
+| **Native app** | iOS and Android (Expo): Today, Prep, Tasks, Hub chat, push; everything else opens signed in inside the app. See [apps/mobile/README.md](apps/mobile/README.md). |
 | **Institute** | Campus report for the placement office, moderation, campus admin, and the platform admin console with the PRD's success metrics and an audit log. |
 
 A calendar feed (ICS) puts classes, sessions, tasks and events in any calendar app.
@@ -108,6 +109,7 @@ After seeding, every account's password is `seedpassword123`.
 | `placements@iima.ac.in` | Placement office: the campus report |
 | `admin@iima.ac.in` | Platform admin: `/admin` |
 | `vikram@alumni.iima.ac.in` | An alum with a referral request waiting |
+| `kabir@iimb.ac.in` | A first-year on the Open Edition (IIM Bangalore hasn't unlocked yet) |
 
 ---
 
@@ -134,6 +136,7 @@ Godot (`godot.yml`).
 ```
 apps/web          Next.js 16 app: UI, REST API, cron endpoints
 apps/realtime     Socket.IO fan-out, Godot signaling / relay / dedicated servers, scheduler, Discord gateway
+apps/mobile       Expo app for iOS and Android (own lockfile, outside the workspaces; see its README)
 packages/shared   Domain vocabulary and pure, tested rules shared by every app
 packages/game-sdk Godot 4 addon + plain-JS SDK + a reference game
 docs/PRD.md       The product requirements document

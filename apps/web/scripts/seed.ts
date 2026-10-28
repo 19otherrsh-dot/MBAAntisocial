@@ -34,6 +34,8 @@ const BATCH = '2025-27';
 const PASSWORD = 'seedpassword123';
 const STAFF_EMAIL = 'placements@iima.ac.in';
 const ADMIN_EMAIL = 'admin@iima.ac.in';
+/** A student on a campus that has not unlocked yet, to demo the Open Edition. */
+const OPEN_EDITION = { email: 'kabir@iimb.ac.in', name: 'Kabir Menon', campus: 'IIM Bangalore' };
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -103,7 +105,7 @@ async function seed() {
   const emails = [...SENIORS, ...JUNIORS].map((person) => person.email).concat(STAFF_EMAIL, ADMIN_EMAIL);
 
   // Scoped to the seeded campus so a shared database is not destroyed.
-  const existing = await User.find({ email: { $in: emails } }).select('_id').lean();
+  const existing = await User.find({ email: { $in: [...emails, OPEN_EDITION.email] } }).select('_id').lean();
   const existingIds = existing.map((user) => user._id);
 
   if (existingIds.length > 0) {
@@ -802,6 +804,22 @@ async function seed() {
   );
   console.log(`Created ${intel.length} interview questions.`);
 
+  // The Open Edition: a first-year whose campus is still gathering its batch.
+  await ensureCampusDirectory();
+  await User.create({
+    name: OPEN_EDITION.name,
+    email: OPEN_EDITION.email,
+    password: PASSWORD,
+    campus: OPEN_EDITION.campus,
+    batch: BATCH,
+    year: 1,
+    role: 'student',
+    specializations: ['Consulting'],
+    onboardedAt: new Date(),
+    emailVerifiedAt: new Date(),
+    authProviders: ['password'],
+  });
+
   // Hub, games, events, clubs, Open Edition content — one module per area.
   const everyone = await User.find({ campus: CAMPUS, email: { $in: emails } }).lean();
   await runSeedModules({ campus: CAMPUS, users: everyone, at });
@@ -815,6 +833,7 @@ async function seed() {
   console.log(`Senior/moderator:  ${SENIORS[0].email}`);
   console.log(`Senior (mentor):   ${SENIORS[2].email}`);
   console.log(`Junior (busiest):  ${JUNIORS[0].email}`);
+  console.log(`Open Edition:      ${OPEN_EDITION.email}   (${OPEN_EDITION.campus}, not yet unlocked)`);
   console.log('─────────────────────────────────────────\n');
 
   await mongoose.disconnect();
