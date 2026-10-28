@@ -3,7 +3,9 @@
 #
 #   powershell -ExecutionPolicy Bypass -File .\setup.ps1            # install
 #   powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Seed      # + sample data
-#   powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Verify    # + typecheck, lint, build
+#   powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Verify    # + typecheck, lint, tests, build
+#
+# Prefer containers for everything? `docker compose up -d --build` (see README).
 
 param(
   [switch]$Seed,
@@ -63,80 +65,101 @@ if ($failures.Count -gt 0) {
   exit 1
 }
 
-# ── 2. Environment file ─────────────────────────────────────────────────────
+# ── 2. Environment files ────────────────────────────────────────────────────
 
-Step 'Checking .env.local'
+Step 'Checking environment files'
 
-if (-not (Test-Path .env.local)) {
-  Copy-Item .env.example .env.local
+function New-Secret {
   $bytes = New-Object byte[] 32
   [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-  $secret = -join ($bytes | ForEach-Object { $_.ToString('x2') })
-  (Get-Content .env.example) -replace '^AUTH_SECRET=.*$', "AUTH_SECRET=$secret" |
-    Set-Content -Path .env.local -Encoding ascii
-  Warn '.env.local was missing; created it from .env.example with a fresh AUTH_SECRET. Copy your old one over instead if you have it.'
-} else {
-  Ok '.env.local present'
+  return -join ($bytes | ForEach-Object { $_.ToString('x2') })
 }
 
-$envValues = Read-EnvFile '.env.local'
+$webEnv = 'apps/web/.env.local'
+$rtEnv = 'apps/realtime/.env'
+$localMongo = 'mongodb://127.0.0.1:27017/mba-antisocial?replicaSet=rs0&directConnection=true'
 
-if (-not $envValues['MONGODB_URI']) { Fail 'MONGODB_URI is empty in .env.local.' }
+if (-not (Test-Path $webEnv)) {
+  # One set of secrets, written to both services so they trust each other.
+  $secrets = @{ AUTH_SECRET = New-Secret; REALTIME_SECRET = New-Secret; INTERNAL_API_SECRET = New-Secret; CRON_SECRET = New-Secret }
+  $content = Get-Content apps/web/.env.example
+  foreach ($key in $secrets.Keys) { $content = $content -replace "^$key=.*$", "$key=$($secrets[$key])" }
+  $content = $content -replace '^MONGODB_URI=.*$', "MONGODB_URI=$localMongo"
+  $content | Set-Content -Path $webEnv -Encoding ascii
+  if (-not (Test-Path $rtEnv)) {
+    $rt = Get-Content apps/realtime/.env.example
+    foreach ($key in $secrets.Keys) { $rt = $rt -replace "^$key=.*$", "$key=$($secrets[$key])" }
+    $rt | Set-Content -Path $rtEnv -Encoding ascii
+  }
+  Warn "$webEnv was missing; created it with fresh secrets (and $rtEnv with the same ones)."
+} else {
+  Ok "$webEnv present"
+  if (-not (Test-Path $rtEnv)) { Warn "$rtEnv is missing: copy apps/realtime/.env.example and use the same AUTH_SECRET, REALTIME_SECRET and INTERNAL_API_SECRET as the web app." }
+}
+
+$envValues = Read-EnvFile $webEnv
+
+if (-not $envValues['MONGODB_URI']) { Fail "MONGODB_URI is empty in $webEnv." }
 elseif ($envValues['MONGODB_URI'] -notmatch '^mongodb(\+srv)?://') { Fail 'MONGODB_URI must start with mongodb:// or mongodb+srv://' }
 else { Ok 'MONGODB_URI set' }
 
-if (-not $envValues['AUTH_SECRET'] -or $envValues['AUTH_SECRET'].Length -lt 32 -or $envValues['AUTH_SECRET'] -like 'replace-me*') {
-  Fail 'AUTH_SECRET must be a real value of 32+ characters (generate one with: npx auth secret).'
+if (-not $envValues['AUTH_SECRET'] -or $envValues['AUTH_SECRET'].Length -lt 32) {
+  Fail 'AUTH_SECRET must be 32+ characters (generate one with: npx auth secret).'
 } else { Ok 'AUTH_SECRET set' }
 
 $integrations = [ordered]@{
-  'AI interview / resume roast' = @('GOOGLE_GENERATIVE_AI_API_KEY')
-  'File uploads (Cloudinary)'   = @('CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET')
-  'Realtime (Pusher)'           = @('PUSHER_APP_ID', 'PUSHER_SECRET', 'NEXT_PUBLIC_PUSHER_KEY', 'NEXT_PUBLIC_PUSHER_CLUSTER')
-  'Digest email (Resend)'       = @('RESEND_API_KEY', 'CRON_SECRET')
+  'AI features (Claude)'             = @('ANTHROPIC_API_KEY')
+  'Live updates and multiplayer'     = @('REDIS_URL', 'REALTIME_SECRET', 'NEXT_PUBLIC_REALTIME_URL')
+  'Email (Resend or SMTP)'           = @('RESEND_API_KEY|SMTP_URL')
+  'Google Meet links'                = @('GOOGLE_CALENDAR_CLIENT_ID', 'GOOGLE_CALENDAR_CLIENT_SECRET')
+  'Zoom links'                       = @('ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET')
+  'Google sign-in'                   = @('AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET')
+  'Microsoft sign-in'                = @('AUTH_MICROSOFT_ENTRA_ID_ID', 'AUTH_MICROSOFT_ENTRA_ID_SECRET')
+  'Browser push'                     = @('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY')
+  'Discord bridge'                   = @('DISCORD_CLIENT_ID', 'DISCORD_BOT_TOKEN')
 }
 foreach ($feature in $integrations.Keys) {
-  $missing = @($integrations[$feature] | Where-Object { -not $envValues[$_] })
+  $missing = @($integrations[$feature] | Where-Object { -not (($_ -split '\|') | Where-Object { $envValues[$_] }) })
   if ($missing.Count -eq 0) { Ok "$feature configured" }
-  else { Warn "$feature disabled until set: $($missing -join ', ')" }
+  else { Warn "$feature off until set: $($missing -join ', ')" }
 }
 
 if ($failures.Count -gt 0) {
-  Write-Host "`nEdit .env.local and re-run." -ForegroundColor Red
+  Write-Host "`nEdit $webEnv and re-run." -ForegroundColor Red
   exit 1
 }
 
-# ── 3. MongoDB ───────────────────────────────────────────────────────────────
+# ── 3. MongoDB and Redis ────────────────────────────────────────────────────
+
+function Start-Container([string]$name, [int]$port, [string[]]$runArgs) {
+  if (Test-Port '127.0.0.1' $port) { Ok "${name}: something is already listening on port $port"; return $true }
+  if (-not $docker) { Fail "Nothing on port $port and Docker is not installed. Install Docker Desktop (or the service natively) and re-run."; return $false }
+  & docker info --format '{{.ServerVersion}}' *> $null
+  if ($LASTEXITCODE -ne 0) { Fail 'Docker is installed but not running. Start Docker Desktop and re-run.'; return $false }
+  $status = & docker ps -a --filter "name=^$name$" --format '{{.Status}}'
+  if ($status) { & docker start $name | Out-Null } else { & docker run -d --name $name --restart unless-stopped @runArgs | Out-Null }
+  for ($i = 0; $i -lt 30; $i++) { Start-Sleep -Seconds 1; if (Test-Port '127.0.0.1' $port) { Ok "$name running on port $port"; return $true } }
+  Fail "$name did not come up within 30s. Check: docker logs $name"
+  return $false
+}
 
 Step 'Checking MongoDB'
-
 $uri = $envValues['MONGODB_URI']
-$isLocal = $uri -match '^mongodb://([^@/]*@)?(127\.0\.0\.1|localhost)(:(\d+))?'
-$mongoPort = if ($isLocal -and $Matches[4]) { [int]$Matches[4] } else { 27017 }
-
-if (-not $isLocal) {
+if ($uri -notmatch '^mongodb://([^@/]*@)?(127\.0\.0\.1|localhost)') {
   Ok 'Remote MongoDB (e.g. Atlas); nothing to start locally'
-} elseif (Test-Port '127.0.0.1' $mongoPort) {
-  Ok "MongoDB listening on port $mongoPort"
-} elseif (-not $docker) {
-  Fail "Nothing on port $mongoPort and Docker is not installed. Install Docker Desktop, or MongoDB Community 7, or point MONGODB_URI at Atlas."
-} else {
-  & docker info --format '{{.ServerVersion}}' *> $null
-  if ($LASTEXITCODE -ne 0) {
-    Fail 'Docker is installed but not running. Start Docker Desktop and re-run.'
-  } else {
-    $status = & docker ps -a --filter 'name=^mba-mongo$' --format '{{.Status}}'
-    if ($status) {
-      & docker start mba-mongo | Out-Null
-    } else {
-      & docker run -d -p "${mongoPort}:27017" --name mba-mongo -v mba-mongo-data:/data/db --restart unless-stopped mongo:7 | Out-Null
-    }
-    $up = $false
-    for ($i = 0; $i -lt 30 -and -not $up; $i++) { Start-Sleep -Seconds 1; $up = Test-Port '127.0.0.1' $mongoPort }
-    if ($up) { Ok "MongoDB container mba-mongo running on port $mongoPort" }
-    else { Fail 'MongoDB container did not come up within 30s. Check: docker logs mba-mongo' }
+} elseif (Start-Container 'mba-mongo' 27017 @('-p', '27017:27017', '-v', 'mba-mongo-data:/data/db', 'mongo:7', '--replSet', 'rs0', '--bind_ip_all')) {
+  if ($docker -and (& docker ps --filter 'name=^mba-mongo$' --format '{{.Names}}')) {
+    # A one-node replica set, initiated once.
+    & docker exec mba-mongo mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]}).ok }" | Out-Null
+    Ok 'Replica set rs0 ready'
   }
 }
+
+Step 'Checking Redis'
+if ($envValues['REDIS_URL'] -and $envValues['REDIS_URL'] -match '127\.0\.0\.1|localhost') {
+  Start-Container 'mba-redis' 6379 @('-p', '6379:6379', 'redis:7-alpine') | Out-Null
+} elseif ($envValues['REDIS_URL']) { Ok 'Remote Redis' }
+else { Warn 'REDIS_URL empty: the app runs, without live updates or multiplayer.' }
 
 if ($failures.Count -gt 0) { exit 1 }
 
@@ -152,11 +175,11 @@ Ok 'node_modules installed'
 if ($Seed) {
   Step 'Seeding sample campus'
   & npm run seed
-  if ($LASTEXITCODE -ne 0) { Fail 'Seed failed.' } else { Ok 'Seeded. Log in as sneha@iima.ac.in / seedpassword123' }
+  if ($LASTEXITCODE -ne 0) { Fail 'Seed failed.' } else { Ok 'Seeded. Log in as sneha@iima.ac.in (student) or admin@iima.ac.in (platform admin), password seedpassword123' }
 }
 
 if ($Verify) {
-  Step 'Verifying (typecheck, lint, production build)'
+  Step 'Verifying (typecheck, lint, tests, production build)'
   & npm run verify
   if ($LASTEXITCODE -ne 0) { Fail 'npm run verify failed.' } else { Ok 'Verify passed' }
 }
@@ -175,4 +198,6 @@ if ($warnings.Count -gt 0) {
 } else {
   Write-Host 'Setup complete.' -ForegroundColor Green
 }
-Write-Host "`nStart the app with:  npm run dev   ->  http://localhost:3000"
+Write-Host "`nStart it in two terminals:"
+Write-Host "  npm run dev            ->  http://localhost:3000"
+Write-Host "  npm run dev:realtime   ->  live updates, chat, multiplayer (port 4000)"
