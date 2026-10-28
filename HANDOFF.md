@@ -132,15 +132,16 @@ Process rules the owner or the environment set:
 | 7b | Campus life: events, clubs, marketplace, lost & found, mess, teams | ✅ done | `2a8ca15` |
 | 7c | Cinematic motion layer (scroll-driven CSS, 3D showpieces, view transitions) | ✅ done | `3f68ffb` |
 | 7d | Career + Open Edition: company wiki, referrals, insights, briefing, quiz, jargon | ✅ done | `12fb6e3` |
-| 7e | **Resume builder** | 🟡 backend done and committed with this doc, **UI not written** | — |
-| 7f | **Today page rework** (surface classes, briefing, quiz, check-in, events) | ⬜ not started | — |
-| 8 | **Admin consoles** `/admin` and `/institute/admin` (nav links exist, pages don't) | ⬜ not started | — |
-| 9 | **Expo native app** (iOS + Android) | ⬜ not started; backend endpoints exist | — |
-| 10 | **Infra/docs/verification**: Docker, CI, `.env.example`, README, `next build` | ⬜ not started | — |
+| 7e | Resume studio: builder with print-exact A4 preview, AI bullet rewrites, roaster | ✅ done | `4b5bbac` |
+| 7f | Today rework (`/api/today` card providers), time-zone fixes, Open Edition mocks | ✅ done | `c442837` |
+| 8 | Admin consoles `/admin` + `/institute/admin`, PRD §9 metrics, audit log, live revocation | ✅ done | `f7dae88` |
+| 9 | **Expo native app** (iOS + Android) | ⬜ **not started**; backend endpoints exist (see §12) | — |
+| 10 | Infra: Dockerfiles, compose, Vercel crons, env templates, CI + smoke suite, setup scripts, README/INSTALL, page titles | ✅ done | `cca09b3` … `fce2d28` |
 
-`next build` has **not** been run on this branch. `tsc --noEmit`, `eslint` and the
-vitest suites have been run continuously and pass. Run `next build` early in the next
-session (see §12, step 1).
+`next build` passes cleanly (no warnings). Typecheck, lint, 71 unit tests and the
+browser smoke suite (`npm run e2e -w @mba/web`) pass. Both Docker images were built and
+run, and the compose stack was brought up from an empty database, seeded, and exercised
+(see §10).
 
 ---
 
@@ -638,7 +639,42 @@ See §5.6. Supporting pieces:
 
 ---
 
+### 7.12 Added after the first handoff
+
+- **Resume studio** (`/resume`):
+  - Code: `components/resume/{Builder,BulletList,ResumeSheet,Roaster}.tsx` and `resume.module.css`.
+  - Shape, limits, `resumeToText` and the offline `bulletHints` live in `@mba/shared/resume` (tested); the route and model use the shared zod schema.
+  - The preview is an A4 sheet laid out in real units and measured with a `ResizeObserver`, so the one-page check matches print.
+  - Print uses a portal into `[data-print-root]`, plus global print CSS with a named `@page sheet` in `globals.css`.
+  - Builder and roaster stay mounted across tabs; the roaster reads the live draft through `getDraft`.
+  - `components/Markdown.tsx` safely renders AI output and is reused by AI practice.
+- **Today** (`/home`, `GET /api/today`):
+  - `server/modules/today/service.ts` is a registry of card providers: classes, tasks, agenda, briefing, quiz, check-in, events, comps, games, openEdition.
+  - Each declares a `feature` (and an optional `when`), loads in parallel with `Promise.allSettled`, and is reported in `failed` instead of breaking the page.
+  - Add a card by adding a provider. The UI is in `components/today/`.
+- **Time zones** (`lib/time.ts`): `dayKeyIn`, `zoneOffsetMs`, `startOfLocalDay`, `localDayBounds` (DST-safe), `addDays`, `weekdayOfKey`.
+  - Recurring tasks (`lib/recurrence.ts`) are due at the end of the *user's* day.
+  - The tasks summary uses the same local day.
+  - Use these helpers for any "today" logic; servers run in UTC.
+- **Open Edition mocks:**
+  - Mock sessions is gated `cross_campus_mentors` (open) in the nav and the API.
+  - Own-campus listing and booking still need `sessions` (Campus Edition) and are checked server-side.
+  - The page shows only Open slots and My bookings for Open users.
+- **Admin:**
+  - `server/modules/admin/{metrics,campuses,people,releases,audit}.ts` and `models/AuditLog.ts`.
+  - Routes: `/api/admin/{overview,campuses,people,games,audit}` (platform admin) and `/api/institute/{campus,people,metrics,audit}` (campus admin or staff).
+  - UI: `components/admin/*`.
+  - The permission rule is the pure function `refusal()` in `people.ts`.
+  - Release validation merges the overlay into the catalog entry and parses it with `gameManifestSchema` before saving. Asset bases must be HTTPS or `/game-builds/…`.
+- **Live revocation** (`server/modules/auth/authz.ts`):
+  - Session and app tokens live for up to 30 days, so role, campus, verification and suspension are re-read on every request through a 60 s KV cache.
+  - Admin actions, verification and onboarding call `invalidateAuthz`.
+  - Any new code that changes those fields must call it too.
+- **Accessibility:** danger `Banner`s have `role="alert"`.
+
 ## 8. Running it locally
+
+The quick paths are now `./setup.sh --seed` / `setup.ps1 -Seed` and `docker compose up -d --build` (see README and INSTALL). The manual steps below still work. Env templates: `apps/web/.env.example` and `apps/realtime/.env.example`. The realtime service loads its own `.env`.
 
 **Prerequisites:** Node ≥ 20.9, Docker (for MongoDB and Redis).
 
@@ -739,154 +775,130 @@ The seed creates:
 
 ## 10. Testing and verification done so far
 
-**Automated:**
+**Automated (all committed):**
 
-- `packages/shared`: 39 vitest tests (campus, hub permissions, games/Elo, academics).
-- `apps/web/test/server-core.test.ts`: 9 tests (memory KV, rate limiter, crypto).
+- `packages/shared`: 47 vitest tests (campus, hub permissions, games/Elo, academics, resume).
+- `apps/web/test`: 22 tests:
+  - `server-core`: KV, rate limiter, crypto;
+  - `today`: local-day bounds, including across a DST change;
+  - `admin`: who may change whom, the privacy floor, audit diffs.
 - `apps/realtime/src/test/games.test.ts`: signaling and relay integration.
-- `tsc --noEmit` and `eslint` are clean on all workspaces as of the last commit.
+- `apps/web/e2e/smoke.mjs`: an 11-check browser suite against a seeded instance:
+  - wrong-password refusal;
+  - Today;
+  - resume autosave;
+  - core pages;
+  - admin API guards;
+  - admin metrics;
+  - phone overflow.
+  - It fails on any page error or 5xx.
+- **CI** (`.github/workflows/ci.yml`): typecheck, lint, tests and both builds, then the smoke suite against a seeded production build.
+- **Godot CI** (`godot.yml`): parses the addon in headless Godot. **This has never run yet**, because GitHub Actions haven't been triggered for this branch. Watch the first run.
 
-**Browser-verified with Playwright** (scripts were in the session scratchpad, not committed; recreate under `apps/web/e2e/` when adding CI):
+**Verified by hand in a browser (Playwright scripts in the session scratchpad):**
 
-- **Hub:** live messaging between two users, threads, DMs, explore, create server.
-- **Games:**
-  - a full two-player Tic-Tac-Toe over the relay, reaching consensus with the rating change applied;
-  - vs bot;
-  - a tournament started, a match played, and the winner advanced.
-- **Academics and campus:** every page and its main interactions. Event RSVP and the clubs pages load.
+- **Hub:** live messaging, threads, DMs, explore, create server.
+- **Games:** two-player Tic-Tac-Toe over the relay with consensus and Elo; vs bot; a tournament round advancing.
+- **Academics and campus:** all pages. One-tap attendance from Today.
 - **Calendar:** the ICS feed returns 31 events with RRULEs.
-- **Career:** the pages load, quiz submit works, and the alum can mark a referral "referred".
-- **News cron:** falls back to the bank correctly. External RSS feeds are blocked in the sandbox.
-- **3D:** the models load in about 3 s on a capable profile, the scroll orbit responds, and the poster shows on constrained profiles.
+- **Career:** pages, quiz submit, the referral flow.
+- **Resume studio:**
+  - prefill, Enter/Backspace bullets, offline hints, autosave plus reload;
+  - overflow warning;
+  - the PDF comes out as exactly 1 A4 page when it fits and 2 when it doesn't, matching the on-screen check;
+  - mobile edit/preview.
+- **Today:** junior, mentor and Open Edition views; no horizontal overflow at 390 px.
+- **Open Edition** (`kabir@iimb.ac.in`, created by hand, not in the seed): cross-campus slots listed and bookable; own-campus listing returns 403.
+- **Admin consoles:**
+  - approve a campus;
+  - grant campus admin;
+  - suspend (the target's very next API call returns 401) and reinstate;
+  - self-demotion refused;
+  - HTTP CDN refused;
+  - publish a release, which the player sees, then roll it back;
+  - audit log entries;
+  - campus admin limited to campus roles and their own campus, with platform APIs returning 403;
+  - the counsellor block appears on students' wellbeing page.
+- **Production:**
+  - `next start` and the standalone Docker image: headers, uploads written as the non-root user, sign-in, Today.
+  - Compose from an empty database: the replica set initiates via the healthcheck; `tools` seeds; the realtime scheduler gets 200s from every cron endpoint.
+
+**Not exercised:**
+
+- AI calls (no Anthropic key in the sandbox; the error path was verified).
+- Real Google Meet / Zoom / Discord / Resend / Expo push.
+- Live RSS fetching (blocked here).
+- LiveKit voice.
+- Dedicated Godot servers.
 
 ---
 
 ## 11. Known gaps, bugs and debts
 
-1. **`next build` never run on this branch.** Expect a few "invalid export from route/page" errors to fix.
-2. **The Godot addon (`antisocial.gd`) has never been parsed by Godot.** The risks were reviewed by hand:
+1. **No native app yet.** See §12.
+2. **The Godot addon has never been parsed by Godot.** `godot.yml` will do it on the first push that touches `packages/game-sdk`. Fix whatever it reports. The risks reviewed by hand:
    - `:=` with a Variant from `await`;
-   - the `JavaScriptObject` type annotation;
-   - lambda parameter names `type`/`name`.
-   - Add a CI job (`godot --headless --check-only` or an import pass with the official `barichello/godot-ci` image) and fix whatever it reports.
-3. **The owner's real Godot games are not published.** They need web exports, then `publish-game`, then a check of the bridge (see the SDK README).
-   - If the games use plain `MultiplayerAPI` with `WebSocketMultiplayerPeer`, prefer `--transport relay` or `dedicated`.
-   - If they use `WebRTCMultiplayerPeer`, use `--transport webrtc`.
-4. **`/admin` and `/institute/admin` are linked in the nav but don't exist** (404).
-5. **The resume builder UI is missing** (backend ready).
-6. **The Today page** (`/home`) predates the new modules. It doesn't show today's classes, briefing, quiz, check-in or events.
-7. **`apps/web/.env.example` is stale** (it mentions `GOOGLE_GENERATIVE_AI_API_KEY` and Pusher). `README.md`, `INSTALL.md` and `setup.ps1` describe the pre-monorepo app.
-8. **No Dockerfiles, docker-compose, CI workflows or `vercel.json` crons yet.**
-9. **No Expo app yet** (the endpoints exist).
-10. **GameRelease CDN publishing has no UI.** The SDK README refers to "Admin → Games".
-11. **Not exercised end to end:** attendance "mark" from the Today widget, the tournament "play again" morph, Discord bridge against real Discord, Google Meet/Zoom OAuth against real apps, Expo push, Resend.
-12. **News RSS fetching** couldn't be tested (sandbox network). The quiz relies on the bank fallback here.
-13. **The realtime scheduler and Vercel crons** must not both fire in one deployment. Gate with `SCHEDULER_ENABLED`.
-14. **Bundle and perf:** the model-viewer chunk is dynamic, but measure LCP/INP after the build. The two GLBs are 5.2 MB and 2.7 MB, loaded only on capable devices after the poster.
+   - the `JavaScriptObject` annotation;
+   - lambda parameter names.
+3. **The owner's real Godot games are not published.** Each needs:
+   - a web export with the addon;
+   - `publish-game` (or Admin → Games for a CDN build);
+   - a bridge check.
+   - Transport: `webrtc` for `WebRTCMultiplayerPeer`, `relay` or `dedicated` for `WebSocketMultiplayerPeer`.
+4. **Open Edition demo user is not seeded.** Add a student on an `open` campus (e.g. IIM Bangalore) to `scripts/seed/career.ts`, or a new module, so the Open Edition can be demoed without hand-made data.
+5. **Detail pages inherit their section's tab title** (`/games/ludo` shows "Games"). Add `generateMetadata` in those segments for names.
+6. **The admin overview runs about 20 queries per load.** That's fine at current scale. Cache it, e.g. 5 minutes in KV, before many campuses.
+7. **Game cache invalidation is per process.** After publishing a release, other web instances serve the old manifest for up to 60 s (documented in the UI).
+8. **Not exercised end to end:**
+   - Discord bridge against real Discord;
+   - Meet/Zoom OAuth against real apps;
+   - Expo push, Resend;
+   - AI features with a real key;
+   - the tournament "play again" morph.
+9. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
+10. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
+11. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
 
 ---
 
 ## 12. Remaining work, in order
 
-Work in this order. Each step should end with `npm run typecheck && npm run lint && npm test`,
-a browser check of what changed, and a commit (with the trailer from §2), then a push.
+Each step ends with `npm run verify`, `npm run e2e -w @mba/web` against a seeded
+`next start`, a browser check of what changed, and a commit with the trailer from §2,
+then a push. Commit in small steps: this environment's worker has restarted several
+times mid-task.
 
-### Step 1: Prove the build
+### Step 1: Expo native app (Task 9)
 
-- Run `npm run build -w @mba/web`. Fix every route or page that exports something other than handlers, default and metadata, plus any server/client boundary errors.
-- Run `next start` and smoke-test `/login`, `/home`, `/hub`, `/games`, `/player/tic-tac-toe`.
+Create `apps/mobile` (Expo SDK, expo-router, TypeScript), consuming `@mba/shared`. Add
+it to the root workspaces; `.gitignore` already ignores `apps/mobile/ios` and `apps/mobile/android`.
 
-### Step 2: Resume builder UI (finish Task 7e)
+- **Auth:**
+  - Password: POST `/api/mobile/auth/login` returns a bearer token. Store it in `expo-secure-store` and send `Authorization: Bearer`.
+  - Email OTP: `/api/auth/otp`.
+  - SSO: open `APP_URL/mobile/sso?provider=…` in `expo-web-browser` `openAuthSessionAsync`. The deep link carries a one-time code; exchange it at `/api/mobile/auth/exchange`.
+  - `resolveActor` already accepts bearer tokens and re-checks role and suspension on every request (`server/modules/auth/authz.ts`).
+- **Tabs:**
+  - Today: render `/api/today` cards.
+  - Prep: sessions list and booking via `/api/sessions`.
+  - Tasks.
+  - Hub: Socket.IO to `NEXT_PUBLIC_REALTIME_URL` with a token from `/api/realtime/token`; subscribe to `hubChannel`/`dm` topics.
+  - More.
+- **Games:** a WebView of `APP_URL/player/<id>?room=…`. The page needs COOP/COEP, so test Android WebView `SharedArrayBuffer`; prefer `--no-threads` builds for mobile.
+- **Push:** get an Expo push token and POST `/api/push/subscribe` with `{ kind: 'expo', token, platform }`. The `ExpoPushSender` adapter already sends.
+- **"More":** the rest of the app opens signed in, via `/api/mobile/auth/web-code` then `/mobile/web-login?code=…` in a WebView or in-app browser.
+- **Builds and quality:**
+  - EAS (`eas.json`) with development, preview and production profiles; icons and splash in the current brand (`apps/web/public` has the icons).
+  - Reuse `packages/shared` for maths (attendance, GPA, EMI) so numbers match the web.
+  - A CI job: `npx expo-doctor` and `tsc` for `apps/mobile`.
 
-- Write `components/resume/Builder.tsx`:
-  - section editors: header/contact, education, experience with bullets, projects, positions of responsibility, achievements, skills;
-  - a live A4 sheet beside the editors (stacked on mobile);
-  - autosave by debounced PUT to `/api/resume`;
-  - a one-page overflow warning (measure the sheet height against the A4 height);
-  - an "Improve" button per bullet that calls `/api/ai/bullet` and offers the options plus "add a number" prompts;
-  - "Download PDF" via `window.print()` with `@media print` CSS that hides everything except `.resumePrint`, plus `@page { size: A4; margin: 12mm }`.
-- Write `components/resume/Roaster.tsx`:
-  - two inputs: upload a PDF (`uploadFile`, then `{pdfUrl}`) or roast the built resume (`resumeToText(data)`, then `{text}`);
-  - an optional target role;
-  - stream the result with `lib/client/stream.ts` and render it with `RichText`.
-- Rewrite `app/(app)/resume/page.tsx` as `Segmented` tabs "Build" / "Roast".
-- Typical B-school format: one page, bullets that start with verbs, quantified impact.
+### Step 2: Small follow-ups
 
-### Step 3: Today page rework (Task 7f)
-
-`/home` should be the one screen a student opens each morning. The order is:
-
-1. greeting and streak (no guilt copy);
-2. today's classes (`TodayClasses`) with one-tap attendance;
-3. due-today and overdue tasks;
-4. upcoming sessions and rounds;
-5. the briefing headline plus the quiz CTA (if not yet answered);
-6. a check-in prompt (if none today; private);
-7. events today and tomorrow (Campus Edition only).
-
-- Make it Open-Edition aware: hide campus cards and show the cross-campus mentor and opportunities cards instead.
-- It should end cleanly ("That's today."), with no endless content.
-
-### Step 4: Admin consoles (Task 8)
-
-**`/admin`** (platform admin, `requirePlatformAdmin`):
-
-- campuses list and detail;
-- approve or reject campus requests and domains;
-- set the edition and unlock threshold;
-- roles (promote, demote, ban);
-- feature flags per campus (store on `Campus`; enforce alongside `FEATURE_EDITION`);
-- curation: comps, opportunities, news feeds, quiz bank, jargon;
-- **Games**: list `GameRelease`, publish a release by CDN URL plus version and manifest, roll back, disable;
-- **metrics (PRD §9)**:
-  - percentage of batch with at least one mock per term;
-  - senior participation rate;
-  - weekly active feed users;
-  - notes coverage (percentage of courses with at least one note set);
-  - 7 and 30-day streak retention;
-  - use the dataviz rules from §6 and the privacy floor.
-- Extend `/api/admin/stats`.
-
-**`/institute/admin`** (campus admin):
-
-- campus profile;
-- support/counsellor block (`Campus.support`);
-- mess menu editors (who can PUT `/api/mess`);
-- moderators and roles within the campus;
-- clubs approval;
-- Discord guild link for the campus server;
-- cross-campus mentoring consent;
-- the honor-code text.
-
-### Step 5: Expo native app (Task 9)
-
-Create `apps/mobile` (Expo SDK, expo-router, TypeScript) consuming `@mba/shared`.
-
-- **Auth:** password and OTP (`/api/mobile/auth/login`, `/api/auth/otp`). For SSO, open `APP_URL/mobile/sso?provider=…` in an AuthSession browser; the deep link returns a code, which goes to `/api/mobile/auth/exchange`. Store the bearer token in SecureStore.
-- **Tabs:** Today, Prep (sessions and booking), Tasks, Hub (chat over Socket.IO with the bearer token), More.
-- **Games:** a WebView of `APP_URL/player/<id>?…`. The page needs COOP/COEP, so test Android WebView `SharedArrayBuffer` support and fall back to `--no-threads` builds.
-- **Push:** Expo push token posted to `/api/push/subscribe` with `kind: 'expo'`.
-- **"More" items** open web pages already signed in via `/api/mobile/auth/web-code` and `/mobile/web-login`.
-- **Builds:** EAS (`eas.json`), with app icons and splash in the current brand.
-
-### Step 6: Infra, docs, CI (Task 10)
-
-- **Dockerfiles:** `apps/web/Dockerfile` (Next `output: 'standalone'`) and `apps/realtime/Dockerfile` (includes a Godot headless binary for dedicated servers, optional build arg).
-- **`docker-compose.yml`:** web, realtime, mongo (replica set with an init script), redis, livekit, mailpit. Named volumes for uploads and game-servers.
-- **Vercel path:** `vercel.json` with crons for `/api/cron/{reminders,digest,maintenance,news}`. Document that realtime must run elsewhere (Fly, Render, Railway) and that Redis is Upstash or Redis Cloud.
-- **GitHub Actions:**
-  - `ci.yml`: install, typecheck, lint, test, build, plus Playwright smoke against services.
-  - `godot.yml`: headless parse of the addon and a test export of the example.
-  - Optional `game-export.yml` for the owner's game repos.
-- **Docs:**
-  - rewrite `.env.example` (every variable in §8, grouped and commented);
-  - rewrite `README.md` and `INSTALL.md` for the monorepo;
-  - add `docs/ARCHITECTURE.md` (can be lifted from §5);
-  - update `setup.ps1` (workspaces, replica set, Redis, realtime).
-- **Tests to add:**
-  - route-level tests with `overrideContainer` for booking, hub permissions, game results consensus, tournaments advance, referral flow and the ICS feed;
-  - more shared maths tests (money).
-- Finally `npm run verify`, commit and push.
+1. Seed an Open Edition student (gap 4).
+2. `generateMetadata` for detail pages (gap 5).
+3. Cache the admin overview (gap 6).
+4. Watch the first `godot.yml` run and fix the addon (gap 2).
+5. With an Anthropic key: try every AI surface once and tune prompts in `server/modules/ai/prompts.ts`. The surfaces are the interviewer, GD simulator, scorecard, roast, bullet rewrites, timetable import, quiz generation and jargon.
 
 ---
 
@@ -960,6 +972,20 @@ Ideas that fit the PRD and the owner's "whatever students might need". Treat the
 | Running Godot binary denied | auto-mode classifier ("code from external") | don't retry; validate in CI |
 | Lock state flashed "campus" for Open users | fallback edition | fallback is `me ? me.edition : 'campus'` (only while `me` loads) |
 
+| `next build` failed on `../app.module.css` in institute pages | pages moved a folder deeper; only the production build resolves every page | `../../app.module.css`; run `next build` after moving pages |
+| Disk storage pulled the whole project into the `/files` trace | `path.resolve(process.cwd(), dir)` | `/* turbopackIgnore: true */` before `process.cwd()` |
+| Build type error inside `.next/dev/types/routes.d.ts` | dev server killed mid-write | delete `apps/web/.next/dev` |
+| Campus admin page crashed on `support.counsellorName` | `.lean()` skips schema defaults; old rows lack the block | serialisers merge defaults (`serialiseCampusProfile`) |
+| Suspended or demoted users kept access | role and suspension trusted from 30-day token claims | `currentAuthz()` re-reads with a 60 s cache plus `invalidateAuthz()` |
+| Daily habits due at 5:29 AM IST | recurrence used the server's (UTC) day | `lib/time.ts` local days |
+| `.stack` style ignored inside a CSS module | global utility classes get hashed in modules | `:global(.stack)` |
+| Horizontal scroll on every page with a greeting | aurora `::before` extended 10% past the right edge | `inset: -30% 0 auto 0` |
+| Class rows overflowed narrow columns | fixed flex row | container query on `.dayList` |
+| Playwright `page.pdf()` printed the whole app | the test had emulated `screen` media | emulate `null`/print before `pdf()` |
+| `pkill -f "next dev"` killed the tool's own shell | the pattern matched the shell's command line | start servers from scratchpad launcher scripts; kill by pid |
+| `docker build` npm "Exit handler never called" (sandbox only) | containers can't reach the agent proxy or trust its CA | `--network host`, proxy build args, and a derived Dockerfile that installs `/root/.ccr/ca-bundle.crt` via `--build-context ccr=/root/.ccr` (see the session scratchpad `docker/`); the committed Dockerfiles stay clean |
+| Docker Hub 429 on image pulls (sandbox) | rate limit | retry later, or use cached images |
+
 ---
 
 ## 15. PRD coverage matrix
@@ -990,9 +1016,9 @@ Legend: ✅ built · 🟡 partial · ⬜ not built
 | §7 Placement tracker plus crowd-sourced questions | ✅ | `/pipeline`, `/intel`, `/companies` |
 | §7 Club ops (recruitment, budgets, tasks) | ✅ | `/clubs/[slug]` |
 | §7 Central notification/reminder engine | ✅ | `lib/notifications.ts`, reminders engine |
-| §7 Admin/moderation dashboard | 🟡 | moderation ✅; `/admin` and `/institute/admin` ⬜ |
+| §7 Admin/moderation dashboard | ✅ | `/institute/moderation`, `/institute/admin`, `/admin` with an audit log |
 | §7 Wellness check-in with hand-off | ✅ | `/wellbeing` |
-| §9 Success metrics | 🟡 | `/api/admin/stats` basic; dashboard ⬜ |
+| §9 Success metrics | ✅ | `/admin` overview and `/institute/admin` (`server/modules/admin/metrics.ts`) |
 | §13.D Loan EMI / stipend budgeting | ✅ | `/money` |
 | §15 Open Edition (news, quiz, jargon, opportunities, cross-campus mentors, ROI) | ✅ | `/briefing`, `/quiz`, `/jargon`, `/insights`, `/opportunities` |
 | §15 Campus Edition density unlock | ✅ | campus lifecycle plus `FEATURE_EDITION` |
@@ -1002,7 +1028,7 @@ Legend: ✅ built · 🟡 partial · ⬜ not built
 | Owner: Discord-like hub plus bridge | ✅ | §7.6 |
 | Owner: Meet/Zoom first, all video options | ✅ | meetings port |
 | Owner: SSO plus official emails only | ✅ | §5.4 |
-| Owner: native iOS/Android | ⬜ | step 5 |
-| Owner: Docker and Vercel deployable | ⬜ | step 6 |
+| Owner: native iOS/Android | ⬜ | §12, step 1 |
+| Owner: Docker and Vercel deployable | ✅ | Dockerfiles, `docker-compose.yml`, `apps/web/vercel.json`, INSTALL §6 |
 | Owner: cinematic motion with revered 3D | ✅ | §6 Motion |
-| Owner: resume builder | 🟡 | backend ✅, UI ⬜ |
+| Owner: resume builder | ✅ | `/resume` |
