@@ -1,261 +1,157 @@
 # MBAAntisocial
 
-The day-to-day operating layer for a B-school student: book mock interviews with
-actual seniors, track every deadline in one place, and find the notes your own
-batch wrote — instead of nine WhatsApp groups, a spreadsheet, and a Drive folder
-nobody can search.
+The day-to-day operating layer for a B-school student. It replaces the nine
+WhatsApp groups, the spreadsheet and the Drive folder nobody can search:
 
-This repository implements the **Campus Edition** (PRD §15, Version B): the
-campus-scoped product where the density actually lives.
+- book mock interviews with actual seniors;
+- track every deadline, class and grade;
+- find the notes your own batch wrote;
+- run your clubs;
+- play a game of Ludo between classes.
+
+It's built for official institute accounts only. It comes in two editions,
+following [the product spec](docs/PRD.md) (§15):
+
+- **Open Edition** works for one person on day one: the daily business briefing
+  and quiz, the jargon buster, opportunities, AI interview practice, the resume
+  studio, academics, money, wellbeing, games, and mock sessions with mentors
+  from other campuses.
+- **Campus Edition** unlocks per school once enough of a batch and its seniors
+  are here: mocks with your own seniors, interview intel, the notes library,
+  the campus feed and Discord-style hub, events, clubs, marketplace, the company
+  wiki, alumni referrals and more.
+
+The app engages without dark patterns (§16): leaderboards are opt-in, there is no
+guilt-based streak copy and no infinite feed. Today ends with "That's today."
 
 ---
 
-## Running it
+## What's in it
 
-Requires Node 20.9+ and a MongoDB instance. Setting up a new machine from
-scratch: see [INSTALL.md](INSTALL.md).
-
-```bash
-npm install
-cp .env.example .env.local     # then fill in MONGODB_URI and AUTH_SECRET
-npm run seed                   # optional, but the app is hard to judge empty
-npm run dev
-```
-
-A local MongoDB via Docker:
-
-```bash
-docker run -d -p 27017:27017 --name mba-mongo mongo:7
-```
-
-On Windows, `setup.ps1` does all of the above and checks each step: tooling,
-`.env.local` (created with a fresh secret if missing), MongoDB (starts a Docker
-container when the URI is local), and `npm ci`. Add `-Seed` and/or `-Verify`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Seed -Verify
-```
-
-Generate a session secret with `npx auth secret`. `src/lib/env.ts` validates the
-environment at boot and fails with a readable message rather than surfacing
-`undefined` deep inside a request.
-
-### Seed accounts
-
-`npm run seed` builds one campus (IIM Ahmedabad) with four seniors publishing
-slots, five juniors, a booked session, a completed session carrying both sides of
-the feedback rubric, a resource library, four competitions, and a feed with real
-threads. Every account uses the password `seedpassword123`.
-
-| Account | Role |
+| Section | Highlights |
 | --- | --- |
-| `placements@iima.ac.in` | Institute staff — sees the campus report, moderates nothing |
-| `ananya@iima.ac.in` | Senior, moderator — has the moderation queue |
-| `priya@iima.ac.in` | Senior, mentor — has a completed session with feedback |
-| `sneha@iima.ac.in` | Junior — has bookings, tasks, and an overdue item |
+| **Today** | Classes with one-tap attendance, what's due, sessions and placement rounds, the briefing and quiz, a private check-in. One request, one honest summary. |
+| **Prep** | Mock sessions with real Google Meet / Zoom / LiveKit / Jitsi links, two-way rubric feedback, group GDs that auto-match, AI interviewer and GD simulator (Claude), interview intel, applications pipeline, resume studio (one-page builder with print-exact PDF and AI roast), company wiki, offers, alumni referrals. |
+| **Academics** | Tasks and habits, timetable (AI import from a photo), attendance ("how many can I skip"), grades and CGPA, notes and past papers behind an honour code, course reviews, competitions, team workspaces. |
+| **Campus** | Chronological feed, the Hub (servers, channels, threads, DMs, voice, and a two-way Discord bridge), events with RSVP and calendar sync, clubs (recruitment, budgets, tasks), marketplace, splits, mess menu, lost and found. |
+| **Play** | Godot games embedded in a cross-origin-isolated player: online (WebRTC, relay or dedicated server), vs bot, pass-and-play, rated tournaments. |
+| **Discover** | Daily briefing, daily quiz, jargon buster, placement insights. |
+| **Me** | Profile, money (loan EMI, budget), wellbeing (non-clinical, with real helplines and the campus counsellor), settings. |
+| **Institute** | Campus report for the placement office, moderation, campus admin, and the platform admin console with the PRD's success metrics and an audit log. |
 
-### Scripts
+A calendar feed (ICS) puts classes, sessions, tasks and events in any calendar app.
+Notifications reach people in-app, live, by email and by push, and respect
+quiet hours.
+
+---
+
+## Run it
+
+You need Node 20.9 or newer, plus Docker (or local MongoDB 7 and Redis 7).
+Step-by-step help for a new machine is in **[INSTALL.md](INSTALL.md)**.
+
+### Option 1: the setup script
+
+```bash
+./setup.sh --seed                                            # macOS / Linux
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Seed   # Windows
+```
+
+The script:
+
+- creates `apps/web/.env.local` and `apps/realtime/.env` with fresh shared secrets;
+- starts MongoDB (as a replica set) and Redis in Docker;
+- installs dependencies;
+- seeds a demo campus.
+
+Then, in two terminals:
+
+```bash
+npm run dev            # web app      → http://localhost:3000
+npm run dev:realtime   # live updates, chat, multiplayer → :4000
+```
+
+### Option 2: everything in Docker
+
+```bash
+cp apps/web/.env.example apps/web/.env              # set AUTH_SECRET, REALTIME_SECRET, INTERNAL_API_SECRET
+cp apps/realtime/.env.example apps/realtime/.env    # the same three secrets
+docker compose up -d --build
+docker compose run --rm tools                       # optional: seed the demo campus
+```
+
+That gives:
+
+- the web app on :3000 and the realtime service on :4000;
+- MongoDB, Redis, and Mailpit (captured email, on :8025).
+
+Add `--profile voice` for a local LiveKit server. Set `GODOT_VERSION` to bundle a
+headless Godot for dedicated-server games.
+
+### Option 3: Vercel and managed services
+
+Each part runs on a managed service:
+
+- **Web app:** Vercel. The project root is `apps/web`, and `vercel.json` schedules the cron jobs.
+- **Database and Redis:** MongoDB Atlas, and Upstash or Redis Cloud.
+- **Realtime service:** any Node host that keeps a process running, such as Fly.io, Render or Railway. Build it with `apps/realtime/Dockerfile`, and set `SCHEDULER_ENABLED=false` there because Vercel runs the crons.
+
+### Demo accounts
+
+After seeding, every account's password is `seedpassword123`.
+
+| Account | Sees |
+| --- | --- |
+| `sneha@iima.ac.in` | A busy first-year: classes, tasks, a booked mock, the briefing |
+| `priya@iima.ac.in` | A senior who mentors, including students from other campuses |
+| `ananya@iima.ac.in` | A senior moderator: the moderation queue |
+| `placements@iima.ac.in` | Placement office: the campus report |
+| `admin@iima.ac.in` | Platform admin: `/admin` |
+| `vikram@alumni.iima.ac.in` | An alum with a referral request waiting |
+
+---
+
+## Scripts
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Development server |
-| `npm run build` / `npm start` | Production build and serve |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint, including the React Compiler rules |
-| `npm run seed` | Rebuild the seeded campus |
-| `npm run verify` | typecheck → lint → build |
+| `npm run dev` / `npm run dev:realtime` | Development servers |
+| `npm run seed` | Wipe and seed the demo campus |
+| `npm run typecheck` · `lint` · `test` | Across every workspace |
+| `npm run build` | Production builds |
+| `npm run verify` | All of the above |
+| `npm run e2e -w @mba/web` | Browser smoke test against a seeded instance (`BASE=` to point it elsewhere) |
+| `npm run publish-game -w @mba/web -- --id ludo --dir <web export> --version 1.0.0` | Publish a Godot build ([guide](packages/game-sdk/README.md)) |
+
+CI runs the first five, then the smoke test against a seeded production build
+(`.github/workflows/ci.yml`). A separate job parses the Godot addon in a headless
+Godot (`godot.yml`).
 
 ---
 
-## Architecture
-
-Next.js 16 (App Router, Turbopack) · React 19 · MongoDB via Mongoose 9 ·
-Auth.js v5 · zod · CSS Modules.
+## Layout
 
 ```
-src/
-  app/
-    (auth)/          Sign in and registration
-    (app)/           Everything behind a session, wrapped in the app shell
-    legal/           Sharing policy and privacy — readable signed out
-    api/             Route handlers
-  components/
-    ui/              Design-system primitives
-    layout/          Shell, sidebar, top bar, notifications
-    brand/           Logo mark and wordmark
-  lib/
-    api/             Route wrapper, typed errors, rate limiting
-    client/          Browser data layer and hooks
-    *.ts             Domain services: gamification, scheduling, recurrence, notifications
-  models/            Mongoose schemas
+apps/web          Next.js 16 app: UI, REST API, cron endpoints
+apps/realtime     Socket.IO fan-out, Godot signaling / relay / dedicated servers, scheduler, Discord gateway
+packages/shared   Domain vocabulary and pure, tested rules shared by every app
+packages/game-sdk Godot 4 addon + plain-JS SDK + a reference game
+docs/PRD.md       The product requirements document
+HANDOFF.md        The full engineering handoff: architecture, conventions, status, what's next
 ```
 
-### The route wrapper
+Every external service sits behind a port with interchangeable adapters, chosen
+from the environment in `apps/web/src/server/container.ts`:
 
-Every API route goes through `route()` in `src/lib/api/handler.ts`, which
-resolves the session, gates on role, validates the body and query against a zod
-schema, applies rate limiting, connects to the database, and serialises any
-thrown `ApiError` into a consistent JSON envelope. Handlers below that line can
-assume a valid `actor` and parsed input.
+| Service | Adapters |
+| --- | --- |
+| AI | Claude |
+| Email | Resend, SMTP or the console |
+| Storage | Cloudinary or local disk |
+| Meetings | Google Meet, Zoom, LiveKit, Jitsi or a manual link |
+| Realtime | Redis |
+| Push | Web Push and Expo |
 
-Input is validated **before** the database is touched, so a malformed request
-costs a schema parse rather than a connection from the pool.
-
-### Client data layer
-
-`useApiQuery` aborts in-flight requests when the query key changes, so a slow
-response for a filter the user has already moved past cannot land and overwrite
-the current one. `loading` is derived by comparing the settled result's key
-against the current one rather than flipped by a `setState` inside an effect.
-
-Live counters (points, karma, streak) come from `/api/me`, never the session
-token — a JWT is only reissued at sign-in, so anything stored on it would be
-frozen at whatever it was that day.
-
----
-
-## Design decisions worth knowing
-
-**The pipeline and the intel bank are one loop, not two features.** A tracked
-round writes a real deadline into the task list and surfaces the matching mock
-session type; concluding that round opens the debrief prompt, and what the
-student writes down lands in the campus question bank. Both halves of what the
-product needs — a reason to open it, and a contribution to the shared asset —
-fall out of the student doing the thing they were going to do anyway.
-
-This is also the only part of the product that compounds without further work.
-A question logged this December still prepares juniors two seasons from now, and
-a national marketplace cannot replicate it: its users are spread across every
-institute, so its density for any one company at any one campus is effectively
-zero. Campus scoping is what makes "what the panel asked *here*" a thing that
-can exist.
-
-**Messaging is not a general capability.** The scheduling module exists because
-unstructured DMs to seniors *are* the problem it replaces. An open inbox
-reintroduces exactly that and bypasses the booking cap, since a DM respects no
-cap. So `lib/connections.ts` unlocks a conversation only once something has
-happened between two people: they completed a session together, the other person
-messaged first, one of them posted an opportunity inviting contact, or a
-moderator is involved. Everything else is a cold DM. The gate applies to reading
-a thread as well as writing to one — otherwise it only stops people sending, not
-looking.
-
-**Opportunities are campus-internal, not a job board.** Competing on external
-listings means competing with national marketplaces without their employer
-relationships, and an empty listings page is the single most damaging screen a
-small platform can show. What is here is supply that already exists on a campus
-and appears on no placement portal — club recruitment, TA positions, live
-projects, student ventures — plus alumni referrals, which are a person from your
-own school rather than a listing anyone can scrape.
-
-**The campus report is aggregate-only, with a disclosure floor.** `/campus`
-answers the question a placement cell has that no incumbent system can — *is
-this batch prepared* — from leading indicators rather than outcomes. Because
-individual pipelines are private, any breakdown covering fewer than
-`MIN_REPORTABLE_COHORT` students is **withheld entirely** rather than rounded:
-on a small campus, "one applicant to Company X, rejected" identifies that person
-as surely as a list would. Track demand counts distinct students, not
-applications, so one person chasing eight consulting firms cannot inflate a cell
-past the floor.
-
-**Staff access is a separate grant from moderation.** `placement_office` reads
-the report and moderates nothing; `moderator` hides content and sees no report.
-A placement officer has no business hiding a student's post, and a student
-moderator should not become institute staff by implication.
-
-**A pipeline is private by construction.** There is no campus-wide read path for
-applications and no index that would support one — who applied where, and who
-was rejected, is the most sensitive data in the product. Only the question bank
-is shared, and only through a deliberate, per-round act of contribution.
-Deleting an application leaves contributed questions in place: they were given
-to the campus, not attached to one person's record-keeping.
-
-**Anonymity has exactly one narrow exception.** A contributed question can hide
-its byline, defaulted on for rounds the contributor did not clear. Requiring a
-name on a rejection would simply stop the most useful entries being written. The
-contributor id is still stored, so moderation and karma both still work — this
-hides a name, it does not create an unaccountable posting channel.
-
-**Points and karma are separate ledgers.** Points measure looking after
-yourself; karma measures looking after everyone else. Only karma is worth
-ranking, which is what stops a leaderboard rewarding pure self-interest. Both
-are append-only rows in `LedgerEntry`, with daily caps and a unique
-`(user, action, entity)` index — so an award cannot be farmed by repeating an
-action, and a retry or double-click cannot pay out twice.
-
-**Session credit lands on completion, not booking.** Crediting at booking time
-makes book → cancel → re-book an unbounded points loop and rewards intent rather
-than attendance.
-
-**Feedback direction is derived server-side.** Which rubric applies is decided
-by the caller's relationship to the specific slot. The client cannot assert it,
-and the session must actually have completed.
-
-**Everything is campus-scoped in the query.** Not filtered in the UI — a student
-at one school cannot see or book slots published at another, and a slot id from
-another campus reports as "not found" rather than "forbidden" so ids cannot be
-probed for existence.
-
-**Demand is capped at the requester.** A junior may hold three live bookings,
-and mentors set a weekly capacity on top. Capping demand at the source is what
-lets seniors keep availability open (PRD §11); the alternative is seniors
-quietly withdrawing.
-
-**Streaks forgive a missed day.** PRD §16 rules out guilt-based mechanics, and a
-streak that shatters the first time someone has a bad week punishes exactly the
-users under the most pressure. Milestones pay out; nothing nags.
-
-**Leaderboards are opt-in, enforced in the query.** Someone who never opted in
-is not merely hidden from the board — they are not in the result set.
-
-**The feed is chronological.** No engagement ranking, no infinite scroll. A
-campus feed does not need an algorithm to be worth reading, and a second
-highlight reel would reproduce the comparison dynamic the product is meant to
-avoid.
-
-**Resource sharing is scoped away from gradable work.** `RESOURCE_KINDS` has no
-value representing a current submission, so the guardrail is the absence of a
-code path rather than a policy page nobody reads. Uploads are additionally gated
-on recorded acceptance of the sharing policy.
-
-**Moderation shipped in version one.** Reporting, a moderator queue, and
-hide-don't-delete exist now — before the pressure to loosen anything arrives.
-Hidden content stays reviewable, including when the call was wrong.
-
----
-
-## What is deliberately not built
-
-- **File uploads.** Resources are referenced by link. There is no object-storage
-  bucket wired up, and a fake upload control that silently stores nothing would
-  be worse than being explicit. The schema, size limits, and version history
-  already assume a real `fileUrl`, so a signed-upload flow touches only
-  `UploadDialog`.
-- **Calendar-API meeting links.** §6.1 calls for auto-generated Meet/Zoom links
-  via calendar integration, which needs per-institute OAuth. Mentors supply a
-  standing room link; a booking without one flags that a link is still needed
-  rather than silently booking a session nobody can join.
-- **Email and push delivery.** `notify()` in `src/lib/notifications.ts` is the
-  single fan-out point with preference gating already applied. Additional
-  transports go behind that call, not beside it.
-- **Anonymous posting.** §11 makes moderation tooling a precondition. The tooling
-  is here; the feature is deliberately not.
-- **Cross-campus anything.** Phase 3 in the roadmap. The `campus` field is on
-  every relevant model, so opening it up is a query change rather than a
-  migration.
-
-### Known limitation
-
-Rate limiting is in-process (`src/lib/api/rate-limit.ts`), so each serverless
-instance keeps its own counters and the effective limit scales with instance
-count. It stops a single client hammering an endpoint, which is what the write
-paths need. A shared store is a drop-in change behind `consume()`.
-
----
-
-## Verification
-
-`npm run verify` runs typecheck, lint, and a production build. The lint config
-includes the React Compiler rules, which are treated as errors rather than
-suppressed — no `Date.now()` during render, no synchronous `setState` inside an
-effect.
+Everything optional switches itself off cleanly when its keys are missing. For
+the architecture, the conventions this codebase depends on, and the roadmap, read
+**[HANDOFF.md](HANDOFF.md)**.
