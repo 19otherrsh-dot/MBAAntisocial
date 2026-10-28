@@ -834,7 +834,7 @@ The seed creates:
   - the PDF comes out as exactly 1 A4 page when it fits and 2 when it doesn't, matching the on-screen check;
   - mobile edit/preview.
 - **Today:** junior, mentor and Open Edition views; no horizontal overflow at 390 px.
-- **Open Edition** (`kabir@iimb.ac.in`, created by hand, not in the seed): cross-campus slots listed and bookable; own-campus listing returns 403.
+- **Open Edition** (`kabir@iimb.ac.in`, now in the seed): cross-campus slots listed and bookable; own-campus listing returns 403.
 - **Admin consoles:**
   - approve a campus;
   - grant campus admin;
