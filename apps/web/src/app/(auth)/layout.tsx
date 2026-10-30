@@ -24,14 +24,14 @@ const PROOF = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={styles.page}>
-      <div className={styles.formSide}>
-        <div className={styles.formHeader}>
+      <main className={styles.formSide}>
+        <header className={styles.formHeader}>
           <Link href="/" aria-label="MBAAntisocial home">
             <Wordmark size={26} />
           </Link>
-        </div>
+        </header>
         {children}
-      </div>
+      </main>
 
       <aside className={styles.aside}>
         <h2 className={styles.asideTitle}>

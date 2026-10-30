@@ -7,7 +7,7 @@ export const metadata = { title: 'Not found' };
 
 export default function NotFound() {
   return (
-    <div
+    <main
       style={{
         minHeight: '100dvh',
         display: 'flex',
@@ -27,6 +27,6 @@ export default function NotFound() {
       <Link href="/home">
         <Button icon={<Home size={16} />}>Back to Today</Button>
       </Link>
-    </div>
+    </main>
   );
 }

@@ -4,7 +4,7 @@
 .targetField { flex: 1 1 240px; max-width: 360px; }
 .barActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--text-muted); margin-right: var(--s-2); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.statusError { color: var(--danger); }
+.statusError { color: var(--danger-text); }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -56,7 +56,7 @@
 .suggestOption { text-align: left; padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--line); font-size: var(--t-sm); line-height: 1.45; color: var(--text); transition: border-color var(--dur-fast) var(--ease); }
 .suggestOption:hover { border-color: var(--accent); }
 .suggestNote { font-size: var(--t-xs); color: var(--accent-text); }
-.suggestError { font-size: var(--t-sm); color: var(--danger); }
+.suggestError { font-size: var(--t-sm); color: var(--danger-text); }
 .suggestDismiss { align-self: flex-start; font-size: var(--t-xs); color: var(--text-secondary); background: none; padding: 2px 0; text-decoration: underline; }
 
 /* ───────────────────────── Preview ───────────────────────── */

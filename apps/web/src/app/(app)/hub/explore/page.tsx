@@ -14,6 +14,7 @@ import { getInitials } from '@/lib/utils';
 import type { HubServerSummary } from '@/components/hub/types';
 import hub from '@/components/hub/hub.module.css';
 import styles from '../../app.module.css';
+import { backgroundForWhiteText } from '@/lib/color';
 
 type Kind = 'all' | 'club' | 'circle' | 'course' | 'team';
 type ExploreServer = HubServerSummary & { joined: boolean; requested: boolean };
@@ -84,7 +85,7 @@ export default function HubExplorePage() {
           {data.servers.map((s) => (
             <div key={s._id} className={hub.serverCard}>
               <div className={hub.serverCardHead}>
-                <span className={hub.railItem} style={{ background: s.color, flex: 'none' }} aria-hidden>{getInitials(s.name)}</span>
+                <span className={hub.railItem} style={{ background: backgroundForWhiteText(s.color), flex: 'none' }} aria-hidden>{getInitials(s.name)}</span>
                 <div style={{ minWidth: 0 }}>
                   <strong className="truncate" style={{ display: 'block' }}>{s.name}</strong>
                   <span className="row gap-2 dim" style={{ fontSize: 'var(--t-xs)' }}>

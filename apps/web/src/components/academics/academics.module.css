@@ -33,9 +33,9 @@
 .ring { --size: 76px; width: var(--size); height: var(--size); border-radius: 50%; display: grid; place-items: center; flex: none; }
 .ringInner { width: calc(var(--size) - 14px); height: calc(var(--size) - 14px); border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 750; font-variant-numeric: tabular-nums; }
 .verdict { font-size: var(--t-sm); font-weight: 600; }
-.good { color: var(--success); }
+.good { color: var(--success-text); }
 .warn { color: var(--amber-text); }
-.bad { color: var(--danger); }
+.bad { color: var(--danger-text); }
 .compRow { display: grid; grid-template-columns: 1fr 70px 70px 70px 28px; gap: 6px; align-items: center; }
 .compRow input { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface); color: var(--text); font: inherit; font-size: var(--t-sm); }
 .compRow input:focus { outline: none; box-shadow: var(--shadow-focus); border-color: var(--accent); }

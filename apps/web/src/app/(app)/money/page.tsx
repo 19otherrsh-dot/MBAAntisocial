@@ -119,9 +119,12 @@ export default function MoneyPage() {
                       <span className="truncate">{EXPENSE_CATEGORY_META[c].emoji} {EXPENSE_CATEGORY_META[c].label}</span>
                       <div className={ps.barTrack}>
                         <div className={cn(ps.barFill, cap !== undefined && spent > cap && ps.barOver)} style={{ width: `${(spent / maxCategory) * 100}%` }} />
-                        {cap ? <span className={ps.budgetMark} style={{ left: `${(cap / maxCategory) * 100}%` }} aria-label={`Budget ${inr(cap)}`} /> : null}
+                        {cap ? <span className={ps.budgetMark} style={{ left: `${(cap / maxCategory) * 100}%` }} aria-hidden /> : null}
                       </div>
-                      <span className={ps.barValue}>{inr(spent)}</span>
+                      <span className={ps.barValue}>
+                        {inr(spent)}
+                        {cap ? <span className="sr-only"> of a {inr(cap)} budget</span> : null}
+                      </span>
                     </div>
                   );
                 })}

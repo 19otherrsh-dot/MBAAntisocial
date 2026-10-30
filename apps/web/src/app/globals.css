@@ -22,7 +22,7 @@
   /* Ink */
   --text: #17161c;
   --text-secondary: #5a5866;
-  --text-muted: #8b8896;
+  --text-muted: #6b6876;
   --text-inverse: #faf9f6;
 
   /* Lines */
@@ -66,6 +66,9 @@
   --success: var(--teal);
   --warning: var(--amber);
   --danger: var(--rose);
+  /* For text: the fills above are tuned for icons and bars, these meet AA as text. */
+  --success-text: var(--teal-text);
+  --danger-text: var(--rose-text);
   --danger-hover: #b8293e;
 
   /* Elevation — soft and low; nothing floats dramatically */
@@ -134,7 +137,7 @@
 
     --text: #f3f1ee;
     --text-secondary: #a8a4b3;
-    --text-muted: #78748a;
+    --text-muted: #9591a7;
     --text-inverse: #17161c;
 
     --line: #2c2936;
@@ -194,7 +197,7 @@
 
   --text: #f3f1ee;
   --text-secondary: #a8a4b3;
-  --text-muted: #78748a;
+  --text-muted: #9591a7;
   --text-inverse: #17161c;
 
   --line: #2c2936;

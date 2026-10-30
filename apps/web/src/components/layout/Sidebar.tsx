@@ -37,7 +37,7 @@ export default function Sidebar({ collapsed, onToggle, onOpenPalette }: SidebarP
   );
 
   return (
-    <aside className={cn(styles.sidebar, collapsed && styles.collapsed)}>
+    <aside className={cn(styles.sidebar, collapsed && styles.collapsed)} aria-label="App sidebar">
       <div className={styles.brandRow}>
         <Link href="/home" className={styles.brand} aria-label="MBAAntisocial home">
           <LogoMark size={26} />

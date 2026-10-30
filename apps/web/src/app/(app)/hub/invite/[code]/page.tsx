@@ -11,6 +11,7 @@ import { api, errorMessage } from '@/lib/client/api';
 import { getInitials } from '@/lib/utils';
 import hub from '@/components/hub/hub.module.css';
 import styles from '../../../app.module.css';
+import { backgroundForWhiteText } from '@/lib/color';
 
 interface InviteServer {
   _id: string;
@@ -46,7 +47,7 @@ export default function HubInvitePage({ params }: { params: Promise<{ code: stri
   const { server } = data;
   return (
     <div className={hub.serverCard} style={{ maxWidth: 420, margin: '40px auto', alignItems: 'center', textAlign: 'center', padding: 'var(--s-6)' }}>
-      <span className={hub.railItem} style={{ background: server.color, width: 64, height: 64, fontSize: 22 }} aria-hidden>{getInitials(server.name)}</span>
+      <span className={hub.railItem} style={{ background: backgroundForWhiteText(server.color), width: 64, height: 64, fontSize: 22 }} aria-hidden>{getInitials(server.name)}</span>
       <span className="dim" style={{ fontSize: 'var(--t-sm)' }}>You have been invited to</span>
       <h1 className={styles.pageTitle}>{server.name}</h1>
       {server.description && <p className="muted">{server.description}</p>}

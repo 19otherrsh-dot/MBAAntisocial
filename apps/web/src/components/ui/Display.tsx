@@ -165,7 +165,7 @@ export function EmptyState({ art, title, body, action }: EmptyStateProps) {
   return (
     <div className={styles.empty}>
       {art && <div className={styles.emptyArt}>{art}</div>}
-      <h3 className={styles.emptyTitle}>{title}</h3>
+      <h2 className={styles.emptyTitle}>{title}</h2>
       {body && <p className={styles.emptyBody}>{body}</p>}
       {action && <div className={styles.emptyAction}>{action}</div>}
     </div>

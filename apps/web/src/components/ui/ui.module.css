@@ -80,7 +80,7 @@
 
 .dangerGhost {
   background: transparent;
-  color: var(--danger);
+  color: var(--danger-text);
 }
 .dangerGhost:hover:not(:disabled) { background: var(--rose-soft); }
 
@@ -130,7 +130,7 @@
 
 .error {
   font-size: var(--t-xs);
-  color: var(--danger);
+  color: var(--danger-text);
   display: flex;
   align-items: flex-start;
   gap: var(--s-1);
@@ -222,7 +222,7 @@
   margin-left: auto;
 }
 
-.charCountOver { color: var(--danger); font-weight: 600; }
+.charCountOver { color: var(--danger-text); font-weight: 600; }
 
 /* ───────────────────────── Chip ───────────────────────── */
 

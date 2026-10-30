@@ -391,6 +391,12 @@ Its body is a typed envelope: `{ error: { code, message, details } }`.
   - Add a page by adding it there, with `feature` and `access` when needed.
 - **Client data:** `useApiQuery` (in `lib/client/hooks.ts`) keeps the previous data while refetching the same key, so screens don't flash empty. `useMe()` comes from `lib/client/me.tsx`. Realtime uses `useRealtime` / `useTopic` from `lib/client/realtime.tsx`.
 - **Uploads:** `lib/client/upload.ts` `uploadFile()` posts to `/api/upload`, which returns `{url, key}`.
+- **Contrast (WCAG AA; the smoke suite enforces it):**
+  - Never dim text with `opacity`. Recede with ink instead (`--text-secondary`, `--text-muted`), or dim only icons. This is how done tasks and locked badges work.
+  - For status *text*, use `--success-text`, `--danger-text`, `--amber-text`, `--teal-text` or `--rose-text`. The bare tones (`--success`, `--danger`, `--teal`…) are for icons, bars and borders.
+  - For white text on a data-chosen colour (server icons, club initials), pass the colour through `backgroundForWhiteText()` in `lib/color.ts`.
+  - `--text-muted` is `#6b6876` in light and `#9591a7` in dark. Both reach 4.5:1 on every surface; don't lighten them.
+  - Pages render inside a `<main>`. Repeated landmarks (`aside`) carry an `aria-label`. `EmptyState` titles are `h2`.
 - **Charts:** single hue for a single series, text in text colours (never the series colour), no legend for one series, and small groups suppressed.
 
 ### Motion (the "cinematic" layer)
@@ -815,20 +821,22 @@ The seed creates:
 **Automated (all committed):**
 
 - `packages/shared`: 47 vitest tests (campus, hub permissions, games/Elo, academics, resume).
-- `apps/web/test`: 22 tests:
+- `apps/web/test`: 25 tests:
   - `server-core`: KV, rate limiter, crypto;
   - `today`: local-day bounds, including across a DST change;
-  - `admin`: who may change whom, the privacy floor, audit diffs.
+  - `admin`: who may change whom, the privacy floor, audit diffs;
+  - `color`: darkening a colour just enough for white text.
 - `apps/realtime/src/test/games.test.ts`: signaling and relay integration.
-- `apps/web/e2e/smoke.mjs`: an 11-check browser suite against a seeded instance:
+- `apps/web/e2e/smoke.mjs`: a 12-check browser suite against a seeded instance:
   - wrong-password refusal;
   - Today;
   - resume autosave;
   - core pages;
   - admin API guards;
   - admin metrics;
-  - phone overflow.
-  - It fails on any page error or 5xx.
+  - phone overflow;
+  - an axe-core WCAG 2.1 A/AA pass over 10 pages in light and dark, with reduced motion so scroll reveals are settled.
+  - It fails on any page error, any 5xx, and any serious or critical axe violation.
 - **CI** (`.github/workflows/ci.yml`) runs on every push, on pull requests and on demand, with three jobs:
   - `verify`: typecheck, lint, tests and both builds;
   - `mobile`: the Expo app's typecheck and lint, plus iOS and Android bundles;
@@ -981,7 +989,7 @@ Ideas that fit the PRD and the owner's "whatever students might need". Treat the
   - game-specific achievements;
   - a GameRelease canary channel.
 - **Offline / PWA:** cache Today, the timetable and tasks for offline viewing in the service worker.
-- **Accessibility:** a full keyboard and screen-reader audit of the hub and games, plus colour-contrast checks in dark mode.
+- **Accessibility:** automated contrast and landmark checks are done and enforced (§10). Still to do: a manual keyboard and screen-reader pass over the hub and games.
 - **Scale:**
   - move uploads to S3-compatible storage (write an adapter);
   - shard realtime with the Socket.IO Redis adapter;
@@ -1034,6 +1042,9 @@ Ideas that fit the PRD and the owner's "whatever students might need". Treat the
 | `docker build` npm "Exit handler never called" (sandbox only) | containers can't reach the agent proxy or trust its CA | `--network host`, proxy build args, and a derived Dockerfile that installs `/root/.ccr/ca-bundle.crt` via `--build-context ccr=/root/.ccr` (see the session scratchpad `docker/`); the committed Dockerfiles stay clean |
 | Docker Hub 429 on image pulls (sandbox) | rate limit | retry later, or use cached images |
 | CI web build: `next/font/google queries have exactly one entry` (Turbopack) | The CSS Google Fonts served the runner broke the font loader (the parent commit had passed an hour earlier) | Fonts are committed in `apps/web/src/app/fonts` and loaded with `next/font/local`, so builds make no font requests and work offline. Don't go back to `next/font/google`. |
+
+| axe reports contrast failures on cards that look fine | scroll-driven `[data-reveal]` cards below the fold sit at their opacity-0 first frame | audit with `reducedMotion: 'reduce'` (the smoke suite does) |
+| Done tasks and locked badges failed contrast | dimmed with `opacity` | recede through ink colours instead; see §6 Contrast |
 
 ---
 

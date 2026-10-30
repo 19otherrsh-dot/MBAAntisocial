@@ -23,6 +23,7 @@ import Conversation, { type ConversationTarget } from './Conversation';
 import ServerSettingsDialog from './ServerSettingsDialog';
 import type { ConversationSummary, HubChannelInfo, HubMemberView, HubMessageView, HubServerDetail, HubServerSummary } from './types';
 import styles from './hub.module.css';
+import { backgroundForWhiteText } from '@/lib/color';
 
 type Panel = { kind: 'thread'; message: HubMessageView } | { kind: 'pins' } | { kind: 'members' } | null;
 
@@ -150,7 +151,7 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
         {servers.map((s) => {
           const u = unread?.servers[s._id];
           return (
-            <Link key={s._id} href={`/hub/${s._id}`} className={cn(styles.railItem, s._id === activeServerId && styles.railItemActive)} style={{ background: s.color }} title={s.name} aria-label={s.name}>
+            <Link key={s._id} href={`/hub/${s._id}`} className={cn(styles.railItem, s._id === activeServerId && styles.railItemActive)} style={{ background: backgroundForWhiteText(s.color) }} title={s.name} aria-label={s.name}>
               {s.icon ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={s.icon} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -172,7 +173,7 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
 
       {/* ───── Sidebar ───── */}
       {mode === 'server' ? (
-        <aside className={styles.sidebar}>
+        <aside className={styles.sidebar} aria-label="Channels">
           <div className={styles.sidebarHead}>
             <span className="truncate">{detail?.server.name ?? 'Loading…'}</span>
             {detail && (
@@ -200,7 +201,7 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
           )}
         </aside>
       ) : (
-        <aside className={styles.sidebar}>
+        <aside className={styles.sidebar} aria-label="Direct messages">
           <div className={styles.sidebarHead}>
             <span>Direct messages</span>
             <Button size="sm" variant="ghost" icon={<Plus size={15} />} aria-label="New message" onClick={() => setDmOpen(true)} />
@@ -271,7 +272,7 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
 
       {/* ───── Side panel ───── */}
       {panel && mode === 'server' && activeChannel && (
-        <aside className={styles.side}>
+        <aside className={styles.side} aria-label={panel.kind === 'thread' ? 'Thread' : panel.kind === 'pins' ? 'Pinned messages' : 'Members'}>
           <div className={styles.sideHead}>
             {panel.kind === 'thread' ? 'Thread' : panel.kind === 'pins' ? 'Pinned' : `Members · ${members.length}`}
             <Button size="sm" variant="ghost" icon={<X size={15} />} aria-label="Close panel" onClick={() => setPanel(null)} />

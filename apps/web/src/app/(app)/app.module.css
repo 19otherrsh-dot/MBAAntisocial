@@ -303,8 +303,10 @@
 }
 .taskRow:hover { border-color: var(--line-strong); }
 
-.taskDone { opacity: 0.55; }
-.taskDone .taskTitle { text-decoration: line-through; text-decoration-color: var(--text-muted); }
+/* Done rows recede through ink, not opacity, so their text still meets AA contrast. */
+.taskDone { background: var(--bg); }
+.taskDone .taskTitle { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--text-muted); }
+.taskDone :is(svg, img) { opacity: 0.6; }
 
 .taskOverdue { border-color: color-mix(in srgb, var(--rose) 40%, transparent); }
 
@@ -337,7 +339,7 @@
 .dueSafe { color: var(--text-muted); }
 .dueSoon { color: var(--amber-text); }
 .dueUrgent { color: var(--rose-text); }
-.dueOverdue { color: var(--danger); font-weight: 620; }
+.dueOverdue { color: var(--danger-text); font-weight: 620; }
 
 .taskDelete {
   color: var(--text-muted);
@@ -719,7 +721,9 @@
   background: var(--surface);
 }
 
-.badgeCardLocked { opacity: 0.45; }
+/* Locked badges recede through a muted icon and border; their text keeps AA contrast. */
+.badgeCardLocked { background: var(--bg); border-style: dashed; }
+.badgeCardLocked .badgeIcon { filter: grayscale(1); opacity: 0.5; }
 
 .badgeIcon {
   width: 32px;

@@ -5,9 +5,14 @@
  *   npm run seed -w @mba/web && npm run e2e -w @mba/web            # BASE defaults to http://localhost:3000
  *   BASE=https://staging.example.com npm run e2e -w @mba/web
  *
- * Fails on any uncaught page error or 5xx from the API.
+ * Fails on any uncaught page error or 5xx from the API, and on any serious or
+ * critical axe-core accessibility violation (WCAG 2.1 A/AA) in either theme.
  */
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { chromium } from 'playwright';
+
+const AXE_SOURCE = readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
 
 const BASE = process.env.BASE ?? 'http://localhost:3000';
 const PASSWORD = 'seedpassword123';
@@ -106,6 +111,38 @@ await check('Today fits a phone without sideways scrolling', async () => {
   await phone.waitForSelector('text=That’s today.', { timeout: 30_000 });
   const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   if (overflow > 1) throw new Error(`${overflow}px of horizontal overflow`);
+});
+
+/**
+ * Serious and critical axe findings on the pages people live in, light and
+ * dark. Emoji game art is excluded: colour emoji ignore the text colour axe
+ * measures, so that contrast reading is meaningless.
+ */
+async function axeViolations(page, path) {
+  await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
+  await page.addScriptTag({ content: AXE_SOURCE });
+  const violations = await page.evaluate(async () => {
+    const result = await window.axe.run(
+      { exclude: [['span[role="img"]']] },
+      { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }
+    );
+    return result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ×${v.nodes.length} (${v.nodes[0].target.join(' ')})`);
+  });
+  return violations.map((v) => `${path}: ${v}`);
+}
+
+await check('pages meet WCAG 2.1 AA in light and dark (axe)', async () => {
+  const found = [];
+  const visitor = await session(browser, null);
+  for (const scheme of ['light', 'dark']) {
+    // Reduced motion settles the scroll-driven reveals; otherwise cards below the
+    // fold are measured at their opacity-0 starting frame.
+    await visitor.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+    await sneha.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+    for (const path of ['/', '/login']) found.push(...(await axeViolations(visitor, path)).map((v) => `${scheme} ${v}`));
+    for (const path of ['/home', '/tasks', '/hub', '/money', '/grades', '/attendance', '/profile', '/games']) found.push(...(await axeViolations(sneha, path)).map((v) => `${scheme} ${v}`));
+  }
+  if (found.length) throw new Error(found.join('; '));
 });
 
 await browser.close();
