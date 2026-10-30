@@ -48,6 +48,8 @@ export interface IGameRoom {
   options: Record<string, string | number | boolean>;
   tournament?: Types.ObjectId;
   tournamentMatch?: string;
+  /** The lobby "Play again" opened after this game; later presses join it instead of opening another. */
+  rematch?: Types.ObjectId;
   reports: ResultReport[];
   result?: {
     standings: Array<{ playerId: string; placement: number; score?: number }>;
@@ -103,6 +105,7 @@ const GameRoomSchema = new Schema<IGameRoom, GameRoomModel>(
     options: { type: Schema.Types.Mixed, default: {} },
     tournament: { type: Schema.Types.ObjectId, ref: 'Tournament' },
     tournamentMatch: { type: String },
+    rematch: { type: Schema.Types.ObjectId, ref: 'GameRoom' },
     reports: [
       new Schema<ResultReport>(
         {

@@ -18,9 +18,13 @@ type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 interface RealtimeApi {
   socket: AppSocket | null;
   connected: boolean;
-  /** Reference-counted: the topic is left only when its last subscriber unmounts. */
-  retain: (topic: string) => void;
-  release: (topic: string) => void;
+  /**
+   * Reference-counted: the topic is left only when its last subscriber unmounts.
+   * `onSubscribed` runs each time the server confirms the subscription (first
+   * join and every reconnect), so a page can refetch what it missed meanwhile.
+   */
+  retain: (topic: string, onSubscribed?: () => void) => void;
+  release: (topic: string, onSubscribed?: () => void) => void;
 }
 
 const RealtimeContext = createContext<RealtimeApi>({ socket: null, connected: false, retain: () => undefined, release: () => undefined });
@@ -65,24 +69,34 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const counts = useRef(new Map<string, number>());
+  const onJoin = useRef(new Map<string, Set<() => void>>());
+  const joined = useCallback((topic: string) => (result: { ok: boolean }) => {
+    if (result?.ok) onJoin.current.get(topic)?.forEach((fn) => fn());
+  }, []);
 
   // Re-join every retained topic after a reconnect.
   useEffect(() => {
     if (!socket || !connected) return;
-    for (const topic of counts.current.keys()) socket.emit('subscribe', topic, () => undefined);
-  }, [socket, connected]);
+    for (const topic of counts.current.keys()) socket.emit('subscribe', topic, joined(topic));
+  }, [socket, connected, joined]);
 
   const retain = useCallback(
-    (topic: string) => {
+    (topic: string, onSubscribed?: () => void) => {
+      if (onSubscribed) {
+        const set = onJoin.current.get(topic) ?? new Set();
+        set.add(onSubscribed);
+        onJoin.current.set(topic, set);
+      }
       const next = (counts.current.get(topic) ?? 0) + 1;
       counts.current.set(topic, next);
-      if (next === 1 && socket?.connected) socket.emit('subscribe', topic, () => undefined);
+      if (next === 1 && socket?.connected) socket.emit('subscribe', topic, joined(topic));
     },
-    [socket]
+    [socket, joined]
   );
 
   const release = useCallback(
-    (topic: string) => {
+    (topic: string, onSubscribed?: () => void) => {
+      if (onSubscribed) onJoin.current.get(topic)?.delete(onSubscribed);
       const next = (counts.current.get(topic) ?? 0) - 1;
       if (next > 0) {
         counts.current.set(topic, next);
@@ -109,25 +123,29 @@ export function useRealtime(): RealtimeApi {
  */
 export function useTopic(
   topic: string | null,
-  onEvent: (envelope: RealtimeEnvelope) => void
+  onEvent: (envelope: RealtimeEnvelope) => void,
+  options: { onSubscribed?: () => void } = {}
 ): void {
   const { socket, retain, release } = useRealtime();
   const handler = useRef(onEvent);
+  const subscribed = useRef(options.onSubscribed);
 
   useEffect(() => {
     handler.current = onEvent;
+    subscribed.current = options.onSubscribed;
   });
 
   useEffect(() => {
     if (!socket || !topic) return;
-    retain(topic);
+    const onSubscribed = () => subscribed.current?.();
+    retain(topic, onSubscribed);
     const listener = (envelope: RealtimeEnvelope) => {
       if (envelope.topic === topic) handler.current(envelope);
     };
     socket.on('event', listener);
     return () => {
       socket.off('event', listener);
-      release(topic);
+      release(topic, onSubscribed);
     };
   }, [socket, topic, retain, release]);
 }

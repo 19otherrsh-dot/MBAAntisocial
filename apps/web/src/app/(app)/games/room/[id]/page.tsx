@@ -37,16 +37,33 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const { data, error, mutate, refetch } = useApiQuery<RoomResponse>(`/api/games/rooms/${id}`);
   const [busy, setBusy] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [rematchFrom, setRematchFrom] = useState<string | null>(null);
 
   const room = data?.room;
   const listening = Boolean(data?.me.seated || data?.me.spectating);
 
+  // onSubscribed: anyone who sat down before the subscription landed (e.g. straight after a rematch) shows up.
   useTopic(listening ? topics.gameRoom(id) : null, (envelope) => {
     if (isEvent(envelope, 'game.room.updated')) {
       const next = envelope.data.room as RoomView;
       mutate((current) => ({ ...current, room: next, me: { ...current.me, host: next.host === me?.id, seated: next.seats.some((s) => s.user?._id === me?.id) } }));
+    } else if (isEvent(envelope, 'game.room.rematch')) {
+      setRematchFrom(envelope.data.from);
+      refetch();
     }
-  });
+  }, { onSubscribed: refetch });
+
+  /** Opens the rematch lobby, or sits down at the one another player opened. */
+  const rematch = async () => {
+    setBusy('rematch');
+    try {
+      const { room: next } = await api.post<{ room: RoomView }>(`/api/games/rooms/${id}`, { action: 'rematch' });
+      router.push(`/games/room/${next._id}`);
+    } catch (caught) {
+      toast.error('Could not set up the rematch', errorMessage(caught));
+      setBusy(null);
+    }
+  };
 
   // Without a realtime service the lobby still moves, just less instantly.
   useEffect(() => {
@@ -214,9 +231,17 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       {room.status === 'playing' && data.me.seated && (
         <Link href={`/player/${room.game}?room=${room._id}`}><Button size="lg" icon={<Play size={16} />}>Back to the game</Button></Link>
       )}
-      {(room.status === 'finished' || room.status === 'abandoned') && (
-        <Link href={`/games/${room.game}`}><Button size="lg">Play again</Button></Link>
-      )}
+      {(room.status === 'finished' || room.status === 'abandoned') &&
+        (room.tournament ? (
+          <Link href={`/tournaments/${room.tournament}`}><Button size="lg" icon={<Trophy size={16} />}>Back to the bracket</Button></Link>
+        ) : data.me.seated ? (
+          <div className="row gap-3 wrap" style={{ alignItems: 'center' }}>
+            <Button size="lg" loading={busy === 'rematch'} onClick={rematch}>{room.rematch ? 'Join the rematch' : 'Play again'}</Button>
+            {room.rematch && <span className="muted" role="status">{rematchFrom ? `${rematchFrom} opened a rematch.` : 'A rematch table is open.'}</span>}
+          </div>
+        ) : (
+          <Link href={`/games/${room.game}`}><Button size="lg">Find another game</Button></Link>
+        ))}
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} roomId={id} />
     </div>

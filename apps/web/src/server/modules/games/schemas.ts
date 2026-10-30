@@ -29,6 +29,7 @@ export const roomActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('remove_bot'), seat: z.number().int().min(0).max(15) }),
   z.object({ action: z.literal('options'), options, visibility: z.enum(['public', 'private']).optional() }),
   z.object({ action: z.literal('invite'), userIds: z.array(objectId).min(1).max(10) }),
+  z.object({ action: z.literal('rematch') }),
 ]);
 
 export const environmentSchema = z.object({

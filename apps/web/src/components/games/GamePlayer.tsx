@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Maximize2, Minimize2, Volume2, VolumeX, UserPlus, RotateCcw, Smartphone } from 'lucide-react';
+import { ArrowLeft, Maximize2, Minimize2, Volume2, VolumeX, UserPlus, RotateCcw, Smartphone, Trophy } from 'lucide-react';
 import {
   DEFAULT_RATING,
   BRIDGE_NAMESPACE,
@@ -64,6 +64,9 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // After an online game: where "Play again" leads (a tournament's bracket) and who already asked for a rematch.
+  const [after, setAfter] = useState<{ tournament?: string; rematchFrom?: string }>({});
+  const [rematching, setRematching] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -241,10 +244,25 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
         delta: room.rated && after !== null && ratingBefore.current !== null ? after - ratingBefore.current : null,
         points: 0,
       });
+      setAfter((current) => ({ ...current, tournament: room.tournament }));
       setStatus('Game over');
       setPhase('finished');
+    } else if (isEvent(envelope, 'game.room.rematch')) {
+      setAfter((current) => ({ ...current, rematchFrom: envelope.data.from }));
     }
   });
+
+  /** Opens the rematch lobby, or sits down at the one another player opened. */
+  const rematch = async () => {
+    setRematching(true);
+    try {
+      const { room } = await api.post<{ room: RoomView }>(`/api/games/rooms/${roomId}`, { action: 'rematch' });
+      router.push(`/games/room/${room._id}`);
+    } catch (caught) {
+      toast.error('Could not set up the rematch', errorMessage(caught));
+      setRematching(false);
+    }
+  };
 
   // Pause when hidden; keep the screen awake while playing.
   useEffect(() => {
@@ -398,10 +416,13 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
                 </div>
               )}
               {outcome.points > 0 && <span className="muted">+{outcome.points} points</span>}
+              {mode === 'online' && after.rematchFrom && !after.tournament && <p className="muted" role="status">{after.rematchFrom} wants a rematch.</p>}
               <div className="row gap-2 wrap" style={{ justifyContent: 'center' }}>
                 <Button variant="ghost" onClick={() => router.push(`/games/${gameId}`)}>Done</Button>
-                {mode === 'online' ? (
-                  <Button icon={<RotateCcw size={15} />} onClick={() => router.push(`/games/${gameId}?again=1`)}>Play again</Button>
+                {mode === 'online' && after.tournament ? (
+                  <Button icon={<Trophy size={15} />} onClick={() => router.push(`/tournaments/${after.tournament}`)}>Back to the bracket</Button>
+                ) : mode === 'online' ? (
+                  <Button icon={<RotateCcw size={15} />} loading={rematching} onClick={rematch}>{after.rematchFrom ? 'Join the rematch' : 'Play again'}</Button>
                 ) : (
                   <Button variant="secondary" onClick={() => setOutcome(null)}>Keep playing</Button>
                 )}

@@ -44,6 +44,7 @@ export interface RoomView {
   seats: Array<{ seat: number; user: { _id: string; name: string; image: string; rating: number | null } | null; isBot: boolean; ready: boolean; present: boolean; left: boolean }>;
   spectatorCount: number;
   tournament?: string;
+  rematch?: string;
   result?: IGameRoom['result'];
   disputed: boolean;
   startedAt?: Date;
@@ -88,6 +89,7 @@ export async function viewRoom(room: LeanRoom): Promise<RoomView> {
       }),
     spectatorCount: room.spectators.length,
     tournament: room.tournament ? String(room.tournament) : undefined,
+    rematch: room.rematch ? String(room.rematch) : undefined,
     result: room.result,
     disputed: room.disputed,
     startedAt: room.startedAt,
@@ -397,6 +399,56 @@ export async function inviteToRoom(room: LeanRoom, actor: Actor, userIds: string
     )
   );
   return users.length;
+}
+
+/**
+ * "Play again" after a finished online game. The first player to press it
+ * opens a private lobby with the same game, size and options (and the same
+ * bots); the finished room then points at it, so everyone else who presses it
+ * sits down at that table instead of opening their own. The other players are
+ * invited. Tournament matches continue in their bracket instead.
+ */
+export async function rematchRoom(room: LeanRoom, actor: Actor): Promise<LeanRoom> {
+  if (room.mode === 'tournament') throw ApiError.forbidden('Tournament matches continue in the bracket.');
+  if (room.status !== 'finished' && room.status !== 'abandoned') throw ApiError.conflict('That game is still going.');
+  if (!seatOf(room, actor.id)) throw ApiError.forbidden('Only the players can ask for a rematch.');
+
+  if (room.rematch) {
+    const existing = await GameRoom.findById(room.rematch).lean();
+    if (existing?.status === 'lobby') return joinRoom(existing, actor);
+  }
+
+  const created = await createRoom(
+    actor,
+    { gameId: room.game, visibility: 'private', maxPlayers: room.maxPlayers, rated: room.rated, options: room.options },
+    { crossCampus: room.crossCampus }
+  );
+  // Claim the finished room's pointer; if another player won the race, use their table.
+  const claimed = await GameRoom.findOneAndUpdate(
+    { _id: room._id, rematch: room.rematch ?? null },
+    { $set: { rematch: created._id } },
+    { new: true }
+  ).lean();
+  if (!claimed) {
+    await GameRoom.deleteOne({ _id: created._id });
+    const winner = await GameRoom.findById((await GameRoom.findById(room._id).select('rematch').lean())?.rematch).lean();
+    if (!winner) throw ApiError.conflict('That rematch is no longer open.');
+    return joinRoom(winner, actor);
+  }
+
+  let next = created;
+  const bots = room.seats.filter((s) => s.isBot).length;
+  for (let i = 0; i < bots; i += 1) next = await addBot(next, actor.id);
+  const others = humanSeats(room)
+    .map((s) => String(s.user))
+    .filter((id) => id !== actor.id);
+  if (others.length) await inviteToRoom(next, actor, others);
+  await container().realtime.publish(topics.gameRoom(String(room._id)), 'game.room.rematch', {
+    roomId: String(room._id),
+    rematchId: String(next._id),
+    from: actor.name,
+  });
+  return next;
 }
 
 /**

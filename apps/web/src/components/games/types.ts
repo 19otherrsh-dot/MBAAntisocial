@@ -42,6 +42,8 @@ export interface RoomView {
   seats: SeatView[];
   spectatorCount: number;
   tournament?: string;
+  /** The lobby opened by "Play again" after this game. */
+  rematch?: string;
   result?: { standings: Array<{ playerId: string; placement: number; score?: number }>; summary: string; source: string };
   disputed: boolean;
   startedAt?: string;

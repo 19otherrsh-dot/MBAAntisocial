@@ -60,6 +60,8 @@ export interface RealtimeEvents {
   'game.room.updated': { roomId: string; room: unknown };
   'game.room.started': { roomId: string };
   'game.room.finished': { roomId: string; summary: string };
+  /** Someone pressed "Play again": the finished room points at the new lobby. */
+  'game.room.rematch': { roomId: string; rematchId: string; from: string };
   'game.invite': { roomId: string; code: string; gameId: string; gameTitle: string; from: string };
   'tournament.updated': { tournamentId: string };
   'feed.post.created': { postId: string };

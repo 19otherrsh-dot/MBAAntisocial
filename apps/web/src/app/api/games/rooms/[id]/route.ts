@@ -7,6 +7,7 @@ import {
   kickFromRoom,
   leaveRoom,
   loadRoom,
+  rematchRoom,
   removeBot,
   seatOf,
   setReady,
@@ -65,6 +66,9 @@ export const POST = route({ body: roomActionSchema, rateLimit: 'game', feature: 
       break;
     case 'options':
       next = await updateOptions(room, actor.id, body.options, body.visibility);
+      break;
+    case 'rematch':
+      next = await rematchRoom(room, actor);
       break;
     case 'invite':
       return ok({ invited: await inviteToRoom(room, actor, body.userIds) });

@@ -914,8 +914,7 @@ The seed creates:
    - Discord bridge against real Discord;
    - Meet/Zoom OAuth against real apps;
    - Expo push, Resend;
-   - AI features with a real key;
-   - the tournament "play again" morph.
+   - AI features with a real key.
 5. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
 6. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
 7. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
@@ -924,6 +923,11 @@ The seed creates:
 
 - **Godot addon:** CI has parsed it.
 - **Detail pages:** they now show the record's name as the tab title.
+- **Play again / rematch:** this was a dead link (`?again=1` was never read).
+  - It's now `rematchRoom` (room action `rematch`). The first player to press it opens a private lobby with the same game, size, options and bots. The finished room points at it (`GameRoom.rematch`), so later presses from the overlay or the room page join that table. Other players are invited and see "X wants a rematch" through the `game.room.rematch` event.
+  - Tournament matches show "Back to the bracket" instead.
+  - Verified with two players: rematch, join, a second full game, and the tournament path including bracket advance.
+  - The web `useTopic` gained `onSubscribed`, which runs after every confirmed subscribe or reconnect. The lobby uses it to refetch, so a player who sits down before the subscription lands still shows up.
 - **Game releases across instances:** they now propagate through a KV generation counter. Verified with two `next start` instances on one Redis: the other instance served a new release after 4.9 s and the rollback after 5.1 s.
 - **Admin overview:** cached in KV for five minutes per campus and window. The metrics are read by `cachedSuccessMetrics` in `server/modules/admin/metrics.ts`, which both consoles use.
 
