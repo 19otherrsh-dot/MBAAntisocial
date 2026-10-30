@@ -1,11 +1,13 @@
 import { NativeTabs } from 'expo-router/native-tabs';
+import { useHubBadge } from '@/lib/unread';
 import { useTheme } from '@/theme';
 
 /** Native tab bar on iOS and Android. The web preview uses app-tabs.web.tsx. */
 export default function AppTabs() {
   const t = useTheme();
+  const hubBadge = useHubBadge();
   return (
-    <NativeTabs backgroundColor={t.surface} indicatorColor={t.accentSoft} tintColor={t.accent} labelStyle={{ selected: { color: t.accent } }}>
+    <NativeTabs badgeBackgroundColor={t.rose} backgroundColor={t.surface} indicatorColor={t.accentSoft} tintColor={t.accent} labelStyle={{ selected: { color: t.accent } }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="sun.max" md="wb_sunny" />
@@ -21,6 +23,7 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="hub">
         <NativeTabs.Trigger.Label>Hub</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right" md="forum" />
+        <NativeTabs.Trigger.Badge hidden={!hubBadge}>{hubBadge}</NativeTabs.Trigger.Badge>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
         <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>

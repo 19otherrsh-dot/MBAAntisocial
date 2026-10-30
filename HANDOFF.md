@@ -696,6 +696,13 @@ See §5.6. Supporting pieces:
   - Tasks uses `/api/tasks`; habit instances are hidden until due.
   - Hub uses `/api/hub/servers`, `/servers/[id]` and `/dm`; chat goes to `/channels/[id]/messages` or `/dm/[id]`, with `useTopic` live updates and `canSend` respected.
   - More opens web pages through `app/web.tsx` (`/api/mobile/auth/web-code`, then `/mobile/web-login?code=…&next=…&embed=1`).
+- **Hub badge** (`src/lib/unread.ts`, `useHubBadge`): counts mentions plus unread DMs from `/api/hub/unread`. Quiet channel traffic deliberately doesn't count (PRD §16, no nagging). It refetches, debounced to 1.5 s, on:
+  - `hub.activity` on every server topic you belong to;
+  - `dm.message.created` on your user topic (your own messages are ignored);
+  - the app returning to the foreground;
+  - navigation, because opening a chat marks it read.
+  - It appears as `NativeTabs.Trigger.Badge` on device and as a counted pill in the web-preview bar.
+  - `useTopics` in `src/lib/realtime.tsx` subscribes to many topics at once; `useTopic` wraps it.
 - **Embed mode:** `web-login?embed=1` sets an `mba-embed` cookie, and `(app)/layout.tsx` passes `embedded` to `AppShell`, which drops the sidebar, top bar and bottom nav.
 - **Push** (`src/lib/push.ts`): needs `extra.eas.projectId` (`eas init`). Taps route through `src/lib/links.ts`, which maps a web `href` to a native screen and falls back to the web screen.
 - **CORS for the web preview:** `API_CORS_ORIGINS` (web env) adds exact-origin CORS for `/api/*` without credentials. Next anchors `has` values as `^…$`, and the origin is regex-escaped.
@@ -867,6 +874,11 @@ The seed creates:
   - `expo export` produced Hermes bundles for iOS (2.9 MB) and Android (3.2 MB).
 
 - **Tab titles on detail pages** come from the record (`server/modules/meta/titles.ts`), e.g. "Ludo · MBAAntisocial" and "Finance & Investment Club · MBAAntisocial". Unknown ids keep the section's title. Signed out, the page redirects without naming anything. Records from another campus are never named.
+- **Hub badge (native app, web preview, live):**
+  - a DM from another user and an @mention each update the Hub tab within about 2 s;
+  - opening the DM decrements the count;
+  - replying in the channel clears it;
+  - no API errors.
 - **Admin metrics cache:** a repeat load is served from KV in about 10 ms with the same `computedAt`. "Recompute now" (`fresh=<n>`) recomputes, and the console shows when the figures were computed.
 
 **Not exercised:**
@@ -928,8 +940,8 @@ times mid-task.
    - native tab icons.
 5. Then add, as needed:
    - native booking notes and template choice;
-   - the tasks due-date picker;
-   - unread badges from `hub.activity` events.
+   - the tasks due-date picker (`@react-native-community/datetimepicker`, at the version in `expo/bundledNativeModules.json`).
+   - Unread badges are done (§7.13).
 
 ### Step 2: Small follow-ups
 
@@ -1021,6 +1033,7 @@ Ideas that fit the PRD and the owner's "whatever students might need". Treat the
 | `pkill -f "next dev"` killed the tool's own shell | the pattern matched the shell's command line | start servers from scratchpad launcher scripts; kill by pid |
 | `docker build` npm "Exit handler never called" (sandbox only) | containers can't reach the agent proxy or trust its CA | `--network host`, proxy build args, and a derived Dockerfile that installs `/root/.ccr/ca-bundle.crt` via `--build-context ccr=/root/.ccr` (see the session scratchpad `docker/`); the committed Dockerfiles stay clean |
 | Docker Hub 429 on image pulls (sandbox) | rate limit | retry later, or use cached images |
+| CI web build: `next/font/google queries have exactly one entry` (Turbopack) | The CSS Google Fonts served the runner broke the font loader (the parent commit had passed an hour earlier) | Fonts are committed in `apps/web/src/app/fonts` and loaded with `next/font/local`, so builds make no font requests and work offline. Don't go back to `next/font/google`. |
 
 ---
 

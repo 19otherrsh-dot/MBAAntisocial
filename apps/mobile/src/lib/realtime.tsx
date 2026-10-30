@@ -48,16 +48,24 @@ export function RealtimeProvider({ enabled, children }: { enabled: boolean; chil
 
 /** Calls `onEvent` for each event on `topic` while mounted. */
 export function useTopic(topic: string | null, onEvent: (envelope: RealtimeEnvelope) => void) {
+  useTopics(topic ? [topic] : [], onEvent);
+}
+
+/** Calls `onEvent` for each event on any of `topics` while mounted. */
+export function useTopics(topics: readonly string[], onEvent: (envelope: RealtimeEnvelope) => void) {
   const socket = useContext(RealtimeContext);
   const handler = useRef(onEvent);
   useEffect(() => {
     handler.current = onEvent;
   });
+  // Joined into one string so a new array with the same topics does not resubscribe.
+  const key = [...new Set(topics)].sort().join('\n');
   useEffect(() => {
-    if (!socket || !topic) return;
-    const join = () => socket.emit('subscribe', topic, () => undefined);
+    const list = key ? key.split('\n') : [];
+    if (!socket || list.length === 0) return;
+    const join = () => list.forEach((topic) => socket.emit('subscribe', topic, () => undefined));
     const listener = (envelope: RealtimeEnvelope) => {
-      if (envelope.topic === topic) handler.current(envelope);
+      if (list.includes(envelope.topic)) handler.current(envelope);
     };
     if (socket.connected) join();
     socket.on('connect', join);
@@ -65,7 +73,7 @@ export function useTopic(topic: string | null, onEvent: (envelope: RealtimeEnvel
     return () => {
       socket.off('connect', join);
       socket.off('event', listener);
-      socket.emit('unsubscribe', topic);
+      list.forEach((topic) => socket.emit('unsubscribe', topic));
     };
-  }, [socket, topic]);
+  }, [socket, key]);
 }
