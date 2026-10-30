@@ -693,7 +693,7 @@ See §5.6. Supporting pieces:
 - **Screens:**
   - Today renders `/api/today`.
   - Prep uses `/api/sessions`, with a cross scope on the Open Edition.
-  - Tasks uses `/api/tasks`; habit instances are hidden until due.
+  - Tasks uses `/api/tasks`; habit instances are hidden until due. Adding a task offers one-tap deadlines (No date, Today, Tomorrow, then the next five days), each due at 23:59 local. This deliberately avoids a native date picker; exact times are set on the web.
   - Hub uses `/api/hub/servers`, `/servers/[id]` and `/dm`; chat goes to `/channels/[id]/messages` or `/dm/[id]`, with `useTopic` live updates and `canSend` respected.
   - More opens web pages through `app/web.tsx` (`/api/mobile/auth/web-code`, then `/mobile/web-login?code=…&next=…&embed=1`).
 - **Hub badge** (`src/lib/unread.ts`, `useHubBadge`): counts mentions plus unread DMs from `/api/hub/unread`. Quiet channel traffic deliberately doesn't count (PRD §16, no nagging). It refetches, debounced to 1.5 s, on:
@@ -940,8 +940,8 @@ times mid-task.
    - native tab icons.
 5. Then add, as needed:
    - native booking notes and template choice;
-   - the tasks due-date picker (`@react-native-community/datetimepicker`, at the version in `expo/bundledNativeModules.json`).
-   - Unread badges are done (§7.13).
+   - an exact-time picker for tasks, only if people ask for it (`@react-native-community/datetimepicker@9.2.1`, per `expo/bundledNativeModules.json`; it needs a development build).
+   - Unread badges and one-tap task deadlines are done (§7.13).
 
 ### Step 2: Small follow-ups
 
