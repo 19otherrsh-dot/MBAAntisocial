@@ -1221,7 +1221,7 @@
   text-align: center;
   color: var(--accent);
 }
-.meetLobby p, .meetLobby h2 { color: var(--text); }
+.meetLobby p, .meetLobby h1 { color: var(--text); }
 .meetFrame {
   height: calc(100dvh - var(--topbar-h) - 2 * var(--s-5));
   min-height: 420px;

@@ -114,7 +114,7 @@ export default function WhisperNetworkPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>The Whisper Network</h2>
+          <h1 className={styles.pageTitle}>The Whisper Network</h1>
           <p className={styles.pageSubtitle}>
             Anonymous course and professor reviews. Honest, not a pile-on.
           </p>
@@ -139,7 +139,7 @@ export default function WhisperNetworkPage() {
       ) : (
         <>
           <section className={styles.section} style={{ marginTop: 'var(--s-6)' }}>
-            <h3 className={styles.sectionHead}>Elective cheat sheet</h3>
+            <h2 className={styles.sectionHead}>Elective cheat sheet</h2>
             <div className={styles.cardList}>
               {data?.stats.map((stat) => (
                 <article key={`${stat.targetType}-${stat.targetName}`} className={styles.slotCard}>
@@ -176,7 +176,7 @@ export default function WhisperNetworkPage() {
           </section>
 
           <section className={styles.section}>
-            <h3 className={styles.sectionHead}>Recent Whispers</h3>
+            <h2 className={styles.sectionHead}>Recent Whispers</h2>
             {data?.recent.length === 0 ? (
               <EmptyState
                 art={<VolumeX size={40} strokeWidth={1.4} />}

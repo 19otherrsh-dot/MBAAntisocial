@@ -83,7 +83,8 @@ function ShellFrame({ children, embedded }: { children: React.ReactNode; embedde
             <LogoMark size={22} />
           </Link>
 
-          <h1 className={cn(styles.topbarTitle, 'truncate')}>{titleForPath(pathname)}</h1>
+          {/* Where you are, not the page's heading: each page renders its own h1. */}
+          <p className={cn(styles.topbarTitle, 'truncate')}>{titleForPath(pathname)}</p>
 
           <div className={styles.topbarActions}>
             <button className={cn(styles.iconButton, styles.mobileOnly)} onClick={openPalette} aria-label="Search">

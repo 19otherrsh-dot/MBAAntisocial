@@ -82,7 +82,7 @@ export default function CampusReportPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Campus report</h2>
+          <h1 className={styles.pageTitle}>Campus report</h1>
           <p className={styles.pageSubtitle}>
             {report ? `${report.campus} · generated ${formatDateTime(report.generatedAt)}` : 'Loading…'}
           </p>
@@ -115,11 +115,11 @@ export default function CampusReportPage() {
         <>
           {report.gaps.length > 0 && (
             <section className={styles.section}>
-              <h3 className={styles.sectionHead}>
+              <h2 className={styles.sectionHead}>
                 <TriangleAlert size={15} style={{ color: 'var(--amber)' }} />
                 Where to intervene
                 <span className={styles.sectionCount}>{report.gaps.length}</span>
-              </h3>
+              </h2>
               <div className={styles.gapList}>
                 {report.gaps.map((gap) => (
                   <div

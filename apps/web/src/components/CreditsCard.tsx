@@ -49,7 +49,7 @@ export default function CreditsCard() {
     <section className={styles.settingsGroup}>
       <div className="between gap-3 wrap">
         <div>
-          <h3 className={styles.settingsTitle}><Coins size={16} style={{ display: 'inline', marginRight: 6 }} />{data.balance} credits</h3>
+          <h2 className={styles.settingsTitle}><Coins size={16} style={{ display: 'inline', marginRight: 6 }} />{data.balance} credits</h2>
           <p className={styles.settingsHint}>
             Earned by giving time — {data.earn.session_hosted} per mock hosted, {data.earn.gd_moderated} per GD moderated, {data.earn.referral_given} per referral.
           </p>

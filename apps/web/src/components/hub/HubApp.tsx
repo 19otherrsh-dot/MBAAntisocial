@@ -141,6 +141,8 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
 
   return (
     <div className={cn(styles.hub, channelOpen && styles.hubChannelOpen)}>
+      {/* The layout is the heading visually; screen readers get it named. */}
+      <h1 className="sr-only">{mode === 'dm' ? 'Direct messages' : `Hub${detail?.server.name ? ` · ${detail.server.name}` : ''}`}</h1>
       {/* ───── Server rail ───── */}
       <nav className={styles.rail} aria-label="Servers">
         <Link href="/hub/dm" className={cn(styles.railItem, styles.railItemGhost, mode === 'dm' && styles.railItemActive)} title="Direct messages" aria-label="Direct messages">

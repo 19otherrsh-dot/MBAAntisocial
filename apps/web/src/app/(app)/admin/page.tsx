@@ -47,7 +47,7 @@ function PlatformAdmin() {
     <div className="stack gap-5">
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Platform admin</h2>
+          <h1 className={styles.pageTitle}>Platform admin</h1>
           <p className={styles.pageSubtitle}>Campuses, people, game releases, and whether any of this is working.</p>
         </div>
       </div>

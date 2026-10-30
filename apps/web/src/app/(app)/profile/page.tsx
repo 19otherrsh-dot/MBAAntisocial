@@ -94,7 +94,7 @@ function ProfileEditor({ me }: { me: Me }) {
           </label>
         </div>
         <div className="grow" style={{ minWidth: 0 }}>
-          <h2 className={styles.profileName}>{me.name}</h2>
+          <h1 className={styles.profileName}>{me.name}</h1>
           <p className={styles.profileSub}>
             {me.campus} · {me.batch} · {me.year === 2 ? 'Second year' : 'First year'}
             {me.canMentor && ' · Can host sessions'}
@@ -139,7 +139,7 @@ function ProfileEditor({ me }: { me: Me }) {
       {/* ───── Public profile ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>Your profile</h3>
+          <h2 className={styles.settingsTitle}>Your profile</h2>
           <p className={styles.settingsHint}>
             What juniors see when they are deciding whose slot to book.
           </p>
@@ -178,7 +178,7 @@ function ProfileEditor({ me }: { me: Me }) {
       {me.canMentor && (
         <section className={styles.settingsGroup}>
           <div>
-            <h3 className={styles.settingsTitle}>Hosting</h3>
+            <h2 className={styles.settingsTitle}>Hosting</h2>
             <p className={styles.settingsHint}>
               You control the tap. Juniors can hold {MAX_ACTIVE_BOOKINGS_PER_MENTEE} live bookings
               each, and your weekly cap sits on top of that — so “available” never means “unlimited”.
@@ -324,7 +324,7 @@ function ProfileEditor({ me }: { me: Me }) {
       <section className={styles.settingsGroup}>
         <div className="between gap-3 wrap">
           <div>
-            <h3 className={styles.settingsTitle}>Notifications, privacy & integrations</h3>
+            <h2 className={styles.settingsTitle}>Notifications, privacy & integrations</h2>
             <p className={styles.settingsHint}>Quiet hours, push, email, leaderboard visibility, Google/Zoom/Discord.</p>
           </div>
           <Link href="/settings"><Button variant="secondary">Open settings</Button></Link>
@@ -334,7 +334,7 @@ function ProfileEditor({ me }: { me: Me }) {
       {/* ───── Badges ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>Badges</h3>
+          <h2 className={styles.settingsTitle}>Badges</h2>
           <p className={styles.settingsHint}>
             Mostly earned by doing things for other people. That is deliberate.
           </p>
@@ -361,7 +361,7 @@ function ProfileEditor({ me }: { me: Me }) {
       {/* ───── Policy ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>Sharing policy</h3>
+          <h2 className={styles.settingsTitle}>Sharing policy</h2>
           <p className={styles.settingsHint}>
             Required once before you can upload to the resource library.
           </p>
@@ -409,7 +409,7 @@ function AlumniSection({
   return (
     <section className={styles.settingsGroup}>
       <div>
-        <h3 className={styles.settingsTitle}>Alumni & referrals</h3>
+        <h2 className={styles.settingsTitle}>Alumni & referrals</h2>
         <p className={styles.settingsHint}>
           Boundaried by design: juniors can only request a referral when you switch it on, and never beyond your cap.
         </p>

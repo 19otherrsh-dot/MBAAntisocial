@@ -32,7 +32,7 @@ export default function MeetPage({ params }: { params: Promise<{ room: string }>
     return (
       <div className={styles.meetLobby}>
         <Video size={36} />
-        <h2 className={styles.pageTitle}>Ready to join?</h2>
+        <h1 className={styles.pageTitle}>Ready to join?</h1>
         <p className={styles.pageSubtitle}>Your camera and mic stay off until you turn them on inside the room.</p>
         <div className="row gap-3">
           <Button size="lg" onClick={() => setJoined(true)}>Join room</Button>

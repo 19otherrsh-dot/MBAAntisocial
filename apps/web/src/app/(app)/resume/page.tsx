@@ -24,7 +24,7 @@ export default function ResumeStudioPage() {
     <div className="stack gap-4">
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Resume studio</h2>
+          <h1 className={styles.pageTitle}>Resume studio</h1>
           <p className={styles.pageSubtitle}>Build a one-page resume that prints right, then get it torn apart before a recruiter does.</p>
         </div>
         <Segmented

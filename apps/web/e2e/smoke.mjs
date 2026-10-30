@@ -114,8 +114,8 @@ await check('Today fits a phone without sideways scrolling', async () => {
 });
 
 /**
- * Serious and critical axe findings on the pages people live in, light and
- * dark. Emoji game art is excluded: colour emoji ignore the text colour axe
+ * Serious and critical axe findings, and exactly one h1, on the pages people
+ * live in, light and dark. Emoji game art is excluded: colour emoji ignore the text colour axe
  * measures, so that contrast reading is meaningless.
  */
 async function axeViolations(page, path) {
@@ -126,7 +126,11 @@ async function axeViolations(page, path) {
       { exclude: [['span[role="img"]']] },
       { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }
     );
-    return result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ×${v.nodes.length} (${v.nodes[0].target.join(' ')})`);
+    const found = result.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} ×${v.nodes.length} (${v.nodes[0].target.join(' ')})`);
+    // One h1 per page: the page's own title (the shell's top bar is not a heading).
+    const h1s = [...document.querySelectorAll('h1')].filter((h) => h.checkVisibility());
+    if (h1s.length !== 1) found.push(`expected one h1, found ${h1s.length}`);
+    return found;
   });
   return violations.map((v) => `${path}: ${v}`);
 }

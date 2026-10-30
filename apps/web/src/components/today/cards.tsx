@@ -30,10 +30,10 @@ function Panel({ icon, title, link, children }: { icon: React.ReactNode; title: 
   return (
     <section className={styles.panel} data-reveal="">
       <div className={styles.panelHead}>
-        <h3 className={styles.panelTitle}>
+        <h2 className={styles.panelTitle}>
           {icon}
           {title}
-        </h3>
+        </h2>
         {link && (
           <Link href={link.href} className={styles.panelLink}>
             {link.label} <ArrowRight size={12} />

@@ -132,7 +132,7 @@ export default function PracticePage() {
     return (
       <>
         <div>
-          <h2 className={styles.pageTitle}>AI practice</h2>
+          <h1 className={styles.pageTitle}>AI practice</h1>
           <p className={styles.pageSubtitle}>
             When no senior is free tonight. It pushes back, never hands you the answer, and scores you at the end.
           </p>
@@ -191,7 +191,7 @@ export default function PracticePage() {
     <div className={styles.chatPage}>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>{mode === 'interview' ? STYLES.find((s) => s.value === style)?.label : 'Group discussion'}</h2>
+          <h1 className={styles.pageTitle}>{mode === 'interview' ? STYLES.find((s) => s.value === style)?.label : 'Group discussion'}</h1>
           <p className={styles.pageSubtitle}>
             {mode === 'interview' ? `${ROLE_TRACK_META[track].label}${company ? ` · ${company}` : ''}` : topic}
           </p>
@@ -247,7 +247,7 @@ function ScorecardView({ card }: { card: Scorecard }) {
   return (
     <section className={styles.settingsGroup}>
       <div className="between gap-3 wrap">
-        <h3 className={styles.settingsTitle}>Scorecard</h3>
+        <h2 className={styles.settingsTitle}>Scorecard</h2>
         <Stat value={`${card.overall}/10`} label="Overall" tone={card.overall >= 7 ? 'teal' : card.overall >= 5 ? 'amber' : 'rose'} />
       </div>
       <p>{card.summary}</p>

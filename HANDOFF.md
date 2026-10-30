@@ -397,6 +397,7 @@ Its body is a typed envelope: `{ error: { code, message, details } }`.
   - For white text on a data-chosen colour (server icons, club initials), pass the colour through `backgroundForWhiteText()` in `lib/color.ts`.
   - `--text-muted` is `#6b6876` in light and `#9591a7` in dark. Both reach 4.5:1 on every surface; don't lighten them.
   - Pages render inside a `<main>`. Repeated landmarks (`aside`) carry an `aria-label`. `EmptyState` titles are `h2`.
+  - **Headings:** each page renders exactly one `h1`, its `pageTitle`. The shell's top-bar title is a `<p>`. Section headings go `h2`, then `h3`, never skipping a level. A page whose design has no visible title, like the hub, gets an `sr-only` `h1`. The smoke suite fails if a page doesn't have exactly one visible `h1`.
 - **Charts:** single hue for a single series, text in text colours (never the series colour), no legend for one series, and small groups suppressed.
 
 ### Motion (the "cinematic" layer)
@@ -835,7 +836,7 @@ The seed creates:
   - admin API guards;
   - admin metrics;
   - phone overflow;
-  - an axe-core WCAG 2.1 A/AA pass over 10 pages in light and dark, with reduced motion so scroll reveals are settled.
+  - an axe-core WCAG 2.1 A/AA pass plus a one-`h1` check over 10 pages in light and dark, with reduced motion so scroll reveals are settled.
   - It fails on any page error, any 5xx, and any serious or critical axe violation.
 - **CI** (`.github/workflows/ci.yml`) runs on every push, on pull requests and on demand, with three jobs:
   - `verify`: typecheck, lint, tests and both builds;

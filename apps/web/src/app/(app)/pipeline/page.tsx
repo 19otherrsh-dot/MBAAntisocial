@@ -88,7 +88,7 @@ export default function PipelinePage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Placement pipeline</h2>
+          <h1 className={styles.pageTitle}>Placement pipeline</h1>
           <p className={styles.pageSubtitle}>
             Every process you are in, round by round — and what your campus already knows about
             each company.
@@ -220,7 +220,7 @@ function ApplicationCard({
     >
       <div className={styles.appTop}>
         <div style={{ minWidth: 0 }}>
-          <h3 className={styles.appCompany}>{application.company}</h3>
+          <h2 className={styles.appCompany}>{application.company}</h2>
           <p className={styles.appRole}>{application.role}</p>
         </div>
         <div className="row gap-2 wrap" style={{ justifyContent: 'flex-end' }}>

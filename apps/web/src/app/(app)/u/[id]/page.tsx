@@ -51,7 +51,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       <section className={styles.profileHead}>
         <Avatar name={user.name} image={user.image} seed={user.id} size={72} />
         <div className="grow" style={{ minWidth: 0 }}>
-          <h2 className={styles.profileName}>{user.name}</h2>
+          <h1 className={styles.profileName}>{user.name}</h1>
           <p className={styles.profileSub}>
             {ROLE_META[user.role].label} · {user.campus} · {user.batch}
           </p>
@@ -105,7 +105,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
       {user.alumni && (user.alumni.company || user.alumni.designation) && (
         <section className={styles.settingsGroup}>
-          <h3 className={styles.settingsTitle}><Sparkles size={16} style={{ display: 'inline', marginRight: 6 }} />Now</h3>
+          <h2 className={styles.settingsTitle}><Sparkles size={16} style={{ display: 'inline', marginRight: 6 }} />Now</h2>
           <p>
             {user.alumni.designation}
             {user.alumni.company && ` at ${user.alumni.company}`}
@@ -116,7 +116,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
       {user.mentor && user.mentor.offers.length > 0 && (
         <section className={styles.settingsGroup}>
-          <h3 className={styles.settingsTitle}>Runs</h3>
+          <h2 className={styles.settingsTitle}>Runs</h2>
           <div className="row gap-2 wrap">
             {user.mentor.offers.map((o) => <Chip key={o} tone={SESSION_TYPE_META[o].tone}>{SESSION_TYPE_META[o].label}</Chip>)}
             {user.mentor.companies.map((c) => <Chip key={c} outline>{c}</Chip>)}
@@ -126,7 +126,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
       {user.badges.length > 0 && (
         <section className={styles.settingsGroup}>
-          <h3 className={styles.settingsTitle}><Award size={16} style={{ display: 'inline', marginRight: 6 }} />Badges</h3>
+          <h2 className={styles.settingsTitle}><Award size={16} style={{ display: 'inline', marginRight: 6 }} />Badges</h2>
           <div className="row gap-2 wrap">
             {user.badges.map((b) => <Chip key={b.id} tone="violet" title={b.description}>{b.label}</Chip>)}
           </div>

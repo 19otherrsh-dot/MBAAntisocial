@@ -57,7 +57,7 @@ export default function OfferIntelPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Offer intel</h2>
+          <h1 className={styles.pageTitle}>Offer intel</h1>
           <p className={styles.pageSubtitle}>
             What your campus is actually being paid, reported anonymously.
           </p>
@@ -82,7 +82,7 @@ export default function OfferIntelPage() {
       ) : (
         <>
           <section className={styles.section} style={{ marginTop: 'var(--s-6)' }}>
-            <h3 className={styles.sectionHead}>Benchmarks — full-time</h3>
+            <h2 className={styles.sectionHead}>Benchmarks — full-time</h2>
             <div className={styles.statStrip}>
               {data?.stats
                 .filter((s) => s.offerType === 'full_time')
@@ -105,7 +105,7 @@ export default function OfferIntelPage() {
           </section>
 
           <section className={styles.section}>
-            <h3 className={styles.sectionHead}>Recent Reports</h3>
+            <h2 className={styles.sectionHead}>Recent Reports</h2>
             {data?.recent.length === 0 ? (
               <EmptyState
                 art={<Ghost size={40} strokeWidth={1.4} />}

@@ -45,7 +45,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * The resume as it prints: an A4 page laid out in real units, so the preview,
  * the one-page check, and the PDF all agree. Empty sections are left out.
  */
-const ResumeSheet = forwardRef<HTMLDivElement, { data: ResumeData }>(function ResumeSheet({ data }, ref) {
+/** `nameLevel` lets the on-screen preview sit under the page's own h1; the printed sheet is a document of its own. */
+const ResumeSheet = forwardRef<HTMLDivElement, { data: ResumeData; nameLevel?: 'h1' | 'h2' }>(function ResumeSheet({ data, nameLevel: Name = 'h1' }, ref) {
   const h = data.header;
   const contact = [h.email, h.phone, h.location, h.links].filter((part) => part.trim());
   const education = data.education.filter((e) => e.school || e.degree);
@@ -57,7 +58,7 @@ const ResumeSheet = forwardRef<HTMLDivElement, { data: ResumeData }>(function Re
   return (
     <div ref={ref} className={styles.sheetContent}>
       <header className={styles.sheetHeader}>
-        <h1 className={styles.sheetName}>{h.name || 'Your name'}</h1>
+        <Name className={styles.sheetName}>{h.name || 'Your name'}</Name>
         {contact.length > 0 && <p className={styles.sheetContact}>{contact.join('  |  ')}</p>}
       </header>
 

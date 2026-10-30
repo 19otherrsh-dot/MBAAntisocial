@@ -152,7 +152,7 @@ function IntelView() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Interview intel</h2>
+          <h1 className={styles.pageTitle}>Interview intel</h1>
           <p className={styles.pageSubtitle}>
             What panels actually asked at {me?.campus ?? 'your campus'} — logged by the people who
             were in the room.

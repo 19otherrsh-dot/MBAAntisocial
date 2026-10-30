@@ -53,7 +53,7 @@ export default function BlackBookPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>The Black Book</h2>
+          <h1 className={styles.pageTitle}>The Black Book</h1>
           <p className={styles.pageSubtitle}>
             Your personal networking CRM. Track coffees, manage relationships, and follow up.
           </p>

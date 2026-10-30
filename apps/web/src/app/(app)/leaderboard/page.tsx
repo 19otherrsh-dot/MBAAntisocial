@@ -48,7 +48,7 @@ export default function LeaderboardPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Standings</h2>
+          <h1 className={styles.pageTitle}>Standings</h1>
           <p className={styles.pageSubtitle}>
             {data?.campus ?? me?.campus} · {pluralise(rows.length, 'person')} taking part
           </p>

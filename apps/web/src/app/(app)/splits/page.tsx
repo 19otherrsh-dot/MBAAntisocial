@@ -48,7 +48,7 @@ export default function SyndicatePage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>The Syndicate</h2>
+          <h1 className={styles.pageTitle}>The Syndicate</h1>
           <p className={styles.pageSubtitle}>
             Form financial alliances. Split WSJ, PrepLounge, or that Airbnb to Aspen.
           </p>

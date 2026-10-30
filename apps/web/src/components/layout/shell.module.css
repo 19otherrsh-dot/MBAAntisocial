@@ -230,6 +230,7 @@
   font-size: var(--t-md);
   font-weight: 600;
   letter-spacing: -0.02em;
+  line-height: 1.18;
   min-width: 0;
 }
 

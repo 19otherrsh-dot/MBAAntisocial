@@ -107,7 +107,7 @@ export default function JobsPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Campus opportunities</h2>
+          <h1 className={styles.pageTitle}>Campus opportunities</h1>
           <p className={styles.pageSubtitle}>
             Club roles, TA positions, live projects, and alumni referrals — from {me?.campus ?? 'your campus'}.
           </p>
@@ -154,7 +154,7 @@ export default function JobsPage() {
               <div className={styles.slotMain}>
                 <div className={styles.appTop}>
                   <div style={{ minWidth: 0 }}>
-                    <h3 className={styles.appCompany}>{job.title}</h3>
+                    <h2 className={styles.appCompany}>{job.title}</h2>
                     {job.org && (
                       <p className={styles.appRole}>
                         <Building size={13} style={{ display: 'inline', marginRight: 4 }} />

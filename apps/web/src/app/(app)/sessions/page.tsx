@@ -120,7 +120,7 @@ function SessionsView() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Mock prep</h2>
+          <h1 className={styles.pageTitle}>Mock prep</h1>
           <p className={styles.pageSubtitle}>
             {view === 'open'
               ? scope === 'cross'

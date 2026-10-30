@@ -141,7 +141,7 @@ export default function ResourcesPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Resources</h2>
+          <h1 className={styles.pageTitle}>Resources</h1>
           <p className={styles.pageSubtitle}>
             {me?.campus ?? 'Your campus'} — {pluralise(resources.length, 'result')}
             {courses.length > 0 && ` across ${pluralise(courses.length, 'course')}`}
@@ -264,7 +264,7 @@ export default function ResourcesPage() {
                 </div>
 
                 <div>
-                  <h3 className={styles.resourceTitle}>{resource.title}</h3>
+                  <h2 className={styles.resourceTitle}>{resource.title}</h2>
                   {resource.description && (
                     <p className={cn(styles.resourceDesc, 'clamp-2')} style={{ marginTop: 4 }}>
                       {resource.description}

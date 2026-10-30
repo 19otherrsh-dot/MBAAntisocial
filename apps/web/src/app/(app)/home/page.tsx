@@ -56,9 +56,9 @@ export default function TodayPage() {
   return (
     <>
       <div data-aurora="">
-        <h2 className={styles.greeting} data-title-in="">
+        <h1 className={styles.greeting} data-title-in="">
           {greetingFor()}, {firstName}
-        </h2>
+        </h1>
         <p className={styles.pageSubtitle}>{cards ? daySummary(cards) : 'Loading your day…'}</p>
       </div>
 

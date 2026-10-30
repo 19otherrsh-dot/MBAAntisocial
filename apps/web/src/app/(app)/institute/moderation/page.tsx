@@ -94,7 +94,7 @@ export default function ModerationPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Admin Dashboard</h2>
+          <h1 className={styles.pageTitle}>Admin Dashboard</h1>
           <p className={styles.pageSubtitle}>
             {me?.campus} campus moderation and analytics.
           </p>
@@ -200,7 +200,7 @@ export default function ModerationPage() {
             </Banner>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionHead}>Batch readiness</h3>
+              <h2 className={styles.sectionHead}>Batch readiness</h2>
               <div className={styles.statStrip}>
                 <Stat
                   value={`${statsData.preparation.readinessShare}%`}
@@ -223,7 +223,7 @@ export default function ModerationPage() {
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionHead}>Senior participation</h3>
+              <h2 className={styles.sectionHead}>Senior participation</h2>
               <div className={styles.statStrip}>
                 <Stat
                   value={`${statsData.contribution.mentorShare}%`}
@@ -246,7 +246,7 @@ export default function ModerationPage() {
             </section>
 
             <section className={styles.section}>
-              <h3 className={styles.sectionHead}>Engagement and outcomes</h3>
+              <h2 className={styles.sectionHead}>Engagement and outcomes</h2>
               <div className={styles.statStrip}>
                 <Stat
                   value={`${statsData.engagement.activeShare}%`}

@@ -150,7 +150,7 @@ export default function FeedPage() {
     <div className={styles.feedColumn}>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>{me?.campus ?? 'Campus'} feed</h2>
+          <h1 className={styles.pageTitle}>{me?.campus ?? 'Campus'} feed</h1>
           <p className={styles.pageSubtitle}>
             Newest first, your campus only. No ranking, no infinite scroll.
           </p>

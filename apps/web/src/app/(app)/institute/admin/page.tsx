@@ -43,7 +43,7 @@ export default function CampusAdminPage() {
     <div className="stack gap-5">
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Campus admin</h2>
+          <h1 className={styles.pageTitle}>Campus admin</h1>
           <p className={styles.pageSubtitle}>{me?.campus ?? 'Your campus'}: settings, support, roles, and how the batch is doing.</p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export default function CampusAdminPage() {
 
       <section className={as.section}>
         <div className={as.sectionHead}>
-          <h3 className={as.sectionTitle}>How the batch is doing</h3>
+          <h2 className={as.sectionTitle}>How the batch is doing</h2>
           <span className={as.note}>Last 120 days</span>
         </div>
         {metrics.data ? <MetricCards metrics={metrics.data.metrics} computedAt={metrics.data.computedAt} /> : <div className="skeleton" style={{ height: 200 }} />}
@@ -66,14 +66,14 @@ export default function CampusAdminPage() {
 
       <section className={as.section}>
         <div className={as.sectionHead}>
-          <h3 className={as.sectionTitle}>Roles</h3>
+          <h2 className={as.sectionTitle}>Roles</h2>
         </div>
         <p className={as.note}>Make seniors mentors, pick moderators, give the placement office its report. Campus admins are appointed by the platform team.</p>
         <PeoplePanel scope="campus" />
       </section>
 
       <section className={as.section}>
-        <h3 className={as.sectionTitle}>Changes on this campus</h3>
+        <h2 className={as.sectionTitle}>Changes on this campus</h2>
         <AuditList source="/api/institute/audit" />
       </section>
     </div>
@@ -84,7 +84,7 @@ function UnlockProgress({ density }: { density: Density }) {
   return (
     <section className={as.section}>
       <div className={as.sectionHead}>
-        <h3 className={as.sectionTitle}>On the way to the Campus Edition</h3>
+        <h2 className={as.sectionTitle}>On the way to the Campus Edition</h2>
       </div>
       <p className={as.note}>
         Mocks with your own seniors, the batch’s notes, the feed and hub switch on by themselves once enough of the campus is here. Seniors are usually the slower half —
@@ -129,7 +129,7 @@ function ProfileForm({ campus, onSaved }: { campus: CampusProfile; onSaved: () =
   return (
     <>
       <section className={as.section}>
-        <h3 className={as.sectionTitle}>Campus</h3>
+        <h2 className={as.sectionTitle}>Campus</h2>
         <div className={as.grid2}>
           <Input label="Short name" value={form.shortName} maxLength={30} onChange={(e) => setForm({ ...form, shortName: e.target.value })} />
           <Input label="City" value={form.city} maxLength={80} onChange={(e) => setForm({ ...form, city: e.target.value })} />
@@ -151,7 +151,7 @@ function ProfileForm({ campus, onSaved }: { campus: CampusProfile; onSaved: () =
       </section>
 
       <section className={as.section}>
-        <h3 className={as.sectionTitle}>Counselling and support</h3>
+        <h2 className={as.sectionTitle}>Counselling and support</h2>
         <p className={as.note}>Shown on every student’s wellbeing page next to the national helplines. Leave blank what you do not have; do not list a personal number.</p>
         <div className={as.grid2}>
           <Input label="Counsellor or service" value={support.counsellorName} maxLength={100} onChange={(e) => setSupport({ ...support, counsellorName: e.target.value })} />

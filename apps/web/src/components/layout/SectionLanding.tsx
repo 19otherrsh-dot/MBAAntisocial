@@ -34,7 +34,7 @@ export default function SectionLanding({ id, children }: { id: NavSection['id'];
       <header className={cn(styles.landingHero, showpiece && styles.landingHeroWithPiece)} data-aurora="">
         <div className={styles.landingHeroText} data-hero-recede="">
           <span className={styles.landingEyebrow}><SectionIcon size={14} /> {section.label}</span>
-          <h2 className={styles.landingTitle} data-title-in="">{section.description}</h2>
+          <h1 className={styles.landingTitle} data-title-in="">{section.description}</h1>
           <p className={styles.landingSubtitle}>{items.length} {items.length === 1 ? 'place' : 'places'} to go from here.</p>
         </div>
         {showpiece && (

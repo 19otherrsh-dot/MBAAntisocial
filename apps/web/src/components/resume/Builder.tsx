@@ -323,7 +323,7 @@ export default function Builder({ initial, onRoast, onDocChange }: BuilderProps)
           )}
           <div className={styles.previewFrame} ref={frameRef} style={{ height: sheetHeight * scale }}>
             <div className={styles.page} style={{ transform: `scale(${scale})` }}>
-              <ResumeSheet ref={contentRef} data={d} />
+              <ResumeSheet ref={contentRef} data={d} nameLevel="h2" />
               {overflow > 0 && <div className={styles.pageBreak} style={{ top: PAGE_H - MARGIN }} aria-hidden><span>Page 1 ends here</span></div>}
             </div>
           </div>
@@ -345,7 +345,7 @@ function EditorCard({ title, action, children }: { title: string; action?: React
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
-        <h3 className={styles.cardTitle}>{title}</h3>
+        <h2 className={styles.cardTitle}>{title}</h2>
         {action}
       </div>
       {children}

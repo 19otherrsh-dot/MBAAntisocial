@@ -122,7 +122,7 @@ function CompsView() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Competitions</h2>
+          <h1 className={styles.pageTitle}>Competitions</h1>
           <p className={styles.pageSubtitle}>
             {pluralise(comps.length, 'live listing')}. Track one and its registration deadline lands
             in your task list.
@@ -191,7 +191,7 @@ function CompsView() {
               <article key={comp._id} className={styles.compCard}>
                 <div className={styles.compTop}>
                   <div style={{ minWidth: 0 }}>
-                    <h3 className={styles.compTitle}>{comp.title}</h3>
+                    <h2 className={styles.compTitle}>{comp.title}</h2>
                     <p className={styles.compHost}>{comp.host}</p>
                   </div>
                   <button

@@ -97,7 +97,7 @@ function SettingsEditor({ me }: { me: Me }) {
   return (
     <>
       <div>
-        <h2 className={styles.pageTitle}>Settings</h2>
+        <h1 className={styles.pageTitle}>Settings</h1>
         <p className={styles.pageSubtitle}>Everything here is about you being told less, at better times.</p>
       </div>
 
@@ -106,10 +106,10 @@ function SettingsEditor({ me }: { me: Me }) {
       {/* ───── What you hear about ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>
+          <h2 className={styles.settingsTitle}>
             <BellRing size={16} style={{ display: 'inline', marginRight: 6 }} />
             What you hear about
-          </h3>
+          </h2>
           <p className={styles.settingsHint}>Everything here tells you something happened. Nothing tells you what you are missing.</p>
         </div>
         {NOTIFICATION_CATEGORIES.map((key) => (
@@ -132,7 +132,7 @@ function SettingsEditor({ me }: { me: Me }) {
       {/* ───── How and when ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>How and when</h3>
+          <h2 className={styles.settingsTitle}>How and when</h2>
           <p className={styles.settingsHint}>In-app notifications always land. These control what reaches you outside the app.</p>
         </div>
         <Switch
@@ -193,10 +193,10 @@ function SettingsEditor({ me }: { me: Me }) {
       {/* ───── Integrations ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>
+          <h2 className={styles.settingsTitle}>
             <Link2 size={16} style={{ display: 'inline', marginRight: 6 }} />
             Connected accounts
-          </h3>
+          </h2>
           <p className={styles.settingsHint}>For integrations only — signing in always uses your institute email.</p>
         </div>
         {(integrations?.integrations ?? []).length === 0 && (
@@ -228,7 +228,7 @@ function SettingsEditor({ me }: { me: Me }) {
       {/* ───── Visibility ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>Visibility</h3>
+          <h2 className={styles.settingsTitle}>Visibility</h2>
           <p className={styles.settingsHint}>Ranking is opt-in and stays that way. Nobody is listed without choosing to be.</p>
         </div>
         <Switch
@@ -242,7 +242,7 @@ function SettingsEditor({ me }: { me: Me }) {
       {/* ───── Appearance ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>Appearance</h3>
+          <h2 className={styles.settingsTitle}>Appearance</h2>
         </div>
         <Segmented
           ariaLabel="Theme"
@@ -259,10 +259,10 @@ function SettingsEditor({ me }: { me: Me }) {
       {/* ───── Account ───── */}
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>
+          <h2 className={styles.settingsTitle}>
             <ShieldCheck size={16} style={{ display: 'inline', marginRight: 6 }} />
             Account
-          </h3>
+          </h2>
           <p className={styles.settingsHint}>
             {me.email} · {me.verified ? 'verified' : 'not verified'} · {me.campus}
           </p>

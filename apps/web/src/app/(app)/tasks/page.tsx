@@ -150,7 +150,7 @@ export default function TasksPage() {
     <>
       <div className={styles.pageHead}>
         <div>
-          <h2 className={styles.pageTitle}>Tasks &amp; deadlines</h2>
+          <h1 className={styles.pageTitle}>Tasks &amp; deadlines</h1>
           <p className={styles.pageSubtitle}>
             {summary
               ? `${pluralise(summary.pending, 'open')} · ${summary.completed} done${
@@ -175,11 +175,11 @@ export default function TasksPage() {
 
       {habits.length > 0 && (
         <section className={styles.section}>
-          <h3 className={styles.sectionHead}>
+          <h2 className={styles.sectionHead}>
             <Repeat size={15} />
             Daily habits
             <span className={styles.sectionCount}>{habits.length}</span>
-          </h3>
+          </h2>
           <div className={styles.habitStrip}>
             {habits.map((habit) => (
               <span key={habit._id} className={styles.habitChip}>
@@ -298,11 +298,11 @@ function TaskGroup({
 
   return (
     <section className={styles.section}>
-      <h3 className={styles.sectionHead}>
+      <h2 className={styles.sectionHead}>
         {icon}
         {title}
         <span className={styles.sectionCount}>{tasks.length}</span>
-      </h3>
+      </h2>
       <div className={styles.cardList}>
         {tasks.map((task) => (
           <TaskRow key={task._id} task={task} onToggle={onToggle} onDelete={onDelete} />

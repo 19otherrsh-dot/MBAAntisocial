@@ -81,7 +81,7 @@ export default function OnboardingPage() {
   return (
     <>
       <div>
-        <h2 className={styles.pageTitle}>One minute, then you are in</h2>
+        <h1 className={styles.pageTitle}>One minute, then you are in</h1>
         <p className={styles.pageSubtitle}>
           All of this is editable later, and all of it is optional.
         </p>
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
       {!me.onboardedAt && (
         <section className={styles.settingsGroup}>
           <div>
-            <h3 className={styles.settingsTitle}>Your batch at {me.campus}</h3>
+            <h2 className={styles.settingsTitle}>Your batch at {me.campus}</h2>
             <p className={styles.settingsHint}>
               This decides whose slots you see and who can book you. It’s fixed once you finish here, so check it.
             </p>
@@ -125,7 +125,7 @@ export default function OnboardingPage() {
 
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>What are you aiming at?</h3>
+          <h2 className={styles.settingsTitle}>What are you aiming at?</h2>
           <p className={styles.settingsHint}>
             Helps seniors know what to prepare for. Pick as many as apply.
           </p>
@@ -171,10 +171,10 @@ export default function OnboardingPage() {
       {willMentor && (
         <section className={styles.settingsGroup}>
           <div>
-            <h3 className={styles.settingsTitle}>
+            <h2 className={styles.settingsTitle}>
               <Sparkles size={16} style={{ color: 'var(--teal)', marginRight: 6, display: 'inline' }} />
               Will you host?
-            </h3>
+            </h2>
             <p className={styles.settingsHint}>
               You publish specific windows — nobody gets your number, and nothing arrives outside
               the slots you choose. This is the part juniors cannot do without.
@@ -220,7 +220,7 @@ export default function OnboardingPage() {
 
       <section className={styles.settingsGroup}>
         <div>
-          <h3 className={styles.settingsTitle}>Leaderboard</h3>
+          <h2 className={styles.settingsTitle}>Leaderboard</h2>
           <p className={styles.settingsHint}>
             Off unless you say otherwise. Public ranking is a known stressor for this crowd, so it is
             never switched on for you.
