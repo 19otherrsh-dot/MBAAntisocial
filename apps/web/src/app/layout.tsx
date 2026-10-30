@@ -1,24 +1,29 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import Providers from '@/components/Providers';
 import './globals.css';
 
 /*
- * Self-hosted at build time by next/font, so there is no render-blocking
- * request to a font CDN and no layout shift when the face swaps in.
+ * Inter and JetBrains Mono (both SIL OFL 1.1; licences in fonts/), latin subset,
+ * as variable fonts committed with the app. next/font serves them from our own
+ * origin with fallback metrics, so there is no request to a font CDN and no
+ * layout shift; keeping the files in the repo also means a build never depends
+ * on what Google Fonts happens to return that day.
  */
-const inter = Inter({
-  subsets: ['latin'],
+const inter = localFont({
+  src: './fonts/inter-latin.woff2',
   variable: '--font-inter',
   display: 'swap',
-  axes: ['opsz'],
+  weight: '100 900',
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
+const jetbrainsMono = localFont({
+  src: './fonts/jetbrains-mono-latin.woff2',
   variable: '--font-mono-jet',
   display: 'swap',
-  weight: ['400', '500', '600'],
+  weight: '100 800',
+  // Metric matching against Arial suits a sans face only; the CSS stack falls back to a system monospace.
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
