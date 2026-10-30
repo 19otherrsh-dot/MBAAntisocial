@@ -1,9 +1,10 @@
 name: CI
 
 on:
+  # Every branch push, so work is checked before a PR exists; and on demand.
   push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}

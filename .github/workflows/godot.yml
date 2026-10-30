@@ -4,10 +4,10 @@ name: Godot SDK
 # headless Godot so syntax or API mistakes fail here, not in a game build.
 on:
   push:
-    branches: [main]
-    paths: ["packages/game-sdk/**"]
+    paths: ["packages/game-sdk/**", ".github/workflows/godot.yml"]
   pull_request:
     paths: ["packages/game-sdk/**"]
+  workflow_dispatch:
 
 jobs:
   check-addon:
