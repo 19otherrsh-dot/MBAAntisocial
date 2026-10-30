@@ -597,7 +597,7 @@ See §5.6. Supporting pieces:
   - tic-tac-toe, sudoku, memory-match.
   - Each entry has category, modes (online/bot/local/solo), player counts, transport (`webrtc` / `relay` / `dedicated`), and art.
   - **Only Tic-Tac-Toe has a playable build.** The rest show "coming soon" until a build is published.
-- **Registry** (`registry.ts`): layers the catalog, then `public/game-builds/published.json` (written by `publish-game`), then `GameRelease` docs (CDN releases). Cached for 60 s.
+- **Registry** (`registry.ts`): layers the catalog, then `public/game-builds/published.json` (written by `publish-game`), then `GameRelease` docs (CDN releases). Each instance caches the merged catalog. Publishing or rolling back bumps `games:generation` in KV, and every instance checks it at most every 5 s, so a release reaches all instances within about 5 s. A 10-minute TTL is only a backstop.
 - **Rooms** (`rooms.ts`, `models/games/GameRoom.ts`):
   - Create, join by code, spectate, leave, ready, kick, add bot, start.
   - Invite friends; quick match by rating, campus first and then cross-campus.
@@ -901,21 +901,21 @@ The seed creates:
    - a bridge check.
    - Transport: `webrtc` for `WebRTCMultiplayerPeer`, `relay` or `dedicated` for `WebSocketMultiplayerPeer`.
 3. **`docs.expo.dev` is outside this sandbox's network allowlist.** SDK 58 APIs were taken from the installed packages' type definitions. Allow the domain to follow the template `AGENTS.md`'s advice to read the versioned docs.
-4. **Game cache invalidation is per process.** After publishing a release, other web instances serve the old manifest for up to 60 s (documented in the UI).
-5. **Not exercised end to end:**
+4. **Not exercised end to end:**
    - Discord bridge against real Discord;
    - Meet/Zoom OAuth against real apps;
    - Expo push, Resend;
    - AI features with a real key;
    - the tournament "play again" morph.
-6. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
-7. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
-8. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
+5. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
+6. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
+7. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
 
 **Resolved since the first handoff:**
 
 - **Godot addon:** CI has parsed it.
 - **Detail pages:** they now show the record's name as the tab title.
+- **Game releases across instances:** they now propagate through a KV generation counter. Verified with two `next start` instances on one Redis: the other instance served a new release after 4.9 s and the rollback after 5.1 s.
 - **Admin overview:** cached in KV for five minutes per campus and window. The metrics are read by `cachedSuccessMetrics` in `server/modules/admin/metrics.ts`, which both consoles use.
 
 ---

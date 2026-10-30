@@ -45,7 +45,7 @@ export default function ReleasesPanel() {
     const turningOff = release.active;
     const ok = await confirm({
       title: turningOff ? `Roll back ${release.game} ${release.version}?` : `Re-activate ${release.game} ${release.version}?`,
-      body: turningOff ? 'Players get the previous active release, or the committed build, within a minute. Rooms already playing finish on the old one.' : 'It becomes the live build again if it is the newest active release.',
+      body: turningOff ? 'Players get the previous active release, or the committed build, within seconds. Rooms already playing finish on the old one.' : 'It becomes the live build again if it is the newest active release.',
       confirmLabel: turningOff ? 'Roll back' : 'Re-activate',
       destructive: turningOff,
     });
@@ -139,7 +139,7 @@ function PublishDialog({ game, onClose, onDone }: { game: GameRow; onClose: () =
         ...(serverPack ? { serverPack } : {}),
         notes,
       });
-      toast.success(`${game.title} ${version} is live`, 'Players get it within a minute.');
+      toast.success(`${game.title} ${version} is live`, 'Players get it within seconds.');
       onDone();
     } catch (caught) {
       toast.error('Not published', errorMessage(caught));

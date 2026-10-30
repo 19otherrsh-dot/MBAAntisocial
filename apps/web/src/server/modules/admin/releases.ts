@@ -86,7 +86,7 @@ export async function publishRelease(actor: Actor, input: z.infer<typeof release
   }
 
   const release = await GameRelease.create({ game: input.game, manifest: overlay, active: true, publishedBy: actor.id, notes: input.notes });
-  invalidateGameCache();
+  await invalidateGameCache();
   await audit(actor.id, {
     action: 'game.publish',
     targetType: 'game_release',
@@ -105,7 +105,7 @@ export async function setReleaseActive(actor: Actor, releaseId: string, active: 
   if (release.active === active) return { active };
   release.active = active;
   await release.save();
-  invalidateGameCache();
+  await invalidateGameCache();
   const version = (release.manifest as { build?: { version?: string } }).build?.version ?? '?';
   await audit(actor.id, {
     action: active ? 'game.activate' : 'game.rollback',
