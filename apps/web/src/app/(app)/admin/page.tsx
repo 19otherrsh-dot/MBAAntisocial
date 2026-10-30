@@ -65,7 +65,11 @@ function Overview() {
   const [campus, setCampus] = useState('');
   const [days, setDays] = useState('120');
   const { data: campuses } = useApiQuery<{ campuses: Array<{ name: string; status: string }> }>('/api/admin/campuses');
-  const { data, error } = useApiQuery<{ metrics: SuccessMetrics; campuses: Record<string, number> }>('/api/admin/overview', { campus: campus || undefined, window: days });
+  // A recompute applies to the campus and window it was asked for; each click is a new request.
+  const [refresh, setRefresh] = useState<{ scope: string; n: number } | null>(null);
+  const scope = `${campus}:${days}`;
+  const fresh = refresh?.scope === scope ? refresh.n : undefined;
+  const { data, error } = useApiQuery<{ metrics: SuccessMetrics; computedAt: string; campuses: Record<string, number> }>('/api/admin/overview', { campus: campus || undefined, window: days, fresh });
   return (
     <div className="stack gap-4">
       <div className="row gap-3 wrap">
@@ -92,7 +96,7 @@ function Overview() {
         )}
       </div>
       {error && <div className={styles.errorBox}>{error}</div>}
-      {data ? <MetricCards metrics={data.metrics} /> : !error && <div className="skeleton" style={{ height: 320, borderRadius: 'var(--r-lg)' }} />}
+      {data ? <MetricCards metrics={data.metrics} computedAt={data.computedAt} onRefresh={() => setRefresh({ scope, n: (refresh?.n ?? 0) + 1 })} /> : !error && <div className="skeleton" style={{ height: 320, borderRadius: 'var(--r-lg)' }} />}
     </div>
   );
 }

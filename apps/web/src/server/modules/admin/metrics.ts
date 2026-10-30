@@ -8,6 +8,7 @@ import Course from '@/models/academics/Course';
 import HubMessage from '@/models/hub/HubMessage';
 import HubServer from '@/models/hub/HubServer';
 import { DAY_MS } from '@/lib/time';
+import { container } from '@/server/container';
 
 /**
  * The success metrics of PRD §9, computed for one campus or the whole
@@ -117,4 +118,23 @@ export async function successMetrics(campus: string | null, windowDays = 120, no
     streak7: ratio(reached7, tenured7),
     streak30: ratio(reached30, tenured30),
   };
+}
+
+const CACHE_SECONDS = 300;
+
+/**
+ * The metrics are a dozen aggregate queries; they change slowly, so readers
+ * share one computation per campus and window for five minutes. `fresh`
+ * recomputes on demand.
+ */
+export async function cachedSuccessMetrics(campus: string | null, windowDays: number, fresh = false): Promise<{ metrics: SuccessMetrics; computedAt: string }> {
+  const { kv } = container();
+  const key = `metrics:${campus ?? '*'}:${windowDays}`;
+  if (!fresh) {
+    const hit = await kv.get(key).catch(() => null);
+    if (hit) return JSON.parse(hit) as { metrics: SuccessMetrics; computedAt: string };
+  }
+  const value = { metrics: await successMetrics(campus, windowDays), computedAt: new Date().toISOString() };
+  await kv.set(key, JSON.stringify(value), CACHE_SECONDS).catch(() => undefined);
+  return value;
 }

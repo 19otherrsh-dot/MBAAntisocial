@@ -18,8 +18,19 @@ const CARDS: Array<{ key: keyof Omit<SuccessMetrics, 'windowDays'>; label: strin
  * PRD §9, one tile per metric: the number, a single-hue meter, and the counts
  * behind it. A group under the privacy floor shows no number at all.
  */
-export default function MetricCards({ metrics }: { metrics: SuccessMetrics }) {
+export default function MetricCards({ metrics, computedAt, onRefresh }: { metrics: SuccessMetrics; computedAt?: string; onRefresh?: () => void }) {
   return (
+    <>
+    {computedAt && (
+      <p className={styles.note}>
+        Figures as of {new Date(computedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}; they are recomputed every five minutes.{' '}
+        {onRefresh && (
+          <button type="button" className={styles.linkButton} onClick={onRefresh}>
+            Recompute now
+          </button>
+        )}
+      </p>
+    )}
     <div className={styles.metrics}>
       {CARDS.map((card) => {
         const r = metrics[card.key];
@@ -58,5 +69,6 @@ export default function MetricCards({ metrics }: { metrics: SuccessMetrics }) {
         );
       })}
     </div>
+    </>
   );
 }

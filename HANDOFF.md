@@ -144,6 +144,10 @@ Hermes bundles for iOS and Android. Both Docker images were built and
 run, and the compose stack was brought up from an empty database, seeded, and exercised
 (see §10).
 
+GitHub Actions run on every push. The latest runs are green: `ci.yml` covers
+verify, the mobile checks and the e2e smoke suite, and `godot.yml` showed that
+Godot 4.4.1 loads the addon cleanly.
+
 ---
 
 ## 4. Repository layout
@@ -818,8 +822,12 @@ The seed creates:
   - admin metrics;
   - phone overflow.
   - It fails on any page error or 5xx.
-- **CI** (`.github/workflows/ci.yml`): typecheck, lint, tests and both builds, then the smoke suite against a seeded production build.
-- **Godot CI** (`godot.yml`): parses the addon in headless Godot. **This has never run yet**, because GitHub Actions haven't been triggered for this branch. Watch the first run.
+- **CI** (`.github/workflows/ci.yml`) runs on every push, on pull requests and on demand, with three jobs:
+  - `verify`: typecheck, lint, tests and both builds;
+  - `mobile`: the Expo app's typecheck and lint, plus iOS and Android bundles;
+  - `e2e`: the smoke suite against a seeded production build.
+  - First green run: `41042855502`.
+- **Godot CI** (`godot.yml`) runs on pushes that touch `packages/game-sdk`. It imports the SDK project in headless Godot 4.4.1 and fails on any script or parse error. First green run: `41042855439`: the `Antisocial` autoload and the plugin load with no errors.
 
 **Verified by hand in a browser (Playwright scripts in the session scratchpad):**
 
@@ -858,6 +866,9 @@ The seed creates:
   - zero console or API errors.
   - `expo export` produced Hermes bundles for iOS (2.9 MB) and Android (3.2 MB).
 
+- **Tab titles on detail pages** come from the record (`server/modules/meta/titles.ts`), e.g. "Ludo · MBAAntisocial" and "Finance & Investment Club · MBAAntisocial". Unknown ids keep the section's title. Signed out, the page redirects without naming anything. Records from another campus are never named.
+- **Admin metrics cache:** a repeat load is served from KV in about 10 ms with the same `computedAt`. "Recompute now" (`fresh=<n>`) recomputes, and the console shows when the figures were computed.
+
 **Not exercised:**
 
 - AI calls (no Anthropic key in the sandbox; the error path was verified).
@@ -872,28 +883,28 @@ The seed creates:
 ## 11. Known gaps, bugs and debts
 
 1. **The native app has not run on a device or simulator.** Only the web preview and the Metro bundles were checked. See §12, step 1.
-2. **The Godot addon has never been parsed by Godot.** `godot.yml` will do it on the first push that touches `packages/game-sdk`. Fix whatever it reports. The risks reviewed by hand:
-   - `:=` with a Variant from `await`;
-   - the `JavaScriptObject` annotation;
-   - lambda parameter names.
-3. **The owner's real Godot games are not published.** Each needs:
+2. **The owner's real Godot games are not published.** Each needs:
    - a web export with the addon;
    - `publish-game` (or Admin → Games for a CDN build);
    - a bridge check.
    - Transport: `webrtc` for `WebRTCMultiplayerPeer`, `relay` or `dedicated` for `WebSocketMultiplayerPeer`.
-4. **`docs.expo.dev` is outside this sandbox's network allowlist.** SDK 58 APIs were taken from the installed packages' type definitions. Allow the domain to follow the template `AGENTS.md`'s advice to read the versioned docs.
-5. **Detail pages inherit their section's tab title** (`/games/ludo` shows "Games"). Add `generateMetadata` in those segments for names.
-6. **The admin overview runs about 20 queries per load.** That's fine at current scale. Cache it, e.g. 5 minutes in KV, before many campuses.
-7. **Game cache invalidation is per process.** After publishing a release, other web instances serve the old manifest for up to 60 s (documented in the UI).
-8. **Not exercised end to end:**
+3. **`docs.expo.dev` is outside this sandbox's network allowlist.** SDK 58 APIs were taken from the installed packages' type definitions. Allow the domain to follow the template `AGENTS.md`'s advice to read the versioned docs.
+4. **Game cache invalidation is per process.** After publishing a release, other web instances serve the old manifest for up to 60 s (documented in the UI).
+5. **Not exercised end to end:**
    - Discord bridge against real Discord;
    - Meet/Zoom OAuth against real apps;
    - Expo push, Resend;
    - AI features with a real key;
    - the tournament "play again" morph.
-9. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
-10. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
-11. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
+6. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
+7. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
+8. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
+
+**Resolved since the first handoff:**
+
+- **Godot addon:** CI has parsed it.
+- **Detail pages:** they now show the record's name as the tab title.
+- **Admin overview:** cached in KV for five minutes per campus and window. The metrics are read by `cachedSuccessMetrics` in `server/modules/admin/metrics.ts`, which both consoles use.
 
 ---
 
@@ -922,11 +933,8 @@ times mid-task.
 
 ### Step 2: Small follow-ups
 
-1. `generateMetadata` for detail pages (gap 5).
-2. Allow `docs.expo.dev` and re-check the app against the SDK 58 docs (gap 4).
-3. Cache the admin overview (gap 6).
-4. Watch the first `godot.yml` run and fix the addon (gap 2).
-5. With an Anthropic key: try every AI surface once and tune prompts in `server/modules/ai/prompts.ts`. The surfaces are the interviewer, GD simulator, scorecard, roast, bullet rewrites, timetable import, quiz generation and jargon.
+1. Allow `docs.expo.dev` and re-check the app against the SDK 58 docs (gap 3).
+2. With an Anthropic key: try every AI surface once and tune prompts in `server/modules/ai/prompts.ts`. The surfaces are the interviewer, GD simulator, scorecard, roast, bullet rewrites, timetable import, quiz generation and jargon.
 
 ---
 

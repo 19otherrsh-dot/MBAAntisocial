@@ -33,7 +33,7 @@ interface Density { members: number; mentors: number; memberPct: number; mentorP
 export default function CampusAdminPage() {
   const { me } = useMe();
   const { data, error, refetch } = useApiQuery<{ campus: CampusProfile; density: Density }>(me?.canAdminCampus ? '/api/institute/campus' : null);
-  const metrics = useApiQuery<{ metrics: SuccessMetrics }>(me?.canAdminCampus ? '/api/institute/metrics' : null);
+  const metrics = useApiQuery<{ metrics: SuccessMetrics; computedAt: string }>(me?.canAdminCampus ? '/api/institute/metrics' : null);
 
   if (me && !me.canAdminCampus) {
     return <EmptyState art={<ShieldAlert size={22} />} title="Campus admins only" body="Ask your institute’s administrator, or the platform team, for access." />;
@@ -61,7 +61,7 @@ export default function CampusAdminPage() {
           <h3 className={as.sectionTitle}>How the batch is doing</h3>
           <span className={as.note}>Last 120 days</span>
         </div>
-        {metrics.data ? <MetricCards metrics={metrics.data.metrics} /> : <div className="skeleton" style={{ height: 200 }} />}
+        {metrics.data ? <MetricCards metrics={metrics.data.metrics} computedAt={metrics.data.computedAt} /> : <div className="skeleton" style={{ height: 200 }} />}
       </section>
 
       <section className={as.section}>
