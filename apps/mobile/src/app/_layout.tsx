@@ -60,6 +60,10 @@ function Gate() {
           <Stack.Protected guard={signedIn}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="chat/[id]" options={{ headerShown: true, title: 'Chat', headerBackTitle: 'Hub' }} />
+            <Stack.Screen name="book/[id]" options={{ headerShown: true, title: 'Book', headerBackTitle: 'Prep' }} />
+            <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />
+            <Stack.Screen name="timetable" options={{ headerShown: true, title: 'Timetable' }} />
+            <Stack.Screen name="events" options={{ headerShown: true, title: 'Events' }} />
             <Stack.Screen name="web" options={{ headerShown: true, title: '' }} />
           </Stack.Protected>
           <Stack.Protected guard={!signedIn}>

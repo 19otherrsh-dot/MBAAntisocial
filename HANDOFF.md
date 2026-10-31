@@ -705,10 +705,15 @@ See §5.6. Supporting pieces:
   - A 401 on any authenticated call signs the user out.
 - **Screens:**
   - Today renders `/api/today`.
-  - Prep uses `/api/sessions`, with a cross scope on the Open Edition.
-  - Tasks uses `/api/tasks`; habit instances are hidden until due. Adding a task offers one-tap deadlines (No date, Today, Tomorrow, then the next five days), each due at 23:59 local. This deliberately avoids a native date picker; exact times are set on the web.
+  - Prep uses `/api/sessions`, with a cross scope on the Open Edition. Booking opens `app/book/[id].tsx`, which offers a note for the mentor, a template from `/api/session-templates` filtered to the slot's type, and recording consent.
+  - Tasks uses `/api/tasks`; habit instances are hidden until due. Adding a task offers one-tap deadlines (No date, Today, Tomorrow, then the next five days), then a time (end of day, 9 am, noon, 5 pm, 9 pm; times already past are disabled for today). There's no native picker module, so it works in Expo Go and the web preview.
   - Hub uses `/api/hub/servers`, `/servers/[id]` and `/dm`; chat goes to `/channels/[id]/messages` or `/dm/[id]`, with `useTopic` live updates and `canSend` respected.
-  - More opens web pages through `app/web.tsx` (`/api/mobile/auth/web-code`, then `/mobile/web-login?code=…&next=…&embed=1`).
+  - Native stack screens (all reachable from More):
+    - `notifications`: an inbox; tapping marks read and routes through `links.ts`; there's a mark-all action;
+    - `timetable`: a weekday picker over `/api/academics` slots;
+    - `events`: upcoming and going views, with one-tap RSVP that waitlists when full.
+    - `links.ts` routes `/timetable`, `/events` and `/notifications` to them.
+  - More opens the remaining web pages through `app/web.tsx` (`/api/mobile/auth/web-code`, then `/mobile/web-login?code=…&next=…&embed=1`).
 - **Hub badge** (`src/lib/unread.ts`, `useHubBadge`): counts mentions plus unread DMs from `/api/hub/unread`. Quiet channel traffic deliberately doesn't count (PRD §16, no nagging). It refetches, debounced to 1.5 s, on:
   - `hub.activity` on every server topic you belong to;
   - `dm.message.created` on your user topic (your own messages are ignored);
@@ -984,10 +989,12 @@ times mid-task.
    - games in the WebView (`SharedArrayBuffer` on Android; prefer `--no-threads` exports);
    - the keyboard over the chat composer;
    - native tab icons.
-5. Then add, as needed:
-   - native booking notes and template choice;
-   - an exact-time picker for tasks, only if people ask for it (`@react-native-community/datetimepicker@9.2.1`, per `expo/bundledNativeModules.json`; it needs a development build).
-   - Unread badges and one-tap task deadlines are done (§7.13).
+5. Done since the first handoff (§7.13):
+   - native booking with note, template and consent;
+   - task day and time chips;
+   - unread Hub badge;
+   - native notifications, timetable and events.
+   - Next candidates: native resume and pipeline views, if usage shows people opening them on the phone.
 
 ### Step 2: Small follow-ups
 

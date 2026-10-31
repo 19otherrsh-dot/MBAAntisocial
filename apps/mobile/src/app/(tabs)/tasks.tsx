@@ -7,12 +7,46 @@ import { radius, useTheme } from '@/theme';
 import type { TaskItem } from '@/types';
 
 /** The next week as one-tap deadlines, each due at the end of that day; exact times are set on the web. */
-function dueOptions(from: Date) {
+/** The next week as one-tap days; a second row picks the time. */
+function dueDays(from: Date) {
   return Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i, 23, 59, 59, 999);
+    const day = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
     const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `${day.toLocaleDateString(undefined, { weekday: 'short' })} ${day.getDate()}`;
-    return { label, at: day.toISOString() };
+    return { label, day };
   });
+}
+
+const DUE_TIMES = [
+  { label: 'End of day', hour: 23, minute: 59 },
+  { label: '9 am', hour: 9, minute: 0 },
+  { label: 'Noon', hour: 12, minute: 0 },
+  { label: '5 pm', hour: 17, minute: 0 },
+  { label: '9 pm', hour: 21, minute: 0 },
+] as const;
+
+/** A horizontal row of single-choice chips. */
+function ChipRow({ label, options, selected, onSelect }: { label: string; options: { key: string; label: string; disabled?: boolean }[]; selected: string; onSelect: (key: string) => void }) {
+  const t = useTheme();
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days} keyboardShouldPersistTaps="handled" accessibilityLabel={label} accessibilityRole="radiogroup">
+      {options.map((option) => {
+        const on = option.key === selected;
+        return (
+          <Pressable
+            key={option.key}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on, disabled: option.disabled }}
+            accessibilityLabel={`${label}: ${option.label}`}
+            disabled={option.disabled}
+            onPress={() => onSelect(option.key)}
+            style={[styles.day, { borderColor: on ? t.accent : t.lineStrong, backgroundColor: on ? t.accentSoft : t.surface, opacity: option.disabled ? 0.45 : 1 }]}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '600', color: on ? t.accentText : t.textSecondary }}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
 }
 
 /** The task list: tick things off, add one in a line. Habits and details live on the web. */
@@ -21,8 +55,13 @@ export default function Tasks() {
   const { data, error, loading, refreshing, refetch } = useQuery<{ tasks: TaskItem[]; summary: { pending: number; overdue: number; dueToday: number } }>('/api/tasks');
   const [title, setTitle] = useState('');
   const [adding, setAdding] = useState(false);
-  const [dueAt, setDueAt] = useState<string | null>(null);
-  const [days] = useState(() => dueOptions(new Date()));
+  const [days] = useState(() => dueDays(new Date()));
+  const [hourNow] = useState(() => new Date().getHours());
+  const [dayKey, setDayKey] = useState('none');
+  const [timeKey, setTimeKey] = useState('0');
+  const chosenDay = dayKey === 'none' ? null : days[Number(dayKey)].day;
+  const chosenTime = DUE_TIMES[Number(timeKey)];
+  const dueAt = chosenDay ? new Date(chosenDay.getFullYear(), chosenDay.getMonth(), chosenDay.getDate(), chosenTime.hour, chosenTime.minute, chosenTime.hour === 23 ? 59 : 0).toISOString() : null;
   const [actionError, setActionError] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
 
@@ -41,7 +80,8 @@ export default function Tasks() {
     setAdding(true);
     await run(() => api.post('/api/tasks', { title: title.trim(), type: 'personal', ...(dueAt ? { dueAt } : {}) }));
     setTitle('');
-    setDueAt(null);
+    setDayKey('none');
+    setTimeKey('0');
     setAdding(false);
   };
 
@@ -69,23 +109,16 @@ export default function Tasks() {
         </Button>
       </View>
       {title.trim() !== '' && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days} keyboardShouldPersistTaps="handled" accessibilityLabel="Due">
-          {[{ label: 'No date', at: null as string | null }, ...days].map((option) => {
-            const selected = option.at === dueAt;
-            return (
-              <Pressable
-                key={option.label}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                accessibilityLabel={option.at ? `Due ${option.label}` : 'No due date'}
-                onPress={() => setDueAt(option.at)}
-                style={[styles.day, { borderColor: selected ? t.accent : t.lineStrong, backgroundColor: selected ? t.accentSoft : t.surface }]}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '600', color: selected ? t.accentText : t.textSecondary }}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <ChipRow label="Due" options={[{ key: 'none', label: 'No date' }, ...days.map((d, i) => ({ key: String(i), label: d.label }))]} selected={dayKey} onSelect={setDayKey} />
+      )}
+      {title.trim() !== '' && chosenDay && (
+        <ChipRow
+          label="Time"
+          // Earlier today has already gone.
+          options={DUE_TIMES.map((time, i) => ({ key: String(i), label: time.label, disabled: dayKey === '0' && hourNow >= time.hour && time.hour !== 23 }))}
+          selected={timeKey}
+          onSelect={setTimeKey}
+        />
       )}
       {(error || actionError) && <ErrorNote message={(actionError ?? error)!} />}
       {loading && !data ? (

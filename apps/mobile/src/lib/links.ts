@@ -10,6 +10,9 @@ export function openHref(href: string) {
   if (path === '/' || path === '/home') return router.navigate('/');
   if (path.startsWith('/tasks')) return router.navigate('/tasks');
   if (path.startsWith('/sessions')) return router.navigate('/prep');
+  if (path === '/timetable') return router.push('/timetable');
+  if (path === '/events') return router.push('/events');
+  if (path === '/notifications') return router.push('/notifications');
   const channel = /^\/hub\/[a-f0-9]{24}\/([a-f0-9]{24})/.exec(path);
   if (channel) return router.push({ pathname: '/chat/[id]', params: { id: channel[1], kind: 'channel' } });
   const dm = /^\/hub\/dm\/([a-f0-9]{24})/.exec(path);

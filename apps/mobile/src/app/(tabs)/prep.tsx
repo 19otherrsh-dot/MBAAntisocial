@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Alert, Linking, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SESSION_TYPE_META, type SessionType } from '@mba/shared/constants';
 import { Body, Button, Card, Chip, Empty, ErrorNote, Loading, Muted, Row, Screen, Segmented, Title } from '@/components/ui';
-import { api, errorText } from '@/lib/api';
 import { useQuery } from '@/lib/query';
 import { openWeb } from '@/lib/web';
 import type { Me, Slot } from '@/types';
@@ -18,31 +18,14 @@ const time = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday:
 export default function Prep() {
   const me = useQuery<{ user: Me }>('/api/me');
   const openEdition = me.data?.user.edition === 'open';
-  const [view, setView] = useState<View_>('open');
+  // Arriving back from a booking opens "My sessions".
+  const params = useLocalSearchParams<{ view?: View_ }>();
+  const [view, setView] = useState<View_>(params.view === 'bookings' ? 'bookings' : 'open');
   const path = me.data ? (view === 'open' ? `/api/sessions?view=open&scope=${openEdition ? 'cross' : 'campus'}&limit=30` : '/api/sessions?view=bookings&limit=30') : null;
   const { data, error, loading, refreshing, refetch } = useQuery<{ slots: Slot[] }>(path);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
-  const book = (slot: Slot) =>
-    Alert.alert('Book this session?', `${SESSION_TYPE_META[slot.sessionType as SessionType]?.label ?? 'Session'} with ${slot.mentor?.name ?? 'a mentor'}, ${time(slot.startAt)}.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Book',
-        onPress: async () => {
-          setBusy(slot._id);
-          setActionError(null);
-          try {
-            await api.patch(`/api/sessions/${slot._id}`, { action: 'book', bookingNote: '', consentToRecording: false });
-            setView('bookings');
-          } catch (caught) {
-            setActionError(errorText(caught));
-          } finally {
-            setBusy(null);
-          }
-        },
-      },
-    ]);
+  // Booking has a note, a template and consent to choose, so it gets its own screen.
+  const book = (slot: Slot) => router.push({ pathname: '/book/[id]', params: { id: slot._id, slot: JSON.stringify(slot) } });
 
   const [now] = useState(() => new Date().toISOString());
   const slots = (data?.slots ?? []).filter((s) => (view === 'open' ? true : s.status === 'booked' && s.endAt > now));
@@ -59,7 +42,7 @@ export default function Prep() {
         onChange={setView}
       />
       {openEdition && view === 'open' && <Muted>Your campus’s own seniors appear once it unlocks. These mentors from other campuses opted in to help anyone.</Muted>}
-      {(error || actionError) && <ErrorNote message={(actionError ?? error)!} />}
+      {error && <ErrorNote message={error} />}
       {loading && !data ? (
         <Loading />
       ) : slots.length === 0 ? (
@@ -80,7 +63,7 @@ export default function Prep() {
                 {slot.mentor?.campus && slot.campus && openEdition ? <Chip>{slot.mentor.campus}</Chip> : null}
               </View>
               {view === 'open' ? (
-                <Button small loading={busy === slot._id} onPress={() => book(slot)}>
+                <Button small onPress={() => book(slot)}>
                   Book
                 </Button>
               ) : slot.meetingLink ? (

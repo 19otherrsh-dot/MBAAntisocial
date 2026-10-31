@@ -5,10 +5,13 @@ An Expo (SDK 58, expo-router) app on the same backend as the web app.
 | Native screen | What it does |
 | --- | --- |
 | **Today** | Classes with one-tap attendance, what's due (tick it off), sessions and rounds, the briefing and quiz, events, games waiting on you |
-| **Prep** | Open mock slots (cross-campus on the Open Edition), booking, your sessions with their meeting links |
-| **Tasks** | Your list; tick things off, add one in a line |
-| **Hub** | Servers, channels and DMs, live over the realtime socket; read-only channels say so |
-| **More** | Everything else (games, resume studio, timetable, money, wellbeing, settings) opens signed in inside the app, without the web's navigation |
+| **Prep** | Open mock slots (cross-campus on the Open Edition); booking with a note for the mentor, a real-round template and recording consent; your sessions with their meeting links |
+| **Tasks** | Your list; tick things off, add one in a line with a day and time chip |
+| **Hub** | Servers, channels and DMs, live over the realtime socket; read-only channels say so; the tab shows a badge for mentions and unread DMs |
+| **Notifications** | Your inbox; tap one to open it, or mark all read |
+| **Timetable** | The week's classes, a day at a time |
+| **Events** | What's on campus, with one-tap RSVP (waitlist when full) |
+| **More** | Notifications, timetable and events natively; everything else (games, resume studio, money, wellbeing, settings) opens signed in inside the app, without the web's navigation |
 
 Other features:
 

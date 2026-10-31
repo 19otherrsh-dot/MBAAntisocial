@@ -24,6 +24,8 @@ export interface Slot {
   status: string;
   campus: string;
   note?: string;
+  /** The host's note on the slot (what to prepare, format). */
+  notes?: string;
   meetingLink?: string;
   viewerRole: 'mentor' | 'mentee' | 'observer';
   mentor: { _id: string; name: string; campus?: string; mentorProfile?: { headline?: string } } | null;

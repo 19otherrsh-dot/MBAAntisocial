@@ -37,7 +37,7 @@ guilt-based streak copy and no infinite feed. Today ends with "That's today."
 | **Play** | Godot games embedded in a cross-origin-isolated player: online (WebRTC, relay or dedicated server), vs bot, pass-and-play, rated tournaments. |
 | **Discover** | Daily briefing, daily quiz, jargon buster, placement insights. |
 | **Me** | Profile, money (loan EMI, budget), wellbeing (non-clinical, with real helplines and the campus counsellor), settings. |
-| **Native app** | iOS and Android (Expo): Today, Prep, Tasks, Hub chat, push; everything else opens signed in inside the app. See [apps/mobile/README.md](apps/mobile/README.md). |
+| **Native app** | iOS and Android (Expo). Native screens: Today, Prep (with booking), Tasks, Hub chat (with an unread badge), notifications, timetable, events, and push. Everything else opens signed in inside the app. See [apps/mobile/README.md](apps/mobile/README.md). |
 | **Institute** | Campus report for the placement office, moderation, campus admin, and the platform admin console with the PRD's success metrics and an audit log. |
 
 A calendar feed (ICS) puts classes, sessions, tasks and events in any calendar app.

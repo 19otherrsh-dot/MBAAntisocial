@@ -1,11 +1,14 @@
 import { View } from 'react-native';
+import { router } from 'expo-router';
 import { Body, Button, Card, Chip, Muted, Row, Screen, Title } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { useQuery } from '@/lib/query';
 import { openWeb } from '@/lib/web';
 import type { Me } from '@/types';
 
-/** Everything else, opened signed in. Each opens the same page as on the web. */
+/** Everything else. Timetable and events are native; the rest opens the web page, signed in. */
+const NATIVE = new Set(['/timetable', '/events']);
+
 const SECTIONS: { title: string; items: { label: string; path: string; hint?: string }[] }[] = [
   {
     title: 'Play',
@@ -66,6 +69,7 @@ export default function More() {
   const { signOut } = useAuth();
   const me = useQuery<{ user: Me }>('/api/me');
   const u = me.data?.user;
+  const inbox = useQuery<{ unread: number }>('/api/notifications?limit=1');
 
   return (
     <Screen refreshing={me.refreshing} onRefresh={me.refetch}>
@@ -88,10 +92,17 @@ export default function More() {
           </Row>
         </Card>
       )}
+      <Card>
+        <Row onPress={() => router.push('/notifications')}>
+          <Body style={{ flex: 1 }}>Notifications</Body>
+          {inbox.data && inbox.data.unread > 0 ? <Chip tone="accent">{`${inbox.data.unread} new`}</Chip> : null}
+          <Muted>›</Muted>
+        </Row>
+      </Card>
       {SECTIONS.map((section) => (
         <Card key={section.title} title={section.title}>
           {section.items.map((item) => (
-            <Row key={item.path} onPress={() => openWeb(item.path, item.label)}>
+            <Row key={item.path} onPress={() => (NATIVE.has(item.path) ? router.push(item.path as '/timetable' | '/events') : openWeb(item.path, item.label))}>
               <View style={{ flex: 1 }}>
                 <Body>{item.label}</Body>
                 {item.hint && <Muted>{item.hint}</Muted>}
