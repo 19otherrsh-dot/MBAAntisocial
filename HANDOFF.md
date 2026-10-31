@@ -968,6 +968,11 @@ The seed creates:
   - **The hub is server-rendered** too: `hubInitial()` loads the server list and the active server's details (`serverDetail`, shared with the API route), and `HubApp` seeds its two queries.
   - In any `try/catch` around server-rendered data, call `unstable_rethrow(error)` first. Otherwise Next's own signals (dynamic rendering, redirects) get caught and logged as failures.
   - **Today is server-rendered**: `page.tsx` calls `buildToday` through `sessionActor()` and seeds `useApiQuery(..., { initialData })`, so there's no client fetch on load. Times on server-rendered screens must pass the user's `timeZone` (`formatTime`/`formatDayLabel` accept one; Today's cards read `TodayTimeZone`), or React 19 discards the server HTML over a text mismatch.
+- **Error reporting:**
+  - `server/report.ts` (web) and `apps/realtime/src/report.ts` write one structured JSON line per error, plus a Slack/Discord webhook message when `ERROR_WEBHOOK_URL` is set. Repeats are muted for ten minutes, deduplicated through KV on web and in memory on realtime.
+  - On the web it's fed by `onRequestError` in `instrumentation.ts` (render errors) and by the API wrapper's unhandled-error branch. API routes catch their own errors, so `onRequestError` alone would miss them.
+  - Realtime reports `unhandledRejection` and exits after an `uncaughtException`, so the supervisor restarts it.
+  - No request bodies or user data are sent. `test/report.test.ts` covers delivery and muting.
 - **Data export and account deletion (DPDP rights of access and erasure):** in `server/modules/account/`.
   - `registry.ts` classifies every reference to a user in every model as `delete`, `anonymise`, `pull` or `keep`. `test/account.test.ts` fails if a model or path is missing, so new models must be classified there. Writing the test caught two nested paths the hand inventory missed.
   - `GET /api/me/export` downloads a dated JSON file with secrets scrubbed; OAuth tokens and one-time codes are left out.

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { env } from '@/lib/env';
 import { AiRefusalError, AiUnavailableError } from '@/server/ports/ai';
+import { reportError } from '@/server/report';
 
 /**
  * Every failure the API returns deliberately, as opposed to a crash. Carrying a
@@ -74,7 +75,7 @@ export function formatZodIssues(error: ZodError): Record<string, string> {
  * errors are logged in full but reported generically, so internal details and
  * stack traces never reach a client.
  */
-export function toErrorResponse(error: unknown): NextResponse<ApiErrorBody> {
+export function toErrorResponse(error: unknown, request?: Request): NextResponse<ApiErrorBody> {
   if (error instanceof ApiError) {
     const headers = new Headers();
     const retryAfter = (error.details as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
@@ -116,7 +117,7 @@ export function toErrorResponse(error: unknown): NextResponse<ApiErrorBody> {
     );
   }
 
-  console.error('[api] unhandled error:', error);
+  void reportError(error, { where: request ? `${request.method} ${new URL(request.url).pathname}` : 'api' });
 
   return NextResponse.json(
     {

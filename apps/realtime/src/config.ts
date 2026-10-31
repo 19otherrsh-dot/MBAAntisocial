@@ -37,6 +37,9 @@ const schema = z.object({
 
   // Discord bridge
   DISCORD_BOT_TOKEN: z.string().optional(),
+
+  /** Slack or Discord incoming-webhook URL for error reports (report.ts). */
+  ERROR_WEBHOOK_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
 });
 
 const parsed = schema.parse(process.env);

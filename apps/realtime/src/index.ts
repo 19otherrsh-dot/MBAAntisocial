@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { config } from './config.js';
+import { reportError } from './report.js';
 import { createBus } from './bus.js';
 import { attachSockets } from './sockets.js';
 import { verifyGameTicket } from './tokens.js';
@@ -67,3 +68,14 @@ const shutdown = () => {
 };
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+// A rejected promise nobody awaited is reported and survives; an uncaught exception
+// leaves the process in an unknown state, so it is reported and the process exits
+// (the container or process manager restarts it).
+process.on('unhandledRejection', (reason) => void reportError(reason, 'unhandledRejection'));
+process.on('uncaughtException', (error) => {
+  void reportError(error, 'uncaughtException').finally(() => {
+    dedicated.stopAll();
+    process.exit(1);
+  });
+});

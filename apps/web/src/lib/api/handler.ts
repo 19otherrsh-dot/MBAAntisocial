@@ -149,7 +149,7 @@ export function route<TBody = undefined, TQuery = undefined>(
 
       return await handler({ request, actor, body, query, params });
     } catch (error) {
-      return toErrorResponse(error);
+      return toErrorResponse(error, request);
     }
   };
 }
@@ -176,7 +176,7 @@ export function publicRoute<TBody = undefined, TQuery = undefined>(
 
       return await handler({ request, body, query, params });
     } catch (error) {
-      return toErrorResponse(error);
+      return toErrorResponse(error, request);
     }
   };
 }
@@ -266,7 +266,7 @@ export function internalRoute<TBody = undefined>(
       const params = routeArgs ? await routeArgs.params : {};
       return await handler({ request, body, params });
     } catch (error) {
-      return toErrorResponse(error);
+      return toErrorResponse(error, request);
     }
   };
 }
@@ -289,7 +289,7 @@ export function cronRoute(handler: (ctx: { request: NextRequest }) => Promise<Re
       await connectDB();
       return await handler({ request });
     } catch (error) {
-      return toErrorResponse(error);
+      return toErrorResponse(error, request);
     }
   };
 }

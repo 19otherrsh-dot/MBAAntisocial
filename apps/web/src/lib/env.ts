@@ -111,6 +111,10 @@ const envSchema = z.object({
   // ── Open Edition briefing ──
   /** Comma-separated RSS/Atom feeds for the daily briefing. */
   NEWS_FEEDS: optional,
+
+  // ── Operations ──
+  /** Slack or Discord incoming-webhook URL for server error reports (server/report.ts). */
+  ERROR_WEBHOOK_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
 });
 
 const parsed = envSchema.safeParse(process.env);
