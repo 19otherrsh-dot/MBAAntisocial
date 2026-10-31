@@ -99,10 +99,12 @@ export function toErrorResponse(error: unknown): NextResponse<ApiErrorBody> {
     );
   }
 
-  if (error instanceof AiUnavailableError) {
+  // Matched by name as well: the production build can hold more than one copy of
+  // these classes, and then instanceof fails and the user saw a bare 500.
+  if (isError(error, AiUnavailableError)) {
     return NextResponse.json({ error: { code: 'ai_unavailable', message: error.message } }, { status: 503 });
   }
-  if (error instanceof AiRefusalError) {
+  if (isError(error, AiRefusalError)) {
     return NextResponse.json({ error: { code: 'ai_refused', message: error.message } }, { status: 422 });
   }
 
@@ -135,4 +137,8 @@ function isDuplicateKeyError(error: unknown): boolean {
     'code' in error &&
     (error as { code: unknown }).code === 11000
   );
+}
+
+function isError<T extends Error>(error: unknown, type: new (...args: never[]) => T): error is T {
+  return error instanceof type || (error instanceof Error && error.name === type.name);
 }

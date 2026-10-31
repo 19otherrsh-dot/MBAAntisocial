@@ -5,14 +5,7 @@ import { QuizDay } from '@/models/career/Quiz';
 import { container } from '../../container';
 import { QUIZ_SYSTEM, quizSchema } from '../ai/prompts';
 import { bankQuizFor } from './bank';
-import { fetchFeed, type FeedEntry } from './rss';
-
-/** Indian business publishers' public RSS feeds; override with NEWS_FEEDS. */
-const DEFAULT_FEEDS = [
-  'https://www.thehindubusinessline.com/feeder/default.rss',
-  'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
-  'https://www.livemint.com/rss/companies',
-];
+import { DEFAULT_FEEDS, fetchFeed, type FeedEntry } from './rss';
 
 export function istDay(date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);

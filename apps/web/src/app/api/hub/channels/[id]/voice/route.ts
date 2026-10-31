@@ -10,7 +10,8 @@ export const GET = route({ feature: 'hub' }, async ({ actor, params }) => {
     return ok({ participants: [], available: Boolean(env.LIVEKIT_URL) });
   }
   try {
-    const client = new RoomServiceClient(env.LIVEKIT_URL.replace(/^wss?:/, 'https:'), env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET);
+    // The server API speaks HTTP(S) on the same host: ws→http, wss→https (a local or self-hosted server is often plain).
+    const client = new RoomServiceClient(env.LIVEKIT_URL.replace(/^ws(s?):/, 'http$1:'), env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET);
     const participants = await client.listParticipants(`hub-${channel._id}`);
     return ok({ participants: participants.map((p) => ({ userId: p.identity, name: p.name })), available: true });
   } catch {

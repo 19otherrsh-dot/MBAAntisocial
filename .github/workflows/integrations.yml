@@ -1,0 +1,82 @@
+# Checks against real outside services, kept out of push CI so a publisher's
+# feed being down or a missing key never blocks a merge. Run on demand from the
+# Actions tab, and weekly so breakage is noticed.
+name: Integrations
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 3 * * 1" # Mondays, 09:07 IST
+  push:
+    paths: [".github/workflows/integrations.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  feeds:
+    name: News feeds parse and are fresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check-feeds -w @mba/web
+
+  live:
+    name: LiveKit voice and Claude features against a seeded build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      MONGODB_URI: mongodb://127.0.0.1:27017/mba-ci?replicaSet=rs0&directConnection=true
+      REDIS_URL: redis://127.0.0.1:6379
+      AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      REALTIME_SECRET: ci-only-realtime-0123456789abcdef0123456789
+      INTERNAL_API_SECRET: ci-only-internal-0123456789abcdef012345678
+      APP_URL: http://localhost:3000
+      LIVEKIT_URL: ws://localhost:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+      # Optional: add it under Settings → Secrets → Actions to check the AI surfaces too.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: MongoDB (single-node replica set) and a dev LiveKit server
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          docker run -d --name livekit --network host livekit/livekit-server:v1.8 --dev --bind 0.0.0.0
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]}).ok }" | grep -q 1 && break
+            sleep 2
+          done
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm run build -w @mba/web
+      - run: npm run seed -w @mba/web
+      - name: Start the app
+        working-directory: apps/web
+        run: |
+          npx next start -p 3000 > ../../next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/login && exit 0; sleep 1; done; exit 1
+      - run: npm run check-voice -w @mba/web
+      - name: Claude features
+        if: env.ANTHROPIC_API_KEY != ''
+        run: npm run check-ai -w @mba/web
+      - if: env.ANTHROPIC_API_KEY == ''
+        run: echo "No ANTHROPIC_API_KEY secret; skipped the AI check."
+      - if: failure()
+        run: tail -200 next.log

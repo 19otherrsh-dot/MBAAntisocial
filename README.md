@@ -123,11 +123,16 @@ After seeding, every account's password is `seedpassword123`.
 | `npm run build` | Production builds |
 | `npm run verify` | All of the above |
 | `npm run e2e -w @mba/web` | Browser smoke test against a seeded instance (`BASE=` to point it elsewhere) |
+| `npm run check-ai -w @mba/web` | Run every Claude feature once against a running instance with `ANTHROPIC_API_KEY` set; reports what came back |
+| `npm run check-voice -w @mba/web` | Two browsers join a hub voice room through LiveKit |
+| `npm run check-feeds -w @mba/web` | Fetch and parse every news feed |
 | `npm run publish-game -w @mba/web -- --id ludo --dir <web export> --version 1.0.0` | Publish a Godot build ([guide](packages/game-sdk/README.md)) |
 
-CI runs the first five, then the smoke test against a seeded production build
-(`.github/workflows/ci.yml`). A separate job parses the Godot addon in a headless
-Godot (`godot.yml`).
+CI runs the first five, then the smoke test against a seeded production build,
+including a real email round trip through Mailpit (`.github/workflows/ci.yml`).
+A separate job parses the Godot addon in a headless Godot (`godot.yml`). The
+`integrations.yml` workflow (weekly and on demand) checks the live news feeds,
+LiveKit voice, and, if an `ANTHROPIC_API_KEY` secret is set, every AI feature.
 
 ---
 

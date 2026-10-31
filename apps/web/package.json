@@ -15,7 +15,10 @@
     "verify": "npm run typecheck && npm run lint && npm run build",
     "test": "vitest run",
     "publish-game": "tsx scripts/publish-game.ts",
-    "e2e": "node e2e/smoke.mjs"
+    "e2e": "node e2e/smoke.mjs",
+    "check-feeds": "tsx scripts/check-feeds.ts",
+    "check-ai": "node e2e/ai.mjs",
+    "check-voice": "node e2e/voice.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

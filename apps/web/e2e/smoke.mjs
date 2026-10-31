@@ -60,6 +60,30 @@ await check('a wrong password is refused with a message', async () => {
   if (page.url().includes('/home')) throw new Error('signed in with a wrong password');
 });
 
+// With a mail catcher configured (CI runs Mailpit), the emailed sign-in code is checked end to end.
+if (process.env.MAILPIT_URL) {
+  await check('a sign-in code arrives by email and signs you in', async () => {
+    const mailpit = process.env.MAILPIT_URL;
+    await fetch(`${mailpit}/api/v1/messages`, { method: 'DELETE' });
+    const page = await session(browser, null);
+    await page.goto(`${BASE}/login`);
+    await page.getByRole('tab', { name: 'Email me a code' }).click();
+    await page.fill('input[name=email]', 'meera@iima.ac.in');
+    await page.getByRole('button', { name: 'Send code' }).click();
+    let code = null;
+    for (let i = 0; i < 20 && !code; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { messages } = await fetch(`${mailpit}/api/v1/messages`).then((r) => r.json());
+      const mail = messages.find((m) => m.To.some((t) => t.Address === 'meera@iima.ac.in'));
+      code = mail?.Subject.match(/\b(\d{6})\b/)?.[1] ?? null;
+    }
+    if (!code) throw new Error('no sign-in email arrived');
+    await page.getByLabel('6-digit code').fill(code);
+    await page.getByRole('button', { name: 'Verify & sign in' }).click();
+    await page.waitForURL('**/home', { timeout: 30_000 });
+  });
+}
+
 const sneha = await session(browser, 'sneha@iima.ac.in');
 
 await check('Today composes the day and ends cleanly', async () => {

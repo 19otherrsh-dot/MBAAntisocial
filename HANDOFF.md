@@ -854,6 +854,11 @@ The seed creates:
   - `mobile`: the Expo app's typecheck and lint, plus iOS and Android bundles;
   - `e2e`: the smoke suite against a seeded production build.
   - First green run: `41042855502`.
+- **Integrations** (`integrations.yml`, weekly and on demand):
+  - `check-feeds`: live RSS through the app's parser;
+  - `check-voice`: two browsers in a LiveKit room;
+  - `check-ai`: every Claude surface through its real route, only when the `ANTHROPIC_API_KEY` repository secret exists.
+  - The e2e job in `ci.yml` also runs Mailpit, and the smoke suite reads the emailed sign-in code to sign in.
 - **Godot CI** (`godot.yml`) runs on pushes that touch `packages/game-sdk`. It imports the SDK project in headless Godot 4.4.1 and fails on any script or parse error. First green run: `41042855439`: the `Antisocial` autoload and the plugin load with no errors.
 
 **Verified by hand in a browser (Playwright scripts in the session scratchpad):**
@@ -901,9 +906,16 @@ The seed creates:
   - no API errors.
 - **Admin metrics cache:** a repeat load is served from KV in about 10 ms with the same `computedAt`. "Recompute now" (`fresh=<n>`) recomputes, and the console shows when the figures were computed.
 
+- **Email (SMTP, via Mailpit):**
+  - a sign-in code arrived and signed the user in;
+  - a reset link arrived and reset the password;
+  - both are multipart (HTML and text).
+- **LiveKit (local dev server):** two users in a hub voice room see each other's tiles, and the participant list agrees. Fixed on the way: the server API URL was built as `https:` even for `ws://` deployments, so the list was always empty on plain-HTTP LiveKit.
+- **AI error path:** a missing key returned a bare 500 because `instanceof AiUnavailableError` failed across production bundle copies. Errors are now matched by name, and the route returns 503 `ai_unavailable` as the UI expects.
+
 **Not exercised:**
 
-- AI calls (no Anthropic key in the sandbox; the error path was verified).
+- AI calls with a real key: `npm run check-ai -w @mba/web` is ready to run once one is set.
 - Real Google Meet / Zoom / Discord / Resend / Expo push.
 - Live RSS fetching (blocked here).
 - LiveKit voice.
@@ -921,12 +933,14 @@ The seed creates:
    - a bridge check.
    - Transport: `webrtc` for `WebRTCMultiplayerPeer`, `relay` or `dedicated` for `WebSocketMultiplayerPeer`.
 3. **`docs.expo.dev` is outside this sandbox's network allowlist.** SDK 58 APIs were taken from the installed packages' type definitions. Allow the domain to follow the template `AGENTS.md`'s advice to read the versioned docs.
-4. **Not exercised end to end:**
-   - Discord bridge against real Discord;
-   - Meet/Zoom OAuth against real apps;
-   - Expo push, Resend;
-   - AI features with a real key.
-5. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
+4. **Not exercised end to end:** these need the owner's accounts or keys.
+   - Discord bridge against real Discord.
+   - Meet/Zoom OAuth against real apps.
+   - Expo push.
+   - Resend's HTTP API. SMTP email is tested in CI.
+   - AI features with a real key: run `npm run check-ai -w @mba/web`, or add the `ANTHROPIC_API_KEY` secret for `integrations.yml`.
+   - Dedicated Godot servers: they need an exported server `.pck` from a real game, so they're tested when the owner's first game is published.
+5. **News RSS** couldn't be fetched in the sandbox, where the quiz uses the curated bank fallback. `integrations.yml` checks the live feeds from GitHub's runners.
 6. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
 7. **Perf:** measured with Lighthouse at mobile throttling (§10). Still to do:
    - the hub (score 79, largest paint 4.0 s) needs its first screen server-rendered like Today; it makes four client requests before the channel name paints;

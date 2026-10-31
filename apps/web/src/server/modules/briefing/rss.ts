@@ -3,6 +3,13 @@
  * Feeds are trusted publishers configured by the operator, and nothing here
  * is rendered as HTML — tags are stripped before anything is stored.
  */
+/** Indian business publishers' public RSS feeds; override with NEWS_FEEDS. */
+export const DEFAULT_FEEDS = [
+  'https://www.thehindubusinessline.com/feeder/default.rss',
+  'https://economictimes.indiatimes.com/rssfeedstopstories.cms',
+  'https://www.livemint.com/rss/companies',
+];
+
 export interface FeedEntry {
   title: string;
   url: string;
