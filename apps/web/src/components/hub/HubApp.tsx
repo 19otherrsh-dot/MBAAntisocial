@@ -14,6 +14,7 @@ import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, EmptyState } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useApiQuery } from '@/lib/client/hooks';
+import type { HubInitial } from '@/server/modules/hub/initial';
 import { api, errorMessage } from '@/lib/client/api';
 import { useMe } from '@/lib/client/me';
 import { useTopic, isEvent } from '@/lib/client/realtime';
@@ -32,6 +33,8 @@ interface Props {
   serverId?: string;
   channelId?: string;
   conversationId?: string;
+  /** Server-rendered first paint (see `hubInitial`); the client refreshes as usual. */
+  initial?: HubInitial | null;
 }
 
 const CHANNEL_ICON = { text: Hash, announcement: Megaphone, voice: Volume2, forum: MessagesSquare } as const;
@@ -40,7 +43,7 @@ const CHANNEL_ICON = { text: Hash, announcement: Megaphone, voice: Volume2, foru
  * The community hub: campus, clubs, circles, and DMs in one place. Layout and
  * routing live here; timelines live in `Conversation`.
  */
-export default function HubApp({ mode, serverId, channelId, conversationId }: Props) {
+export default function HubApp({ mode, serverId, channelId, conversationId, initial }: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
@@ -50,12 +53,14 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
   const [settingsOpen, setSettingsOpen] = useState(Boolean(params.get('settings')));
   const [dmOpen, setDmOpen] = useState(false);
 
-  const { data: serversData, refetch: refetchServers } = useApiQuery<{ servers: HubServerSummary[] }>('/api/hub/servers');
+  const { data: serversData, refetch: refetchServers } = useApiQuery<{ servers: HubServerSummary[] }>('/api/hub/servers', undefined, { initialData: initial ? { servers: initial.servers as HubServerSummary[] } : null });
   const { data: unread, refetch: refetchUnread } = useApiQuery<{ servers: Record<string, { unread: boolean; mentions: number }>; unreadDms: number }>('/api/hub/unread');
   const servers = useMemo(() => serversData?.servers ?? [], [serversData]);
   const activeServerId = mode === 'server' ? serverId ?? servers[0]?._id : undefined;
 
-  const { data: detail, refetch: refetchDetail, mutate: mutateDetail } = useApiQuery<HubServerDetail>(activeServerId ? `/api/hub/servers/${activeServerId}` : null);
+  const { data: detail, refetch: refetchDetail, mutate: mutateDetail } = useApiQuery<HubServerDetail>(activeServerId ? `/api/hub/servers/${activeServerId}` : null, undefined, {
+    initialData: initial?.detail && initial.serverId === activeServerId ? (initial.detail as HubServerDetail) : null,
+  });
   const { data: membersData, refetch: refetchMembers } = useApiQuery<{ members: HubMemberView[] }>(activeServerId ? `/api/hub/servers/${activeServerId}/members` : null);
   const { data: dmData, refetch: refetchDms, mutate: mutateDms } = useApiQuery<{ conversations: ConversationSummary[] }>(mode === 'dm' ? '/api/hub/dm' : null);
   const { data: dmDetail } = useApiQuery<{ conversation: { participants: Array<{ _id: string; name: string; image?: string }>; name: string; kind: string } }>(

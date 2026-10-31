@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation';
 import { sessionActor } from '@/lib/api/handler';
 import { buildToday } from '@/server/modules/today/service';
 import type { TodayResponse } from '@/components/today/types';
@@ -17,6 +18,7 @@ export default async function TodayPage() {
       // The API's JSON shape exactly: dates as strings, no class instances.
       initial = JSON.parse(JSON.stringify(await buildToday(actor))) as TodayResponse;
     } catch (error) {
+      unstable_rethrow(error);
       console.error('[today] server render failed; the client will fetch', error);
     }
   }
