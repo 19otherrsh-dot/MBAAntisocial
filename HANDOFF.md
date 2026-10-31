@@ -968,6 +968,10 @@ The seed creates:
   - **The hub is server-rendered** too: `hubInitial()` loads the server list and the active server's details (`serverDetail`, shared with the API route), and `HubApp` seeds its two queries.
   - In any `try/catch` around server-rendered data, call `unstable_rethrow(error)` first. Otherwise Next's own signals (dynamic rendering, redirects) get caught and logged as failures.
   - **Today is server-rendered**: `page.tsx` calls `buildToday` through `sessionActor()` and seeds `useApiQuery(..., { initialData })`, so there's no client fetch on load. Times on server-rendered screens must pass the user's `timeZone` (`formatTime`/`formatDayLabel` accept one; Today's cards read `TodayTimeZone`), or React 19 discards the server HTML over a text mismatch.
+- **Backups:**
+  - `ops/backup.sh` (`mongodump` archive plus an uploads tarball, 14-day retention) runs nightly as the compose `backup` service. `ops/restore.sh` restores both.
+  - Verified locally: backup, delete all tasks and messages, restore, and the counts and the uploaded file all came back. A 15-day-old backup was pruned and a 13-day-old one kept.
+  - INSTALL covers restores, off-site copies, and Atlas backups for the Vercel path.
 - **Error reporting:**
   - `server/report.ts` (web) and `apps/realtime/src/report.ts` write one structured JSON line per error, plus a Slack/Discord webhook message when `ERROR_WEBHOOK_URL` is set. Repeats are muted for ten minutes, deduplicated through KV on web and in memory on realtime.
   - On the web it's fed by `onRequestError` in `instrumentation.ts` (render errors) and by the API wrapper's unhandled-error branch. API routes catch their own errors, so `onRequestError` alone would miss them.

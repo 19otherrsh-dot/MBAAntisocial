@@ -7,6 +7,7 @@
 #
 # Web on :3000, realtime on :4000, Mailpit (captured email) on :8025.
 # Add `--profile voice` for the built-in LiveKit video/voice server.
+# The `backup` service dumps the database and uploads nightly (ops/backup.sh).
 
 name: mba-antisocial
 
@@ -98,7 +99,28 @@ services:
     depends_on:
       mongo: { condition: service_healthy }
 
+  # Nightly MongoDB dump and uploads tarball into the `backups` volume, kept 14 days.
+  # Copy them off the machine too (e.g. a nightly rsync or object-storage sync of that volume).
+  backup:
+    image: mongo:7
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/ops/backup.sh"]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/mba-antisocial?replicaSet=rs0
+      BACKUP_DIR: /backups
+      UPLOADS_DIR: /data/uploads
+      BACKUP_RETENTION_DAYS: "14"
+      BACKUP_EVERY_SECONDS: "86400"
+    volumes:
+      - ./ops:/ops:ro
+      - backups:/backups
+      - uploads:/data/uploads:ro
+    restart: unless-stopped
+
 volumes:
   mongo-data:
   redis-data:
   uploads:
+  backups:

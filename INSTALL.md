@@ -119,7 +119,7 @@ This suits a VPS or a campus server.
 4. Put a TLS reverse proxy in front: Caddy, nginx or Traefik.
    - Send `your-domain` to `:3000` and `rt.your-domain` to `:4000`.
    - Allow WebSocket upgrades for the realtime host.
-5. Back up the `mongo-data` and `uploads` volumes.
+5. Backups run themselves: the `backup` service dumps the database and the uploaded files every night into the `backups` volume and keeps 14 days. Copy that volume off the machine as well (an rsync or object-storage sync on a nightly timer); a backup on the same disk doesn't survive the disk. See [Backups and restores](#backups-and-restores).
 
 The realtime container runs the scheduled jobs (`SCHEDULER_ENABLED=true` in compose).
 
@@ -135,6 +135,8 @@ The realtime container runs the scheduled jobs (`SCHEDULER_ENABLED=true` in comp
    - Set `SCHEDULER_ENABLED=false` there, because Vercel runs the crons.
    - Then set `NEXT_PUBLIC_REALTIME_URL` in Vercel to its public URL and redeploy.
 5. **Uploads.** Vercel's disk isn't persistent, so configure Cloudinary.
+6. **Backups.** Turn on Atlas's cloud backups (continuous with point-in-time restore on dedicated clusters, daily snapshots otherwise) and set the retention to 14 days, which is what the privacy page promises. Cloudinary keeps the uploads.
+7. **Error alerts.** Set `ERROR_WEBHOOK_URL` (a Slack or Discord incoming webhook) on both the web app and the realtime service.
 
 ### Publishing your Godot games
 
@@ -143,6 +145,27 @@ Export each game for the Web from Godot 4 with the SDK addon enabled (see
 
 - commit it with the app: `npm run publish-game -w @mba/web -- --id ludo --dir path/to/export --version 1.0.0`; or
 - upload the export to a CDN folder and publish it from **Admin → Games**. It goes live within a minute and can be rolled back.
+
+### Backups and restores
+
+`ops/backup.sh` writes `mongo-<time>.archive.gz` (a gzipped `mongodump`) and `uploads-<time>.tar.gz`, then deletes anything older than `BACKUP_RETENTION_DAYS` (14). Old backups expiring is also how a deleted account leaves the backups.
+
+- **Take one now:** `docker compose exec backup sh /ops/backup.sh`.
+- **List them:** `docker compose exec backup ls -lh /backups`.
+- **Restore** (this replaces the current data). Stop the app first so nobody writes during the restore:
+
+  ```bash
+  docker compose stop web realtime
+  docker compose run --rm --entrypoint sh backup /ops/restore.sh /backups/mongo-<time>.archive.gz
+  # Uploads too: mount the uploads volume writable for this one run.
+  docker compose run --rm --entrypoint sh -v mba-antisocial_uploads:/restore backup \
+    /ops/restore.sh /backups/mongo-<time>.archive.gz /backups/uploads-<time>.tar.gz /restore
+  docker compose start web realtime
+  ```
+
+- **Outside Docker:** run the same scripts with `MONGODB_URI` set (they need `mongodump`/`mongorestore` from the MongoDB Database Tools).
+
+Test a restore into a scratch machine once a term. A backup nobody has restored is a hope, not a backup.
 
 ---
 
