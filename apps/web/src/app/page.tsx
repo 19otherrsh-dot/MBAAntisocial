@@ -102,8 +102,8 @@ export default function LandingPage() {
         </Link>
         <div className={styles.navActions}>
           <LinkButton href="/login" variant="ghost" size="sm">
-              Sign in
-            </LinkButton>
+            Sign in
+          </LinkButton>
           <LinkButton href="/register" size="sm">Get started</LinkButton>
         </div>
       </nav>

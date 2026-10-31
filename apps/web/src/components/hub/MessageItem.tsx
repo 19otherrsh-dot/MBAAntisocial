@@ -59,7 +59,7 @@ export default function MessageItem({
 
   const isMine = Boolean(selfId && message.author?._id === selfId);
   const mentionsMe = Boolean(selfId && (message.mentions.users.includes(selfId) || message.mentions.everyone));
-  const authorName = message.author?.name ?? message.viaDiscord?.authorName ?? 'Unknown';
+  const authorName = message.author?.name ?? message.viaDiscord?.authorName ?? 'Deleted user';
 
   if (message.system) {
     return (

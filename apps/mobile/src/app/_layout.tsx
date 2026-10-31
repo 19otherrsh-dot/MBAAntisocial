@@ -64,6 +64,7 @@ function Gate() {
             <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />
             <Stack.Screen name="timetable" options={{ headerShown: true, title: 'Timetable' }} />
             <Stack.Screen name="events" options={{ headerShown: true, title: 'Events' }} />
+            <Stack.Screen name="delete-account" options={{ headerShown: true, title: 'Delete account' }} />
             <Stack.Screen name="web" options={{ headerShown: true, title: '' }} />
           </Stack.Protected>
           <Stack.Protected guard={!signedIn}>

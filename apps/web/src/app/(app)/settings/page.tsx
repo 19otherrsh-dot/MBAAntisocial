@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { BellRing, CalendarCheck2, Link2, LogOut, Moon, ShieldCheck, Sun, Laptop } from 'lucide-react';
+import { BellRing, CalendarCheck2, Download, Link2, LogOut, Moon, ShieldCheck, Sun, Laptop, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Input, Select, Switch } from '@/components/ui/Field';
 import { Banner, Chip, Segmented } from '@/components/ui/Display';
@@ -283,6 +283,73 @@ function SettingsEditor({ me }: { me: Me }) {
           </Button>
         </div>
       </section>
+
+      <YourData email={me.email} />
     </>
+  );
+}
+
+/**
+ * The rights of access and erasure: a download of everything stored about you,
+ * and deleting the account. What deletion removes, keeps anonymised, or leaves
+ * is decided per collection in server/modules/account/registry.ts.
+ */
+function YourData({ email }: { email: string }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const { data } = useApiQuery<{ blockers: string[] }>(open ? '/api/me/deletion' : null);
+  const blockers = data?.blockers ?? [];
+
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await api.delete('/api/me', undefined, { confirmEmail: typed });
+      await signOut({ callbackUrl: '/login?error=account_deleted' });
+    } catch (caught) {
+      toast.error('Could not delete the account', errorMessage(caught));
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <section className={styles.settingsGroup}>
+      <div>
+        <h2 className={styles.settingsTitle}>Your data</h2>
+        <p className={styles.settingsHint}>Download everything we store about you, or delete your account.</p>
+      </div>
+      <div className="row gap-3 wrap">
+        <a href="/api/me/export" download>
+          <Button variant="secondary" icon={<Download size={16} />}>Download my data</Button>
+        </a>
+        {!open && (
+          <Button variant="dangerGhost" icon={<Trash2 size={16} />} onClick={() => setOpen(true)}>
+            Delete my account…
+          </Button>
+        )}
+      </div>
+      {open && (
+        <div className="stack gap-3">
+          <Banner variant="danger" title="Deleting your account can’t be undone">
+            Your private records go: tasks, classes and attendance, grades, money, check-ins, your resume and applications. Things other people rely on stay but are credited to “Deleted user”: messages, posts, shared notes, interview intel, match results. You’re removed from servers, clubs, teams and events.
+          </Banner>
+          {blockers.length > 0 && (
+            <Banner variant="warning" title="Sort these out first">
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {blockers.map((b) => <li key={b}>{b}</li>)}
+              </ul>
+            </Banner>
+          )}
+          <Input label={`Type ${email} to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+          <div className="row gap-2 wrap">
+            <Button variant="danger" loading={deleting} disabled={typed.trim().toLowerCase() !== email.toLowerCase() || blockers.length > 0} onClick={remove}>
+              Delete my account
+            </Button>
+            <Button variant="ghost" onClick={() => { setOpen(false); setTyped(''); }}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

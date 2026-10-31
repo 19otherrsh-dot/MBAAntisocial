@@ -968,6 +968,18 @@ The seed creates:
   - **The hub is server-rendered** too: `hubInitial()` loads the server list and the active server's details (`serverDetail`, shared with the API route), and `HubApp` seeds its two queries.
   - In any `try/catch` around server-rendered data, call `unstable_rethrow(error)` first. Otherwise Next's own signals (dynamic rendering, redirects) get caught and logged as failures.
   - **Today is server-rendered**: `page.tsx` calls `buildToday` through `sessionActor()` and seeds `useApiQuery(..., { initialData })`, so there's no client fetch on load. Times on server-rendered screens must pass the user's `timeZone` (`formatTime`/`formatDayLabel` accept one; Today's cards read `TodayTimeZone`), or React 19 discards the server HTML over a text mismatch.
+- **Data export and account deletion (DPDP rights of access and erasure):** in `server/modules/account/`.
+  - `registry.ts` classifies every reference to a user in every model as `delete`, `anonymise`, `pull` or `keep`. `test/account.test.ts` fails if a model or path is missing, so new models must be classified there. Writing the test caught two nested paths the hand inventory missed.
+  - `GET /api/me/export` downloads a dated JSON file with secrets scrubbed; OAuth tokens and one-time codes are left out.
+  - `DELETE /api/me` takes `{ confirmEmail }`:
+    - private records are deleted;
+    - shared ones are re-pointed to `DELETED_USER_ID` (`000…0`), which renders as "Deleted user";
+    - the person is pulled from member, RSVP and upvote lists;
+    - the user record goes, access is revoked at once, and the audit log keeps the id only.
+  - Deletion is refused, with reasons from `GET /api/me/deletion`, while the person owns a hub server, has upcoming sessions, or captains a team with members.
+  - That needed a new `POST /api/hub/servers/[id]/owner` (with UI in server settings). Handing over team captaincy now also moves the team's linked server.
+  - UI: Settings → Your data, and More → Delete account on mobile (the app stores require in-app deletion). The privacy page describes all of it.
+  - Verified end to end: a seeded user transferred two servers and a captaincy, downloaded their data, and deleted the account in the UI. Afterwards sign-in was refused, their messages read "Deleted user", nothing referenced their id, and no pages errored.
 - **Keyboard pass (hub and games):** fixed:
   - the missing skip link;
   - the message toolbar, which was keyboard-unreachable (`display: none` until `:focus-within`, which can't fire);

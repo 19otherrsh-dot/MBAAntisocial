@@ -55,6 +55,14 @@ export default function PrivacyPage() {
         moderator is retained so the decision can be reviewed. Notifications are discarded
         automatically after ninety days.
       </p>
+      <p>
+        <strong>Your data, and leaving.</strong> In Settings → Your data you can download everything
+        we store about you as one file, and delete your account. Deleting removes your private
+        records (tasks, timetable and attendance, grades, money, wellbeing check-ins, your resume and
+        applications) and removes you from servers, clubs, teams and events. What other people rely
+        on, such as messages in a channel, shared notes, interview intel and match results, stays but
+        is credited to “Deleted user”. Backups roll over within fourteen days.
+      </p>
 
       <h2>Security</h2>
       <p>

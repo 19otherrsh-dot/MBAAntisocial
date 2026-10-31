@@ -115,6 +115,9 @@ export default function More() {
       <Button variant="danger" onPress={() => void signOut()}>
         Sign out
       </Button>
+      <Button variant="ghost" onPress={() => router.push('/delete-account')}>
+        Delete account
+      </Button>
     </Screen>
   );
 }

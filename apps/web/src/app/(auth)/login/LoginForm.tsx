@@ -18,6 +18,7 @@ const ERRORS: Record<string, string> = {
   sso_suspended: 'This account is suspended. Contact your campus moderator.',
   sso_no_email: 'Your provider didn’t share an email address, so we can’t place you on a campus.',
   sso_cancelled: 'Sign-in was cancelled.',
+  account_deleted: 'Your account and its data have been deleted.',
   handoff: 'That sign-in link expired. Try again from the app.',
   CredentialsSignin: 'That didn’t work. Check the details and try again.',
 };
@@ -117,7 +118,8 @@ export default function LoginForm({
         />
 
         {error && (
-          <Banner variant="danger" icon={<AlertCircle size={16} />}>
+          // A completed deletion is news, not a failure.
+          <Banner variant={error === ERRORS.account_deleted ? 'info' : 'danger'} icon={<AlertCircle size={16} />}>
             {error}
           </Banner>
         )}

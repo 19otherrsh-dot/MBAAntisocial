@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api/errors';
 import { objectId } from '@/lib/validation';
 import { notify } from '@/lib/notifications';
 import Team from '@/models/campus/Team';
+import HubServer from '@/models/hub/HubServer';
 import User from '@/models/User';
 import { addTeamMember, isMember, loadTeam, removeTeamMember } from '@/server/modules/campus-life/teams';
 
@@ -78,6 +79,8 @@ export const POST = route({ feature: 'teams', body: schema, rateLimit: 'write' }
       captainOnly();
       if (!isMember(team, body.userId)) throw ApiError.notFound('They are not on the team.');
       await Team.updateOne({ _id: team._id }, { $set: { captain: body.userId } });
+      // The team's hub server follows the captaincy.
+      await HubServer.updateOne({ 'linkedEntity.kind': 'team', 'linkedEntity.id': team._id, owner: actor.id }, { $set: { owner: body.userId } });
       break;
     case 'update': {
       captainOnly();

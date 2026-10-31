@@ -89,8 +89,8 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
-  delete: <T>(path: string, query?: RequestOptions['query']) =>
-    request<T>(path, { method: 'DELETE', query }),
+  delete: <T>(path: string, query?: RequestOptions['query'], body?: unknown) =>
+    request<T>(path, { method: 'DELETE', query, body }),
 };
 
 /** Human-readable message for anything thrown by a request. */

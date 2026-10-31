@@ -51,7 +51,7 @@ export default function ServerSettingsDialog({
     <Dialog open wide onClose={onClose} title={`${detail.server.name} settings`}>
       <Segmented ariaLabel="Settings section" value={tab} onChange={setTab} options={tabs} />
       <div className="stack gap-4 mt-4">
-        {tab === 'overview' && <Overview detail={detail} onChanged={onChanged} onClose={onClose} />}
+        {tab === 'overview' && <Overview detail={detail} members={members} onChanged={onChanged} onClose={onClose} />}
         {tab === 'channels' && <Channels detail={detail} onChanged={onChanged} />}
         {tab === 'roles' && <Roles detail={detail} onChanged={onChanged} />}
         {tab === 'members' && <Members detail={detail} members={members} onChanged={onChanged} />}
@@ -62,7 +62,8 @@ export default function ServerSettingsDialog({
   );
 }
 
-function Overview({ detail, onChanged, onClose }: { detail: HubServerDetail; onChanged: () => void; onClose: () => void }) {
+function Overview({ detail, members, onChanged, onClose }: { detail: HubServerDetail; members: HubMemberView[]; onChanged: () => void; onClose: () => void }) {
+  const [newOwner, setNewOwner] = useState('');
   const router = useRouter();
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
@@ -114,6 +115,19 @@ function Overview({ detail, onChanged, onClose }: { detail: HubServerDetail; onC
     }
   };
 
+  const transfer = async () => {
+    const name = members.find((m) => m.userId === newOwner)?.name ?? 'them';
+    if (!(await confirm({ title: `Make ${name} the owner?`, body: 'They get full control, including archiving the server. You stay a member and keep your roles.', confirmLabel: 'Transfer ownership', destructive: true }))) return;
+    try {
+      await api.post(`/api/hub/servers/${detail.server._id}/owner`, { userId: newOwner });
+      toast.success(`${name} owns the server now`);
+      setNewOwner('');
+      onChanged();
+    } catch (caught) {
+      toast.error('Could not transfer', errorMessage(caught));
+    }
+  };
+
   return (
     <>
       {canManage ? (
@@ -148,6 +162,20 @@ function Overview({ detail, onChanged, onClose }: { detail: HubServerDetail; onC
           { value: 'none', label: 'Nothing (muted)' },
         ]}
       />
+      {detail.isOwner && detail.server.kind !== 'campus' && members.length > 1 && (
+        <div className="row gap-2 wrap" style={{ alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <Select
+              label="Transfer ownership"
+              value={newOwner}
+              onChange={(e) => setNewOwner(e.target.value)}
+              options={[{ value: '', label: 'Choose a member' }, ...members.filter((m) => m.userId !== detail.server.owner).map((m) => ({ value: m.userId, label: m.name }))]}
+              hint="Needed before you can leave the server or delete your account."
+            />
+          </div>
+          <Button variant="secondary" disabled={!newOwner} onClick={transfer}>Transfer</Button>
+        </div>
+      )}
       <div className="row gap-2 wrap">
         {detail.server.kind !== 'campus' && !detail.isOwner && <Button variant="dangerGhost" onClick={leave}>Leave server</Button>}
         {detail.isOwner && detail.server.kind !== 'campus' && <Button variant="dangerGhost" onClick={archive}>Archive server</Button>}

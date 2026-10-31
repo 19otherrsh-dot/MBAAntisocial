@@ -9,6 +9,8 @@ import { MENTOR_ROLES, type UserRole } from '@/lib/constants';
 import { campusDensity } from '@/server/modules/campus/service';
 import { container } from '@/server/container';
 import { invalidateAuthz } from '@/server/modules/auth/authz';
+import { deleteAccount } from '@/server/modules/account/service';
+import { z } from 'zod';
 
 /**
  * The live view of the signed-in user.
@@ -163,4 +165,17 @@ export const PATCH = route({ body: updateProfileSchema, rateLimit: 'write', allo
 
   if (update.role || update.batch || update.year) await invalidateAuthz(actor.id);
   return ok({ user });
+});
+
+const deleteSchema = z.object({ confirmEmail: z.string().trim().max(254) });
+
+/**
+ * Deletes the caller's account (the right of erasure). Typing the account's
+ * email back is the confirmation. Refused, with reasons, while it would leave
+ * other people stranded (an owned server, upcoming sessions, a team).
+ */
+export const DELETE = route({ allowUnverified: true, body: deleteSchema, rateLimit: 'write' }, async ({ actor, body }) => {
+  if (body.confirmEmail.toLowerCase() !== actor.email.toLowerCase()) throw ApiError.badRequest('Type your account email exactly to confirm.');
+  const changed = await deleteAccount(actor.id);
+  return ok({ deleted: true, changed });
 });
