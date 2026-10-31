@@ -40,11 +40,13 @@ export function formatDate(input: Date | string, opts?: Intl.DateTimeFormatOptio
   });
 }
 
-export function formatTime(input: Date | string): string {
+/** `timeZone` makes the output the same on the server and in the browser (for server-rendered screens). */
+export function formatTime(input: Date | string, timeZone?: string): string {
   return new Date(input).toLocaleTimeString(LOCALE, {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone,
   });
 }
 
@@ -68,18 +70,18 @@ export function formatDuration(start: Date | string, end: Date | string): string
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
-/** Calendar-day label: "Today", "Tomorrow", or a date. */
-export function formatDayLabel(input: Date | string): string {
+/** Calendar-day label: "Today", "Tomorrow", or a date; calendar days are counted in `timeZone` when given. */
+export function formatDayLabel(input: Date | string, timeZone?: string): string {
   const date = new Date(input);
-  const today = new Date();
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((startOf(date) - startOf(today)) / 86_400_000);
+  // YYYY-MM-DD in the zone, read back as a UTC date so the difference is whole days.
+  const dayOf = (d: Date) => Date.parse(d.toLocaleDateString('en-CA', { timeZone }));
+  const diffDays = Math.round((dayOf(date) - dayOf(new Date())) / 86_400_000);
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Tomorrow';
   if (diffDays === -1) return 'Yesterday';
-  if (diffDays > 1 && diffDays < 7) return date.toLocaleDateString(LOCALE, { weekday: 'long' });
-  return formatDate(date);
+  if (diffDays > 1 && diffDays < 7) return date.toLocaleDateString(LOCALE, { weekday: 'long', timeZone });
+  return formatDate(date, { timeZone });
 }
 
 export type Urgency = 'none' | 'safe' | 'soon' | 'urgent' | 'overdue';

@@ -24,6 +24,8 @@ const jetbrainsMono = localFont({
   weight: '100 800',
   // Metric matching against Arial suits a sans face only; the CSS stack falls back to a system monospace.
   adjustFontFallback: false,
+  // Only table codes and figures use it, so it shouldn't compete with the page for bandwidth on first load.
+  preload: false,
 });
 
 export const metadata: Metadata = {

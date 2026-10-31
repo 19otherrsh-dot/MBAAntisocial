@@ -38,17 +38,25 @@ interface Settled<T> {
  */
 export function useApiQuery<T>(
   path: string | null,
-  query?: Record<string, string | number | boolean | undefined | null>
+  query?: Record<string, string | number | boolean | undefined | null>,
+  options: { initialData?: T | null } = {}
 ): QueryResult<T> {
-  const [settled, setSettled] = useState<Settled<T>>({ key: '', data: null, error: null });
-  const [nonce, setNonce] = useState(0);
-
   // Serialised so the effect re-runs on value changes, not on a new object identity.
   const queryKey = useMemo(() => JSON.stringify(query ?? {}), [query]);
+  const [nonce, setNonce] = useState(0);
   const key = path ? `${nonce}:${path}:${queryKey}` : '';
+
+  // Data the server already rendered counts as the first result: no request on mount, refetch as usual.
+  const seeded = options.initialData != null && Boolean(path);
+  const [settled, setSettled] = useState<Settled<T>>(() => (seeded ? { key, data: options.initialData as T, error: null } : { key: '', data: null, error: null }));
+  const seededKey = useRef(seeded ? key : null);
 
   useEffect(() => {
     if (!path) return;
+    if (seededKey.current === key) {
+      seededKey.current = null;
+      return;
+    }
 
     const controller = new AbortController();
 

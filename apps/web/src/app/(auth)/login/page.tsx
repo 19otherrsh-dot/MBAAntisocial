@@ -1,17 +1,13 @@
-import { Suspense } from 'react';
 import { ssoProviders } from '@/lib/auth';
 import LoginForm from './LoginForm';
-import styles from '../auth.module.css';
 
 /**
- * `useSearchParams` opts a route out of static prerendering unless the reading
- * component sits behind a Suspense boundary, so the form is split out and the
- * page renders a skeleton around it.
+ * The query is read here, on the server, and handed down: reading it with
+ * useSearchParams in the form would leave only a skeleton in the HTML until
+ * the JavaScript arrives.
  */
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className={styles.formBody}><div className="skeleton" style={{ height: 320 }} /></div>}>
-      <LoginForm providers={ssoProviders} />
-    </Suspense>
-  );
+export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const query = await searchParams;
+  const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? null;
+  return <LoginForm providers={ssoProviders} callbackUrl={one(query.callbackUrl) ?? '/home'} initialError={one(query.error)} />;
 }

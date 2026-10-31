@@ -186,18 +186,24 @@ export function publicRoute<TBody = undefined, TQuery = undefined>(
  * Bearer is checked first so a WebView carrying both behaves like the app.
  */
 async function resolveActor(request: NextRequest): Promise<Actor | null> {
-  let user: SessionUser | null = null;
-  let via: Actor['via'] = 'session';
-
   const header = request.headers.get('authorization');
   if (header?.startsWith('Bearer ')) {
-    user = await verifyAccessToken(header.slice(7).trim());
-    via = 'bearer';
-    if (!user) return null;
-  } else {
-    const session = await auth();
-    if (!session?.user?.id) return null;
-    user = {
+    const user = await verifyAccessToken(header.slice(7).trim());
+    return user ? actorFor(user, 'bearer') : null;
+  }
+  return sessionActor();
+}
+
+/**
+ * The browser session's actor, for server components that render data the
+ * API would otherwise serve (so the first paint needs no client round trip).
+ * Same checks as an API request: fresh role, suspension, campus edition.
+ */
+export async function sessionActor(): Promise<Actor | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return actorFor(
+    {
       id: session.user.id,
       name: session.user.name ?? '',
       email: session.user.email ?? '',
@@ -208,9 +214,13 @@ async function resolveActor(request: NextRequest): Promise<Actor | null> {
       role: session.user.role,
       onboardedAt: session.user.onboardedAt,
       verified: session.user.verified ?? false,
-    };
-  }
+    },
+    'session'
+  );
+}
 
+async function actorFor(claims: SessionUser, via: Actor['via']): Promise<Actor | null> {
+  let user = claims;
   await connectDB();
   // Claims in the token may be weeks old; role and suspension come from the record.
   const fresh = await currentAuthz(user.id);

@@ -923,12 +923,31 @@ The seed creates:
    - AI features with a real key.
 5. **News RSS** couldn't be fetched in the sandbox. The quiz uses the curated bank fallback here.
 6. **The realtime scheduler and Vercel crons** must not both run in one deployment (`SCHEDULER_ENABLED`). Documented in INSTALL.
-7. **Perf:** measure LCP/INP on real devices. The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
+7. **Perf:** measured with Lighthouse at mobile throttling (§10). Still to do:
+   - the hub (score 79, largest paint 4.0 s) needs its first screen server-rendered like Today; it makes four client requests before the channel name paints;
+   - INP on real devices.
+   - The two GLBs (5.2 MB and 2.7 MB) load only on capable devices, after the poster.
 
 **Resolved since the first handoff:**
 
 - **Godot addon:** CI has parsed it.
 - **Detail pages:** they now show the record's name as the tab title.
+- **Performance (Lighthouse, mobile throttling):**
+
+  | Page | Score | Largest paint | Layout shift |
+  |---|---|---|---|
+  | Landing | 93 → 98 | 3.0 → 2.1 s | 0 |
+  | Login | 71 → 97 | 5.6 → 2.1 s | 0 |
+  | Today | 58 → 97 | 6.3 → 2.4 s | 0.257 → 0 |
+  | Games | 86 → 93 | 3.2 → 2.3 s | 0 |
+  | Hub | 75 → 79 | 6.5 → 4.0 s | 0.005 |
+
+  Each page now transfers about 300 KB instead of 800 KB. The changes:
+  - the PWA icons were 1024 px JPEGs (484 KB) under `.png` names, and are now real 192 and 512 PNGs (19 KB and 113 KB);
+  - the mono font is no longer preloaded;
+  - login reads its query on the server, so it no longer bails out to client-side rendering;
+  - Today's stats strip renders with placeholders;
+  - **Today is server-rendered**: `page.tsx` calls `buildToday` through `sessionActor()` and seeds `useApiQuery(..., { initialData })`, so there's no client fetch on load. Times on server-rendered screens must pass the user's `timeZone` (`formatTime`/`formatDayLabel` accept one; Today's cards read `TodayTimeZone`), or React 19 discards the server HTML over a text mismatch.
 - **Keyboard pass (hub and games):** fixed:
   - the missing skip link;
   - the message toolbar, which was keyboard-unreachable (`display: none` until `:focus-within`, which can't fire);

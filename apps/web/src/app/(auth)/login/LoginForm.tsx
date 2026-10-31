@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Mail, KeyRound, AlertCircle, Hash, Info } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -24,11 +24,16 @@ const ERRORS: Record<string, string> = {
 
 type Mode = 'password' | 'code';
 
-export default function LoginForm({ providers }: { providers: Array<{ id: string; name: string }> }) {
+export default function LoginForm({
+  providers,
+  callbackUrl,
+  initialError,
+}: {
+  providers: Array<{ id: string; name: string }>;
+  callbackUrl: string;
+  initialError: string | null;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/home';
-  const initialError = searchParams.get('error');
 
   const [mode, setMode] = useState<Mode>('password');
   const [email, setEmail] = useState('');

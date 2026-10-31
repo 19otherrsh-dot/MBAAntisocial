@@ -1,5 +1,6 @@
 'use client';
 
+import { createContext, useContext } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -45,7 +46,9 @@ function Panel({ icon, title, link, children }: { icon: React.ReactNode; title: 
   );
 }
 
-const when = (iso: string) => `${formatDayLabel(iso)} · ${formatTime(iso)}`;
+/** The user's time zone (from /api/today), so server-rendered times match what the browser renders. */
+export const TodayTimeZone = createContext<string | undefined>(undefined);
+const when = (iso: string, timeZone?: string) => `${formatDayLabel(iso, timeZone)} · ${formatTime(iso, timeZone)}`;
 
 export function ClassesCard({ classes, onChanged }: { classes: TodayCards['classes']; onChanged: () => void }) {
   return (
@@ -92,6 +95,7 @@ export function TasksCard({ tasks }: { tasks: TodayCards['tasks'] }) {
 }
 
 export function AgendaCard({ agenda }: { agenda: TodayCards['agenda'] }) {
+  const timeZone = useContext(TodayTimeZone);
   return (
     <Panel icon={<CalendarClock size={16} style={{ color: 'var(--violet)' }} />} title="Coming up" link={{ href: '/sessions', label: 'Find a slot' }}>
       {agenda.length === 0 ? (
@@ -108,7 +112,7 @@ export function AgendaCard({ agenda }: { agenda: TodayCards['agenda'] }) {
                 <div className={cn(styles.miniTitle, 'truncate')}>
                   {SESSION_TYPE_META[item.sessionType as SessionType]?.label ?? 'Session'} {item.role === 'host' ? 'for' : 'with'} {item.with?.name ?? 'someone'}
                 </div>
-                <div className={styles.miniMeta}>{when(item.startAt)}{item.role === 'host' ? ' · you are hosting' : ''}</div>
+                <div className={styles.miniMeta}>{when(item.startAt, timeZone)}{item.role === 'host' ? ' · you are hosting' : ''}</div>
               </div>
             </Link>
           ) : (
@@ -118,7 +122,7 @@ export function AgendaCard({ agenda }: { agenda: TodayCards['agenda'] }) {
                 <div className={cn(styles.miniTitle, 'truncate')}>
                   {item.label || ROUND_TYPE_META[item.roundType as RoundType]?.label || 'Round'} · {item.company}
                 </div>
-                <div className={styles.miniMeta}>{when(item.startAt)} · read the intel first</div>
+                <div className={styles.miniMeta}>{when(item.startAt, timeZone)} · read the intel first</div>
               </div>
             </Link>
           )
@@ -178,6 +182,7 @@ export function CheckInCard() {
 }
 
 export function EventsCard({ events }: { events: TodayCards['events'] }) {
+  const timeZone = useContext(TodayTimeZone);
   if (events.length === 0) return null;
   return (
     <Panel icon={<PartyPopper size={16} style={{ color: 'var(--rose)' }} />} title="On campus" link={{ href: '/events', label: 'Events' }}>
@@ -186,7 +191,7 @@ export function EventsCard({ events }: { events: TodayCards['events'] }) {
           <div className="grow" style={{ minWidth: 0 }}>
             <div className={cn(styles.miniTitle, 'truncate')}>{event.title}</div>
             <div className={styles.miniMeta}>
-              {when(event.startAt)}
+              {when(event.startAt, timeZone)}
               {event.venue ? ` · ${event.venue}` : ''}
             </div>
           </div>
