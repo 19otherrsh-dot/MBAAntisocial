@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Brain, Check, Flame, Newspaper, X } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Avatar, Chip } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useApiQuery } from '@/lib/client/hooks';
@@ -57,7 +56,7 @@ export default function QuizPage() {
         </div>
         <div className="row gap-2">
           {data.streak > 0 && <Chip tone="amber" icon={<Flame size={12} />}>{data.streak}-day streak</Chip>}
-          <Link href="/briefing"><Button variant="ghost" icon={<Newspaper size={15} />}>Briefing</Button></Link>
+          <LinkButton href="/briefing" variant="ghost" icon={<Newspaper size={15} />}>Briefing</LinkButton>
         </div>
       </div>
 

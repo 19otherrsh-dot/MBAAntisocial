@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Crown, Hash, Plus, UsersRound } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Avatar, Chip, EmptyState, Segmented } from '@/components/ui/Display';
@@ -81,7 +81,7 @@ function Teams() {
                 <div className="row gap-2 wrap" style={{ marginTop: 4 }}>
                   {t.isMember ? (
                     <>
-                      {t.hubServer && <Link href={`/hub/${t.hubServer}`}><Button size="sm" icon={<Hash size={13} />}>Workspace</Button></Link>}
+                      {t.hubServer && <LinkButton href={`/hub/${t.hubServer}`} size="sm" icon={<Hash size={13} />}>Workspace</LinkButton>}
                       <Button size="sm" variant="ghost" onClick={() => router.push(`/teams/${t._id}`)}>Manage</Button>
                     </>
                   ) : t.requested ? (

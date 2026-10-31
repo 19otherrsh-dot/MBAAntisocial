@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Briefcase, Building, Send, Plus, Trash2 } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Textarea, Select, Switch } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, EmptyState, Segmented } from '@/components/ui/Display';
@@ -202,11 +201,9 @@ export default function JobsPage() {
                     ) : (
                       <>
                         {job.link && (
-                          <Link href={job.link} target="_blank" rel="noreferrer noopener">
-                            <Button size="sm" variant="secondary">
+                          <LinkButton href={job.link} target="_blank" rel="noreferrer noopener" size="sm" variant="secondary">
                               Details
-                            </Button>
-                          </Link>
+                            </LinkButton>
                         )}
                         {/* Posting with "happy to be contacted" is the explicit
                             opt-in the messaging gate honours, so this button is

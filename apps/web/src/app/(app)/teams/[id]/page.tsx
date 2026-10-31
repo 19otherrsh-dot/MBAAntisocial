@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Crown, Hash, Trash2 } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Input, Switch, Textarea } from '@/components/ui/Field';
 import { Avatar, Chip, EmptyState } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
@@ -33,7 +33,7 @@ export default function TeamPage({ params }: { params: Promise<{ id: string }> }
   const { data, error, refetch } = useApiQuery<TeamDetail>(`/api/teams/${id}`);
   const [draft, setDraft] = useState<{ purpose: string; openRoles: string; lookingForMembers: boolean } | null>(null);
 
-  if (error) return <EmptyState title="Team not found" body={error} action={<Link href="/teams"><Button>All teams</Button></Link>} />;
+  if (error) return <EmptyState title="Team not found" body={error} action={<LinkButton href="/teams">All teams</LinkButton>} />;
   if (!data) return <div className="skeleton" style={{ height: 320 }} />;
   const { team, me } = data;
   const form = draft ?? { purpose: team.purpose, openRoles: team.openRoles.join(', '), lookingForMembers: team.lookingForMembers };
@@ -58,7 +58,7 @@ export default function TeamPage({ params }: { params: Promise<{ id: string }> }
           <h1 className={styles.pageTitle}>{team.name}</h1>
           <p className={styles.pageSubtitle}>{team.members.length}/{team.maxSize} members{team.lookingForMembers ? ' · looking for members' : ''}</p>
         </div>
-        {team.hubServer && <Link href={`/hub/${team.hubServer}`}><Button icon={<Hash size={15} />}>Open workspace</Button></Link>}
+        {team.hubServer && <LinkButton href={`/hub/${team.hubServer}`} icon={<Hash size={15} />}>Open workspace</LinkButton>}
       </div>
 
       {me.captain && team.requests.length > 0 && (

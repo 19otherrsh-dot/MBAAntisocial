@@ -1,9 +1,8 @@
 'use client';
 
 import { use } from 'react';
-import Link from 'next/link';
 import { CalendarClock, MessageCircle, Star, Award, ExternalLink, GraduationCap, Sparkles } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Avatar, Chip, EmptyState, Stat } from '@/components/ui/Display';
 import { useApiQuery } from '@/lib/client/hooks';
 import { SESSION_TYPE_META, ROLE_META, type SessionType, type UserRole } from '@/lib/constants';
@@ -65,19 +64,13 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           {!viewer.isSelf && (
             <div className="row gap-2 wrap mt-4">
               {user.mentor?.acceptingBookings && user.mentor.openSlots > 0 && (
-                <Link href={`/sessions?mentor=${user.id}`}>
-                  <Button icon={<CalendarClock size={16} />}>Book a session ({user.mentor.openSlots} open)</Button>
-                </Link>
+                <LinkButton href={`/sessions?mentor=${user.id}`} icon={<CalendarClock size={16} />}>Book a session ({user.mentor.openSlots} open)</LinkButton>
               )}
               {user.alumni?.referralsOpen && (
-                <Link href={`/alumni?ask=${user.id}`}>
-                  <Button variant="secondary" icon={<GraduationCap size={16} />}>Ask for a referral</Button>
-                </Link>
+                <LinkButton href={`/alumni?ask=${user.id}`} variant="secondary" icon={<GraduationCap size={16} />}>Ask for a referral</LinkButton>
               )}
               {viewer.canMessage && (
-                <Link href={`/hub/dm?with=${user.id}`}>
-                  <Button variant="secondary" icon={<MessageCircle size={16} />}>Message</Button>
-                </Link>
+                <LinkButton href={`/hub/dm?with=${user.id}`} variant="secondary" icon={<MessageCircle size={16} />}>Message</LinkButton>
               )}
               {user.alumni?.linkedinUrl && (
                 <a href={user.alumni.linkedinUrl} target="_blank" rel="noopener noreferrer">
@@ -87,9 +80,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             </div>
           )}
           {viewer.isSelf && (
-            <Link href="/profile" className="mt-4" style={{ display: 'inline-block' }}>
-              <Button variant="secondary">Edit your profile</Button>
-            </Link>
+            <LinkButton href="/profile" className="mt-4" style={{ display: 'inline-block' }} variant="secondary">Edit your profile</LinkButton>
           )}
         </div>
       </section>

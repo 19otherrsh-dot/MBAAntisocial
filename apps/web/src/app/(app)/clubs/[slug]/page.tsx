@@ -4,7 +4,7 @@ import { use, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, BadgeCheck, CalendarDays, CheckSquare, Hash, Globe, Plus, Square, Trash2, Users, Wallet, ClipboardList, Settings } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Select, Switch, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, EmptyState, Segmented, Stat } from '@/components/ui/Display';
@@ -50,7 +50,7 @@ export default function ClubPage({ params }: { params: Promise<{ slug: string }>
   const [modal, setModal] = useState<null | 'apply' | 'settings' | 'event'>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  if (error) return <EmptyState title="Club not found" body={error} action={<Link href="/clubs"><Button>All clubs</Button></Link>} />;
+  if (error) return <EmptyState title="Club not found" body={error} action={<LinkButton href="/clubs">All clubs</LinkButton>} />;
   if (!data) return <div className="skeleton" style={{ height: 400 }} />;
   const { club, me } = data;
 
@@ -96,7 +96,7 @@ export default function ClubPage({ params }: { params: Promise<{ slug: string }>
           </div>
         </div>
         <div className="row gap-2 wrap">
-          {me.role && club.hubServer && <Link href={`/hub/${club.hubServer}`}><Button variant="secondary" icon={<Hash size={15} />}>Club chat</Button></Link>}
+          {me.role && club.hubServer && <LinkButton href={`/hub/${club.hubServer}`} variant="secondary" icon={<Hash size={15} />}>Club chat</LinkButton>}
           {!me.role && club.recruitment.open && (club.recruitment.questions.length > 0 ? (
             me.application === 'pending' ? <Button variant="secondary" loading={busy === 'withdraw'} onClick={() => act('withdraw', { action: 'withdraw' }, 'Application withdrawn')}>Applied — withdraw</Button>
               : <Button onClick={() => setModal('apply')}>Apply</Button>

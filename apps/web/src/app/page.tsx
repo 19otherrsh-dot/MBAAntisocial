@@ -11,7 +11,7 @@ import {
   EyeOff,
   Scale,
 } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { LinkButton } from '@/components/ui/Button';
 import { Wordmark } from '@/components/brand/Logo';
 import type { Tone } from '@/lib/constants';
 import styles from './landing.module.css';
@@ -101,14 +101,10 @@ export default function LandingPage() {
           <Wordmark size={26} />
         </Link>
         <div className={styles.navActions}>
-          <Link href="/login">
-            <Button variant="ghost" size="sm">
+          <LinkButton href="/login" variant="ghost" size="sm">
               Sign in
-            </Button>
-          </Link>
-          <Link href="/register">
-            <Button size="sm">Get started</Button>
-          </Link>
+            </LinkButton>
+          <LinkButton href="/register" size="sm">Get started</LinkButton>
         </div>
       </nav>
 
@@ -130,16 +126,12 @@ export default function LandingPage() {
           </p>
 
           <div className={styles.heroActions}>
-            <Link href="/register">
-              <Button size="lg" iconAfter={<ArrowRight size={17} />}>
+            <LinkButton href="/register" size="lg" iconAfter={<ArrowRight size={17} />}>
                 Join your campus
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="secondary">
+              </LinkButton>
+            <LinkButton href="/login" size="lg" variant="secondary">
                 I already have an account
-              </Button>
-            </Link>
+              </LinkButton>
           </div>
 
           <p className={styles.heroNote}>Free for students. No ads on the feed — not now, not later.</p>

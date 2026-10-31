@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { LiveKitRoom, VideoConference } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { ArrowLeft, Video } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/Display';
 import { useApiQuery } from '@/lib/client/hooks';
 import styles from '../../app.module.css';
@@ -49,7 +49,7 @@ export default function MeetPage({ params }: { params: Promise<{ room: string }>
         art={<Video size={36} />}
         title="Can’t open this room"
         body={error ?? 'The room may have ended, or it is not one of yours.'}
-        action={<Link href="/home"><Button variant="secondary">Back to Today</Button></Link>}
+        action={<LinkButton href="/home" variant="secondary">Back to Today</LinkButton>}
       />
     );
   }

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Brain, CheckCircle2, ExternalLink, MessagesSquare, Newspaper } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Chip, EmptyState } from '@/components/ui/Display';
 import { Select } from '@/components/ui/Field';
 import { useToast } from '@/components/ui/Toast';
@@ -36,11 +35,11 @@ export default function BriefingPage() {
         </div>
         <div className="row gap-2">
           {data && data.days.length > 1 && <Select aria-label="Day" value={data.day} onChange={(e) => setDay(e.target.value)} options={data.days.map((d) => ({ value: d, label: d === data.today ? 'Today' : formatDate(d) }))} />}
-          <Link href="/quiz"><Button variant="secondary" icon={<Brain size={15} />}>Today’s quiz</Button></Link>
+          <LinkButton href="/quiz" variant="secondary" icon={<Brain size={15} />}>Today’s quiz</LinkButton>
         </div>
       </div>
       {!data ? <div className="skeleton" style={{ height: 360 }} /> : data.items.length === 0 ? (
-        <EmptyState art={<Newspaper size={36} strokeWidth={1.4} />} title="The briefing is on its way" body="Stories are pulled in through the day. Try the quiz in the meantime." action={<Link href="/quiz"><Button>Play the quiz</Button></Link>} />
+        <EmptyState art={<Newspaper size={36} strokeWidth={1.4} />} title="The briefing is on its way" body="Stories are pulled in through the day. Try the quiz in the meantime." action={<LinkButton href="/quiz">Play the quiz</LinkButton>} />
       ) : (
         <>
           <div className="stack gap-4" data-reveal="">
@@ -58,7 +57,7 @@ export default function BriefingPage() {
           {data.day === data.today && (
             <div className="row gap-2">
               <Button icon={<CheckCircle2 size={15} />} onClick={finish} disabled={done}>{done ? 'Done for today' : 'I’ve read today’s briefing'}</Button>
-              <Link href="/quiz"><Button variant="ghost" icon={<Brain size={15} />}>Test yourself</Button></Link>
+              <LinkButton href="/quiz" variant="ghost" icon={<Brain size={15} />}>Test yourself</LinkButton>
             </div>
           )}
         </>

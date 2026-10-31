@@ -4,7 +4,7 @@ import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Play, Trophy, Users, CalendarClock, Share2 } from 'lucide-react';
 import { topics } from '@mba/shared/realtime';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Avatar, Banner, Chip, EmptyState } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/useConfirm';
@@ -50,7 +50,7 @@ export default function TournamentPage({ params }: { params: Promise<{ id: strin
     return [...byRound.entries()].sort((a, b) => a[0] - b[0]);
   }, [t]);
 
-  if (error) return <EmptyState title="Tournament not found" body={error} action={<Link href="/tournaments"><Button>All tournaments</Button></Link>} />;
+  if (error) return <EmptyState title="Tournament not found" body={error} action={<LinkButton href="/tournaments">All tournaments</LinkButton>} />;
   if (!data || !t) return <div className="skeleton" style={{ height: 360 }} />;
 
   const act = async (action: 'register' | 'withdraw' | 'start' | 'cancel') => {
@@ -100,7 +100,7 @@ export default function TournamentPage({ params }: { params: Promise<{ id: strin
       )}
       {t.status === 'cancelled' && <Banner variant="info" title="This tournament was cancelled" />}
       {myMatch && myMatch.room && (
-        <Banner variant="warning" title="Your match is ready" action={<Link href={`/games/room/${myMatch.room}`}><Button size="sm" icon={<Play size={14} />}>Go to table</Button></Link>}>
+        <Banner variant="warning" title="Your match is ready" action={<LinkButton href={`/games/room/${myMatch.room}`} size="sm" icon={<Play size={14} />}>Go to table</LinkButton>}>
           vs {myMatch.players.find((p) => p && p._id !== me?.id)?.name ?? 'your opponent'}{myMatch.deadline ? ` · play by ${formatDateTime(myMatch.deadline)}` : ''}
         </Banner>
       )}

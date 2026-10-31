@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { Home } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { LinkButton } from '@/components/ui/Button';
 import { LogoMark } from '@/components/brand/Logo';
 
 export const metadata = { title: 'Not found' };
@@ -24,9 +23,7 @@ export default function NotFound() {
       <p className="muted" style={{ maxWidth: '42ch', lineHeight: 1.6 }}>
         This page does not exist, or it was scoped to a campus that is not yours.
       </p>
-      <Link href="/home">
-        <Button icon={<Home size={16} />}>Back to Today</Button>
-      </Link>
+      <LinkButton href="/home" icon={<Home size={16} />}>Back to Today</LinkButton>
     </main>
   );
 }

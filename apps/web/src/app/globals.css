@@ -399,6 +399,22 @@ ul, ol { list-style: none; }
   overflow: hidden;
 }
 
+/* Hidden until focused: the first Tab on any app page. */
+.skip-link {
+  position: fixed;
+  top: var(--s-2);
+  left: var(--s-2);
+  z-index: 1000;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  translate: 0 -200%;
+}
+.skip-link:focus-visible { translate: 0 0; }
+main:focus { outline: none; }
+
 /* Visible to screen readers only. */
 .sr-only {
   position: absolute;

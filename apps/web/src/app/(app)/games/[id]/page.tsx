@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bot, Globe2, Lock, Smartphone, Swords, Trophy, Users, Clock, Zap } from 'lucide-react';
 import { GAME_CATEGORY_META } from '@mba/shared/games';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Avatar, Chip, EmptyState, Segmented, Stat } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useApiQuery } from '@/lib/client/hooks';
@@ -30,7 +30,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
   const [busy, setBusy] = useState<string | null>(null);
   const { data, error } = useApiQuery<GameDetail>(`/api/games/${id}`, { board });
 
-  if (error) return <EmptyState title="Game not found" body={error} action={<Link href="/games"><Button>All games</Button></Link>} />;
+  if (error) return <EmptyState title="Game not found" body={error} action={<LinkButton href="/games">All games</LinkButton>} />;
   if (!data) return <div className="skeleton" style={{ height: 420 }} />;
   const { game, playable } = data;
 
@@ -107,14 +107,14 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                 <Segmented ariaLabel="Difficulty" value={difficulty} onChange={setDifficulty} options={[{ value: 'easy', label: 'Easy' }, { value: 'medium', label: 'Medium' }, { value: 'hard', label: 'Hard' }]} />
               )}
               <span style={{ flex: 1 }} />
-              <Link href={`/player/${game.id}?mode=bot&difficulty=${difficulty}`}><Button variant="secondary" style={{ width: '100%' }}>Play</Button></Link>
+              <LinkButton href={`/player/${game.id}?mode=bot&difficulty=${difficulty}`} variant="secondary" style={{ width: '100%' }}>Play</LinkButton>
             </div>
           )}
           {game.modes.includes('local') && (
             <div className={gs.modeCard}>
               <div className={gs.modeTitle}><Smartphone size={17} /> Pass & play</div>
               <p className="muted" style={{ fontSize: 'var(--t-sm)', flex: 1 }}>Everyone on one phone or laptop. Great for the mess table.</p>
-              <Link href={`/player/${game.id}?mode=local`}><Button variant="secondary" style={{ width: '100%' }}>Start</Button></Link>
+              <LinkButton href={`/player/${game.id}?mode=local`} variant="secondary" style={{ width: '100%' }}>Start</LinkButton>
             </div>
           )}
           {game.modes.includes('tournament') && (
@@ -123,7 +123,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
               <p className="muted" style={{ fontSize: 'var(--t-sm)', flex: 1 }}>
                 {data.tournaments.length > 0 ? `${data.tournaments.length} open on campus.` : 'Run a bracket for your section or club.'}
               </p>
-              <Link href={`/tournaments?game=${game.id}`}><Button variant="ghost" style={{ width: '100%' }}>{data.tournaments.length > 0 ? 'See tournaments' : 'Start one'}</Button></Link>
+              <LinkButton href={`/tournaments?game=${game.id}`} variant="ghost" style={{ width: '100%' }}>{data.tournaments.length > 0 ? 'See tournaments' : 'Start one'}</LinkButton>
             </div>
           )}
         </section>

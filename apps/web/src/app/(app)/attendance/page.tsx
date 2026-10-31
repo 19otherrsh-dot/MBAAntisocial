@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { CalendarCheck, ClipboardCheck, History, Plus } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { EmptyState } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
@@ -46,13 +45,13 @@ export default function AttendancePage() {
           <h1 className={styles.pageTitle}>Attendance</h1>
           <p className={styles.pageSubtitle}>Per-course percentages, and exactly how many you can miss — or need to attend.</p>
         </div>
-        <Link href="/timetable"><Button variant="ghost" icon={<CalendarCheck size={15} />}>Timetable</Button></Link>
+        <LinkButton href="/timetable" variant="ghost" icon={<CalendarCheck size={15} />}>Timetable</LinkButton>
       </div>
 
       {!data ? (
         <div className="skeleton" style={{ height: 320 }} />
       ) : data.courses.length === 0 ? (
-        <EmptyState art={<ClipboardCheck size={36} strokeWidth={1.4} />} title="Add your courses first" body="Set up your timetable and attendance tracks itself as you mark each class." action={<Link href="/timetable"><Button>Set up timetable</Button></Link>} />
+        <EmptyState art={<ClipboardCheck size={36} strokeWidth={1.4} />} title="Add your courses first" body="Set up your timetable and attendance tracks itself as you mark each class." action={<LinkButton href="/timetable">Set up timetable</LinkButton>} />
       ) : (
         <>
           <section className={styles.section}>

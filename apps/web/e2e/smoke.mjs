@@ -130,6 +130,9 @@ async function axeViolations(page, path) {
     // One h1 per page: the page's own title (the shell's top bar is not a heading).
     const h1s = [...document.querySelectorAll('h1')].filter((h) => h.checkVisibility());
     if (h1s.length !== 1) found.push(`expected one h1, found ${h1s.length}`);
+    // A button inside a link is invalid and costs two tab stops; use LinkButton.
+    const nested = document.querySelectorAll('a button, button a').length;
+    if (nested) found.push(`${nested} button(s) nested in links`);
     return found;
   });
   return violations.map((v) => `${path}: ${v}`);

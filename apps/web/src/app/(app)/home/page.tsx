@@ -5,7 +5,7 @@ import { Check, Flame, Sparkles, TriangleAlert } from 'lucide-react';
 import { useApiQuery } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
 import { Stat, Banner } from '@/components/ui/Display';
-import Button from '@/components/ui/Button';
+import { LinkButton } from '@/components/ui/Button';
 import {
   AgendaCard,
   BriefingCard,
@@ -113,9 +113,7 @@ export default function TodayPage() {
                 icon={<Sparkles size={16} />}
                 title="Juniors are looking for slots"
                 action={
-                  <Link href="/profile">
-                    <Button size="sm" variant="soft">Set up hosting</Button>
-                  </Link>
+                  <LinkButton href="/profile" size="sm" variant="soft">Set up hosting</LinkButton>
                 }
               >
                 You can host mocks. Publish a couple of windows a week — you set the cap, and requests stop at it.

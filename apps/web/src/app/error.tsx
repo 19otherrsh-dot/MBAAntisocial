@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import { RotateCcw, Home } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { LogoMark } from '@/components/brand/Logo';
 
 /**
@@ -53,11 +52,9 @@ export default function ErrorBoundary({
         <Button icon={<RotateCcw size={16} />} onClick={reset}>
           Try again
         </Button>
-        <Link href="/home">
-          <Button variant="secondary" icon={<Home size={16} />}>
+        <LinkButton href="/home" variant="secondary" icon={<Home size={16} />}>
             Back to Today
-          </Button>
-        </Link>
+          </LinkButton>
       </div>
     </div>
   );

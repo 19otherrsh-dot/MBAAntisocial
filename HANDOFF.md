@@ -386,6 +386,12 @@ Its body is a typed envelope: `{ error: { code, message, details } }`.
 - **Primitives:**
   - `components/ui/`: `Button`, `Dialog`, `Field` (`Input`/`Select`/`Textarea`), `Display` (`Card`, `Badge`, `EmptyState`, `Segmented`, `Stat`…), `Toast`, `useConfirm`.
   - Reuse them; don't invent new primitives.
+  - **`LinkButton`** (in `Button.tsx`) is a link styled as a button. Never wrap `<Button>` in `<Link>`: that nests a button in a link, which is invalid and costs two tab stops. The smoke suite fails on it.
+- **Keyboard patterns:**
+  - Every app page starts with a "Skip to content" link to `main#content`.
+  - `Segmented` tabs are one tab stop; arrows, Home and End move between them.
+  - The hub timeline is `role="log"` with a roving tabindex. Each message is a labelled `article`; arrows, Home and End move between messages; the focused message shows its toolbar; Escape jumps to the composer.
+  - Game overlays are `dialog` or `alertdialog` and focus their main action.
 - **Navigation:** `components/layout/navigation.ts` is the **single registry**. It drives the sidebar, section landings (`SectionLanding.tsx`), the mobile bottom nav, the full-menu sheet and the Cmd/Ctrl+K palette.
   - Sections: `today, prep, academics, campus, play, discover, me, institute`.
   - Add a page by adding it there, with `feature` and `access` when needed.
@@ -923,6 +929,14 @@ The seed creates:
 
 - **Godot addon:** CI has parsed it.
 - **Detail pages:** they now show the record's name as the tab title.
+- **Keyboard pass (hub and games):** fixed:
+  - the missing skip link;
+  - the message toolbar, which was keyboard-unreachable (`display: none` until `:focus-within`, which can't fire);
+  - the unnamed live chat log;
+  - 52 `Link`-wrapped `Button`s, which were double tab stops;
+  - tab lists, which were one stop per tab;
+  - game overlays, which had no dialog semantics and left focus in the iframe.
+  - Also fixed a bug: a pending tournament match blocked joining any casual table, because vacating lobbies tried to leave the tournament table.
 - **Play again / rematch:** this was a dead link (`?again=1` was never read).
   - It's now `rematchRoom` (room action `rematch`). The first player to press it opens a private lobby with the same game, size, options and bots. The finished room points at it (`GameRoom.rematch`), so later presses from the overlay or the room page join that table. Other players are invited and see "X wants a rematch" through the `game.room.rematch` event.
   - Tournament matches show "Back to the bracket" instead.
@@ -994,7 +1008,7 @@ Ideas that fit the PRD and the owner's "whatever students might need". Treat the
   - game-specific achievements;
   - a GameRelease canary channel.
 - **Offline / PWA:** cache Today, the timetable and tasks for offline viewing in the service worker.
-- **Accessibility:** automated contrast and landmark checks are done and enforced (§10). Still to do: a manual keyboard and screen-reader pass over the hub and games.
+- **Accessibility:** automated contrast, landmark and heading checks are enforced (§10). The hub and games have had a scripted keyboard pass (§6 Keyboard patterns). Still worth doing: a session with a real screen reader (NVDA or VoiceOver) and real users.
 - **Scale:**
   - move uploads to S3-compatible storage (write an adapter);
   - shard realtime with the Socket.IO Redis adapter;

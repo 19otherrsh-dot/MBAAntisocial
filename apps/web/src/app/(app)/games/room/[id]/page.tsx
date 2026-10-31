@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bot, Check, Copy, Crown, Eye, Globe2, Lock, Play, Share2, Trophy, UserPlus, X } from 'lucide-react';
 import { topics } from '@mba/shared/realtime';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, EmptyState } from '@/components/ui/Display';
@@ -105,7 +105,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   };
 
   const mySeat = useMemo(() => room?.seats.find((s) => s.user?._id === me?.id), [room, me]);
-  if (error) return <EmptyState title="Table not found" body={error} action={<Link href="/games"><Button>All games</Button></Link>} />;
+  if (error) return <EmptyState title="Table not found" body={error} action={<LinkButton href="/games">All games</LinkButton>} />;
   if (!data || !room) return <div className="skeleton" style={{ height: 360 }} />;
 
   const isHost = data.me.host;
@@ -229,18 +229,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       )}
       {room.status === 'lobby' && isHost && startHint && <p className="dim" style={{ fontSize: 'var(--t-sm)' }}>{startHint}.</p>}
       {room.status === 'playing' && data.me.seated && (
-        <Link href={`/player/${room.game}?room=${room._id}`}><Button size="lg" icon={<Play size={16} />}>Back to the game</Button></Link>
+        <LinkButton href={`/player/${room.game}?room=${room._id}`} size="lg" icon={<Play size={16} />}>Back to the game</LinkButton>
       )}
       {(room.status === 'finished' || room.status === 'abandoned') &&
         (room.tournament ? (
-          <Link href={`/tournaments/${room.tournament}`}><Button size="lg" icon={<Trophy size={16} />}>Back to the bracket</Button></Link>
+          <LinkButton href={`/tournaments/${room.tournament}`} size="lg" icon={<Trophy size={16} />}>Back to the bracket</LinkButton>
         ) : data.me.seated ? (
           <div className="row gap-3 wrap" style={{ alignItems: 'center' }}>
             <Button size="lg" loading={busy === 'rematch'} onClick={rematch}>{room.rematch ? 'Join the rematch' : 'Play again'}</Button>
             {room.rematch && <span className="muted" role="status">{rematchFrom ? `${rematchFrom} opened a rematch.` : 'A rematch table is open.'}</span>}
           </div>
         ) : (
-          <Link href={`/games/${room.game}`}><Button size="lg">Find another game</Button></Link>
+          <LinkButton href={`/games/${room.game}`} size="lg">Find another game</LinkButton>
         ))}
 
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} roomId={id} />

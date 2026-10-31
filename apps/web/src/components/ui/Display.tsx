@@ -192,15 +192,27 @@ export function Segmented<T extends string>({
   onChange,
   ariaLabel,
 }: SegmentedProps<T>) {
+  // ARIA tabs: one tab stop for the group; arrows, Home and End move and select.
+  const current = Math.max(0, options.findIndex((o) => o.value === value));
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const keys: Record<string, number> = { ArrowRight: current + 1, ArrowLeft: current - 1, Home: 0, End: options.length - 1 };
+    if (!(event.key in keys)) return;
+    event.preventDefault();
+    const index = (keys[event.key] + options.length) % options.length;
+    onChange(options[index].value);
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus();
+  };
   return (
-    <div className={styles.segmented} role="tablist" aria-label={ariaLabel}>
-      {options.map((option) => {
+    <div className={styles.segmented} role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown}>
+      {options.map((option, index) => {
         const active = option.value === value;
         return (
           <button
             key={option.value}
+            type="button"
             role="tab"
             aria-selected={active}
+            tabIndex={index === current ? 0 : -1}
             className={cn(styles.segment, active && styles.segmentActive)}
             onClick={() => onChange(option.value)}
           >

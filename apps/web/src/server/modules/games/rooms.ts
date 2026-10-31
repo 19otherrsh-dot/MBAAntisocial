@@ -154,9 +154,13 @@ export interface CreateRoomInput {
   rated?: boolean;
 }
 
-/** Leaves any lobby the player is sitting in, so one person holds one seat. */
+/**
+ * Leaves any casual lobby the player is sitting in, so one person holds one
+ * seat. Tournament tables are left alone: the bracket seats people there, and
+ * a pending match must not stop anyone playing a casual game meanwhile.
+ */
 async function vacateOtherLobbies(userId: string, exceptRoomId?: string) {
-  const lobbies = await GameRoom.find({ 'seats.user': userId, status: 'lobby', ...(exceptRoomId ? { _id: { $ne: exceptRoomId } } : {}) }).lean();
+  const lobbies = await GameRoom.find({ 'seats.user': userId, status: 'lobby', mode: { $ne: 'tournament' }, ...(exceptRoomId ? { _id: { $ne: exceptRoomId } } : {}) }).lean();
   for (const lobby of lobbies) await leaveRoom(lobby, userId);
 }
 

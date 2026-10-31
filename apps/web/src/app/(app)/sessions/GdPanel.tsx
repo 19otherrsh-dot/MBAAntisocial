@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { Users, Video, CalendarPlus, Shuffle, X, CheckCircle2 } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, EmptyState, RatingInput } from '@/components/ui/Display';
@@ -197,7 +196,7 @@ function GdCard({ room, onJoin, onLeave, onCancel, onComplete, onScore, rubric, 
         <div className={styles.slotActions}>
           {(room.joined || room.moderating) && room.meetingLink && room.status !== 'completed' && (
             room.meetingLink.includes('/meet/')
-              ? <Link href={new URL(room.meetingLink).pathname}><Button size="sm" icon={<Video size={15} />}>Join room</Button></Link>
+              ? <LinkButton href={new URL(room.meetingLink).pathname} size="sm" icon={<Video size={15} />}>Join room</LinkButton>
               : <a href={room.meetingLink} target="_blank" rel="noopener noreferrer"><Button size="sm" icon={<Video size={15} />}>Join room</Button></a>
           )}
           {onJoin && <Button size="sm" onClick={onJoin}>Join this GD</Button>}

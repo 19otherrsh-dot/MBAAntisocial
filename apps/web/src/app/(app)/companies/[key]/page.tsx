@@ -3,7 +3,7 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, BookOpen, GraduationCap, History, Pencil, TrendingUp } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Textarea, Input } from '@/components/ui/Field';
 import { Avatar, Chip, EmptyState, Stat } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
@@ -42,7 +42,7 @@ export default function CompanyPage({ params }: { params: Promise<{ key: string 
   const [summary, setSummary] = useState('');
   const [saving, setSaving] = useState(false);
 
-  if (error) return <EmptyState art={<BookOpen size={36} strokeWidth={1.4} />} title="Nothing here yet" body={error} action={<Link href="/companies"><Button>All companies</Button></Link>} />;
+  if (error) return <EmptyState art={<BookOpen size={36} strokeWidth={1.4} />} title="Nothing here yet" body={error} action={<LinkButton href="/companies">All companies</LinkButton>} />;
   if (!data) return <div className="skeleton" style={{ height: 420 }} />;
   const c = data.company;
 
@@ -70,7 +70,7 @@ export default function CompanyPage({ params }: { params: Promise<{ key: string 
           <p className={styles.pageSubtitle}>{[c.sector, c.updatedAt ? `updated ${timeAgo(c.updatedAt)}` : 'no page yet — start one'].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="row gap-2">
-          <Link href={`/intel?company=${encodeURIComponent(c.name)}`}><Button variant="secondary" icon={<BookOpen size={15} />}>Questions ({data.questions.count})</Button></Link>
+          <LinkButton href={`/intel?company=${encodeURIComponent(c.name)}`} variant="secondary" icon={<BookOpen size={15} />}>Questions ({data.questions.count})</LinkButton>
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export default function CompanyPage({ params }: { params: Promise<{ key: string 
                   {a.referralsOpen && <Chip tone="teal">Refers</Chip>}
                 </Link>
               ))}
-              <Link href="/alumni"><Button size="sm" variant="ghost" icon={<TrendingUp size={13} />}>Ask for a referral</Button></Link>
+              <LinkButton href="/alumni" size="sm" variant="ghost" icon={<TrendingUp size={13} />}>Ask for a referral</LinkButton>
             </section>
           )}
           {c.history.length > 0 && (

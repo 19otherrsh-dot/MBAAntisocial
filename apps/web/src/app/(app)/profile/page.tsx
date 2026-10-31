@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Award, ShieldCheck, Star, Lock } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Input, Select, Switch, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, Stat } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
@@ -327,7 +327,7 @@ function ProfileEditor({ me }: { me: Me }) {
             <h2 className={styles.settingsTitle}>Notifications, privacy & integrations</h2>
             <p className={styles.settingsHint}>Quiet hours, push, email, leaderboard visibility, Google/Zoom/Discord.</p>
           </div>
-          <Link href="/settings"><Button variant="secondary">Open settings</Button></Link>
+          <LinkButton href="/settings" variant="secondary">Open settings</LinkButton>
         </div>
       </section>
 
@@ -379,11 +379,9 @@ function ProfileEditor({ me }: { me: Me }) {
             variant="warning"
             icon={<Star size={16} />}
             action={
-              <Link href="/legal/honor-code">
-                <Button size="sm" variant="soft">
+              <LinkButton href="/legal/honor-code" size="sm" variant="soft">
                   Read and accept
-                </Button>
-              </Link>
+                </LinkButton>
             }
           >
             Not accepted yet — uploads are blocked until you do.

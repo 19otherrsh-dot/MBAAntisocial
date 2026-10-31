@@ -67,13 +67,15 @@ function ShellFrame({ children, embedded }: { children: React.ReactNode; embedde
   if (embedded) {
     return (
       <div className={styles.embedded}>
-        <main className={styles.content}>{locked && item ? <CampusLocked item={item} /> : children}</main>
+        <main id="content" tabIndex={-1} className={styles.content}>{locked && item ? <CampusLocked item={item} /> : children}</main>
       </div>
     );
   }
 
   return (
     <div className={cn(styles.shell, collapsed && styles.shellCollapsed)}>
+      {/* First stop for keyboard users: past ~40 sidebar links straight to the page. */}
+      <a href="#content" className="skip-link">Skip to content</a>
       <Sidebar collapsed={collapsed} onToggle={toggle} onOpenPalette={openPalette} />
 
       <div className={styles.main}>
@@ -101,7 +103,7 @@ function ShellFrame({ children, embedded }: { children: React.ReactNode; embedde
           </div>
         </header>
 
-        <main className={styles.content}>{locked && item ? <CampusLocked item={item} /> : children}</main>
+        <main id="content" tabIndex={-1} className={styles.content}>{locked && item ? <CampusLocked item={item} /> : children}</main>
       </div>
 
       <BottomNav />

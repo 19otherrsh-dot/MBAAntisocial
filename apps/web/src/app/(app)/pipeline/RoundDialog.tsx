@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { CalendarClock, Trash2 } from 'lucide-react';
 import Dialog from '@/components/ui/Dialog';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Banner, Chip } from '@/components/ui/Display';
 import { api } from '@/lib/client/api';
@@ -183,11 +183,9 @@ export default function RoundDialog({ application, round, onClose, onDone }: Rou
               A {SESSION_TYPE_META[meta.practiceWith].label.toLowerCase()} with a senior is the
               closest thing to the real round.
             </span>
-            <Link href={`/sessions?type=${meta.practiceWith}`}>
-              <Button size="sm" variant="secondary" icon={<CalendarClock size={14} />}>
+            <LinkButton href={`/sessions?type=${meta.practiceWith}`} size="sm" variant="secondary" icon={<CalendarClock size={14} />}>
                 Find a slot
-              </Button>
-            </Link>
+              </LinkButton>
           </div>
         </div>
       )}

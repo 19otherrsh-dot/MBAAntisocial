@@ -22,6 +22,8 @@ export interface ConversationTarget {
   /** Channel features (threads, pins, moderation) vs plain DM. */
   kind: 'channel' | 'dm';
   title: string;
+  /** Short name for screen readers ("#general", a DM's name); defaults to the title. */
+  label?: string;
   canSend: boolean;
   cannotSendReason?: string;
   forum?: boolean;
@@ -203,6 +205,33 @@ export default function Conversation({ target, members, resolver, onOpenThread, 
 
   const byId = useMemo(() => new Map(messages.map((m) => [m._id, m])), [messages]);
 
+  // Keyboard: the timeline is one tab stop (the last focused message, else the newest);
+  // arrows move between messages, Escape goes to the composer.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const focusable = messages.filter((m) => !m.system);
+  const tabStopId = activeId && byId.has(activeId) ? activeId : (focusable.at(-1)?._id ?? null);
+  const onTimelineKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!target.dataset.messageId) return;
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[data-message-id]')];
+    const at = items.indexOf(target);
+    const go = (index: number) => {
+      const next = items[Math.max(0, Math.min(items.length - 1, index))];
+      if (next) {
+        event.preventDefault();
+        next.focus();
+      }
+    };
+    if (event.key === 'ArrowUp') go(at - 1);
+    else if (event.key === 'ArrowDown') go(at + 1);
+    else if (event.key === 'Home') go(0);
+    else if (event.key === 'End') go(items.length - 1);
+    else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.currentTarget.parentElement?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+    }
+  };
+
   let lastDay = '';
   let lastAuthor = '';
   let lastTime = 0;
@@ -212,6 +241,10 @@ export default function Conversation({ target, members, resolver, onOpenThread, 
       <div
         className={styles.timeline}
         ref={scrollRef}
+        role="log"
+        aria-label={target.thread ? 'Thread messages' : `Messages in ${target.label ?? target.title}`}
+        aria-busy={loading || loadingOlder}
+        onKeyDown={onTimelineKey}
         onScroll={(event) => {
           const el = event.currentTarget;
           stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
@@ -256,6 +289,8 @@ export default function Conversation({ target, members, resolver, onOpenThread, 
                 isThreadRoot={target.thread === message._id}
                 onReply={() => setReplyTo(message)}
                 onOpenThread={onOpenThread}
+                tabStop={message._id === tabStopId}
+                onFocusMessage={() => setActiveId(message._id)}
               />
             </div>
           );

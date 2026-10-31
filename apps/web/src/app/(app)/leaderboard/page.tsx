@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Trophy, Flame, EyeOff } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { LinkButton } from '@/components/ui/Button';
 import { Avatar, Banner, Chip, EmptyState, Segmented } from '@/components/ui/Display';
 import { useApiQuery } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
@@ -90,11 +89,9 @@ export default function LeaderboardPage() {
           icon={<EyeOff size={16} />}
           title="You are not on this board"
           action={
-            <Link href="/profile">
-              <Button size="sm" variant="soft">
+            <LinkButton href="/profile" size="sm" variant="soft">
                 Change that
-              </Button>
-            </Link>
+              </LinkButton>
           }
         >
           Ranking is off unless you turn it on. Public comparison is a documented stressor for exactly

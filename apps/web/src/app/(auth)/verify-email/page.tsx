@@ -1,11 +1,10 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { MailCheck, CheckCircle2, AlertCircle, Info } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Banner } from '@/components/ui/Display';
 import { api, errorMessage } from '@/lib/client/api';
 import styles from '../auth.module.css';
@@ -116,7 +115,7 @@ function Verify() {
             <Button variant="ghost" fullWidth onClick={() => signOut({ callbackUrl: '/login' })}>Use a different account</Button>
           </>
         ) : (
-          <Link href="/login"><Button size="lg" fullWidth>Sign in to resend</Button></Link>
+          <LinkButton href="/login" size="lg" fullWidth>Sign in to resend</LinkButton>
         )}
       </div>
     </div>

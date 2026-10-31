@@ -369,13 +369,13 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
         )}
 
         {effectivePhase === 'checking' && (
-          <div className={styles.overlay}><div className={styles.spinner} aria-label="Loading" /></div>
+          <div className={styles.overlay}><div className={styles.spinner} role="status" aria-label="Loading" /></div>
         )}
 
         {effectivePhase === 'loading' && (
           <div className={styles.overlay} style={{ pointerEvents: 'none', background: 'transparent', backdropFilter: 'none' }}>
             <div className={styles.overlayCard} style={{ boxShadow: 'none', background: 'transparent', border: 0 }}>
-              <div className={styles.spinner} aria-label="Loading game" />
+              <div className={styles.spinner} role="status" aria-label="Loading game" />
               <span className="muted">Loading {detail?.game.title}{detail?.game.build?.sizeMb ? ` · ${detail.game.build.sizeMb} MB` : ''}…</span>
             </div>
           </div>
@@ -383,13 +383,13 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
 
         {effectivePhase === 'confirm-data' && (
           <div className={styles.overlay}>
-            <div className={styles.overlayCard}>
-              <Smartphone size={32} />
-              <div className={styles.overlayTitle}>This game is {detail?.game.build?.sizeMb} MB</div>
+            <div className={styles.overlayCard} role="dialog" aria-modal="true" aria-labelledby="game-overlay-title">
+              <Smartphone size={32} aria-hidden />
+              <div className={styles.overlayTitle} id="game-overlay-title">This game is {detail?.game.build?.sizeMb} MB</div>
               <p className="muted">You seem to be on mobile data. It is downloaded once and cached after that.</p>
               <div className="row gap-2">
                 <Button variant="ghost" onClick={() => router.push(backHref)}>Not now</Button>
-                <Button onClick={() => setPhase('loading')}>Download & play</Button>
+                <Button autoFocus onClick={() => setPhase('loading')}>Download & play</Button>
               </div>
             </div>
           </div>
@@ -397,18 +397,19 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
 
         {effectivePhase === 'error' && (
           <div className={styles.overlay}>
-            <div className={styles.overlayCard}>
-              <div className={styles.overlayTitle}>Can’t start this game</div>
+            <div className={styles.overlayCard} role="alertdialog" aria-modal="true" aria-labelledby="game-overlay-title">
+              <div className={styles.overlayTitle} id="game-overlay-title">Can’t start this game</div>
               <p className="muted">{effectiveFailure}</p>
-              <Button onClick={() => router.push(backHref)}>Back</Button>
+              <Button autoFocus onClick={() => router.push(backHref)}>Back</Button>
             </div>
           </div>
         )}
 
         {outcome && (
           <div className={styles.overlay}>
-            <div className={styles.overlayCard}>
-              <div className={styles.overlayTitle}>{outcome.title}</div>
+            {/* Focus lands on the next step, so the game's iframe no longer swallows the keyboard. */}
+            <div className={styles.overlayCard} role="dialog" aria-modal="true" aria-labelledby="game-overlay-title">
+              <div className={styles.overlayTitle} id="game-overlay-title">{outcome.title}</div>
               {outcome.body && <p className="muted">{outcome.body}</p>}
               {outcome.delta !== null && (
                 <div className={cn(styles.delta, outcome.delta >= 0 ? styles.deltaUp : styles.deltaDown)}>
@@ -420,11 +421,11 @@ export default function GamePlayer({ gameId }: { gameId: string }) {
               <div className="row gap-2 wrap" style={{ justifyContent: 'center' }}>
                 <Button variant="ghost" onClick={() => router.push(`/games/${gameId}`)}>Done</Button>
                 {mode === 'online' && after.tournament ? (
-                  <Button icon={<Trophy size={15} />} onClick={() => router.push(`/tournaments/${after.tournament}`)}>Back to the bracket</Button>
+                  <Button autoFocus icon={<Trophy size={15} />} onClick={() => router.push(`/tournaments/${after.tournament}`)}>Back to the bracket</Button>
                 ) : mode === 'online' ? (
-                  <Button icon={<RotateCcw size={15} />} loading={rematching} onClick={rematch}>{after.rematchFrom ? 'Join the rematch' : 'Play again'}</Button>
+                  <Button autoFocus icon={<RotateCcw size={15} />} loading={rematching} onClick={rematch}>{after.rematchFrom ? 'Join the rematch' : 'Play again'}</Button>
                 ) : (
-                  <Button variant="secondary" onClick={() => setOutcome(null)}>Keep playing</Button>
+                  <Button autoFocus variant="secondary" onClick={() => setOutcome(null)}>Keep playing</Button>
                 )}
               </div>
               {mode !== 'online' && <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={replay}>Restart</Button>}

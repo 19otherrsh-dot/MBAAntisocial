@@ -18,7 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Avatar, Chip } from '@/components/ui/Display';
-import Button from '@/components/ui/Button';
+import { LinkButton } from '@/components/ui/Button';
 import TodayClasses from '@/components/academics/TodayClasses';
 import { SESSION_TYPE_META, ROUND_TYPE_META, type SessionType, type RoundType } from '@/lib/constants';
 import { cn, describeDeadline, formatDayLabel, formatTime, pluralise } from '@/lib/utils';
@@ -97,9 +97,7 @@ export function AgendaCard({ agenda }: { agenda: TodayCards['agenda'] }) {
       {agenda.length === 0 ? (
         <div className={styles.miniEmpty}>
           <p style={{ marginBottom: 'var(--s-3)' }}>No sessions or rounds in the next two days.</p>
-          <Link href="/sessions">
-            <Button size="sm" variant="secondary">Browse open slots</Button>
-          </Link>
+          <LinkButton href="/sessions" size="sm" variant="secondary">Browse open slots</LinkButton>
         </div>
       ) : (
         agenda.map((item) =>
@@ -155,9 +153,7 @@ export function BriefingCard({ briefing, quiz }: { briefing?: TodayCards['briefi
             ) : (
               <>
                 <span className={ts.quizText}>{quiz.total} questions on business and current affairs.</span>
-                <Link href="/quiz">
-                  <Button size="sm" variant="soft">Take the quiz</Button>
-                </Link>
+                <LinkButton href="/quiz" size="sm" variant="soft">Take the quiz</LinkButton>
               </>
             )}
           </div>

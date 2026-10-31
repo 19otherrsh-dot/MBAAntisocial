@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Banner } from '@/components/ui/Display';
 import { api, ApiClientError, errorMessage } from '@/lib/client/api';
@@ -64,7 +64,7 @@ function ResetForm() {
         <div className={styles.statusArt}><CheckCircle2 size={26} /></div>
         <h1 className={styles.title}>Password updated</h1>
         <p className={styles.subtitle}>You can sign in with the new one now.</p>
-        <Link href="/login" className="mt-4"><Button size="lg" fullWidth>Sign in</Button></Link>
+        <LinkButton href="/login" className="mt-4" size="lg" fullWidth>Sign in</LinkButton>
       </div>
     );
   }

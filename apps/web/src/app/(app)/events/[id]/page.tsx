@@ -3,7 +3,7 @@
 import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CalendarDays, CalendarPlus, Check, Link2, MapPin, Megaphone, Star, Ticket, Users, XCircle } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, EmptyState } from '@/components/ui/Display';
@@ -36,7 +36,7 @@ export default function EventPage({ params }: { params: Promise<{ id: string }> 
   const [code, setCode] = useState('');
   const [announcing, setAnnouncing] = useState(false);
 
-  if (error) return <EmptyState title="Event not found" body={error} action={<Link href="/events"><Button>All events</Button></Link>} />;
+  if (error) return <EmptyState title="Event not found" body={error} action={<LinkButton href="/events">All events</LinkButton>} />;
   if (!data) return <div className="skeleton" style={{ height: 420 }} />;
   const e = data.event;
   const start = new Date(e.startAt).getTime();

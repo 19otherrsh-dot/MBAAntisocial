@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { Search, Upload, Library, ArrowBigUp, Download, History, FileText } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, EmptyState } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
@@ -157,11 +156,9 @@ export default function ResourcesPage() {
           variant="warning"
           title="Read the sharing policy before uploading"
           action={
-            <Link href="/legal/honor-code">
-              <Button size="sm" variant="soft">
+            <LinkButton href="/legal/honor-code" size="sm" variant="soft">
                 Read it
-              </Button>
-            </Link>
+              </LinkButton>
           }
         >
           This library is for notes, summaries, and past papers — not work that is still being

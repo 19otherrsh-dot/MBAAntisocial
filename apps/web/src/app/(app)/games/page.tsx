@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Users, Clock, Trophy, Search, Swords } from 'lucide-react';
 import { GAME_CATEGORIES, GAME_CATEGORY_META, type GameCategory } from '@mba/shared/games';
-import Button from '@/components/ui/Button';
+import { LinkButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Chip, EmptyState, Segmented } from '@/components/ui/Display';
 import { useApiQuery } from '@/lib/client/hooks';
@@ -41,7 +41,7 @@ export default function GamesPage() {
         </div>
         <div className="row gap-2 wrap">
           <JoinByCode />
-          <Link href="/tournaments"><Button variant="ghost" icon={<Trophy size={15} />}>Tournaments{data?.activeTournaments ? ` · ${data.activeTournaments}` : ''}</Button></Link>
+          <LinkButton href="/tournaments" variant="ghost" icon={<Trophy size={15} />}>Tournaments{data?.activeTournaments ? ` · ${data.activeTournaments}` : ''}</LinkButton>
         </div>
       </div>
 
@@ -50,11 +50,9 @@ export default function GamesPage() {
           <h2 className={styles.sectionHead}>Your tables</h2>
           <div className="row gap-2 wrap">
             {data!.live.map((room) => (
-              <Link key={room._id} href={room.status === 'playing' ? `/player/${room.game}?room=${room._id}` : `/games/room/${room._id}`}>
-                <Button variant="secondary" icon={<Swords size={15} />}>
+              <LinkButton key={room._id} href={room.status === 'playing' ? `/player/${room.game}?room=${room._id}` : `/games/room/${room._id}`} variant="secondary" icon={<Swords size={15} />}>
                   {titleOf(room.game)} · {room.status === 'playing' ? 'resume' : `lobby ${room.seats.length}/${room.maxPlayers}`}
-                </Button>
-              </Link>
+                </LinkButton>
             ))}
           </div>
         </section>

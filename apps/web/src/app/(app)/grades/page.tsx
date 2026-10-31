@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { Calculator, Plus, Trash2, BookPlus } from 'lucide-react';
 import { GRADE_SCALES, type GradeScaleKey } from '@mba/shared/academics';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { EmptyState, Stat } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
@@ -49,7 +48,7 @@ export default function GradesPage() {
       {!data ? (
         <div className="skeleton" style={{ height: 320 }} />
       ) : data.courses.length === 0 ? (
-        <EmptyState art={<Calculator size={36} strokeWidth={1.4} />} title="No courses yet" body="Add courses here or import your timetable — grades and attendance share the same course list." action={<Link href="/timetable"><Button>Set up courses</Button></Link>} />
+        <EmptyState art={<Calculator size={36} strokeWidth={1.4} />} title="No courses yet" body="Add courses here or import your timetable — grades and attendance share the same course list." action={<LinkButton href="/timetable">Set up courses</LinkButton>} />
       ) : (
         <>
           <div className="row gap-5 wrap">

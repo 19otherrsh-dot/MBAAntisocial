@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { hasPermission } from '@mba/shared/hub';
 import { topics } from '@mba/shared/realtime';
-import Button from '@/components/ui/Button';
+import Button, { LinkButton } from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, EmptyState } from '@/components/ui/Display';
@@ -125,6 +125,7 @@ export default function HubApp({ mode, serverId, channelId, conversationId }: Pr
         readTarget: { targetId: activeChannel._id, kind: 'channel' },
         kind: 'channel',
         title: `Welcome to #${activeChannel.name}`,
+        label: `#${activeChannel.name}`,
         canSend: activeChannel.canSend && !detail?.member?.timedOutUntil,
         cannotSendReason: detail?.member?.timedOutUntil ? 'You are timed out for now. You can still read.' : activeChannel.kind === 'announcement' ? 'Only managers post announcements.' : undefined,
         forum: activeChannel.kind === 'forum',
@@ -397,7 +398,7 @@ function VoiceStage({ channel, serverId }: { channel: HubChannelInfo; serverId: 
               {(data?.participants ?? []).map((p) => <span key={p.userId} className="row gap-2"><Avatar name={p.name} seed={p.userId} size={32} />{p.name}</span>)}
               {data && data.participants.length === 0 && <span className="dim">Nobody here yet.</span>}
             </div>
-            <Link href={`/meet/hub-${channel._id}`}><Button size="lg" icon={<Volume2 size={16} />}>Join voice</Button></Link>
+            <LinkButton href={`/meet/hub-${channel._id}`} size="lg" icon={<Volume2 size={16} />}>Join voice</LinkButton>
           </>
         )}
       </div>

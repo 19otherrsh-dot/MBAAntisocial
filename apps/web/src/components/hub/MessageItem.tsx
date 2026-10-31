@@ -26,6 +26,9 @@ interface Props {
   canPin: boolean;
   onReply: () => void;
   onOpenThread?: (message: HubMessageView) => void;
+  /** Roving tabindex: only one message in the timeline is a tab stop; arrow keys move between them. */
+  tabStop?: boolean;
+  onFocusMessage?: () => void;
 }
 
 function time(iso: string) {
@@ -45,6 +48,8 @@ export default function MessageItem({
   canPin,
   onReply,
   onOpenThread,
+  tabStop,
+  onFocusMessage,
 }: Props) {
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
@@ -104,6 +109,13 @@ export default function MessageItem({
         mentionsMe && !isMine && styles.messageMention,
         message.pending && styles.messagePending
       )}
+      role="article"
+      aria-label={`${authorName}, ${time(message.createdAt)}`}
+      data-message-id={message._id}
+      tabIndex={tabStop ? 0 : -1}
+      onFocus={(event) => {
+        if (event.target === event.currentTarget) onFocusMessage?.();
+      }}
     >
       <div className={styles.messageGutter}>
         {grouped ? (
