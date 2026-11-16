@@ -4,6 +4,7 @@ import { createTaskSchema, updateTaskSchema, taskQuerySchema, objectId } from '@
 import { materialiseRecurringTasks } from '@/lib/recurrence';
 import { award, revoke } from '@/lib/gamification';
 import Task from '@/models/Task';
+import { endOfDay } from '@/lib/time';
 import type { QueryFilter } from 'mongoose';
 import type { ITask } from '@/models/Task';
 
@@ -143,8 +144,7 @@ function summarise(tasks: Array<{ status: string; dueAt?: Date | null }>) {
   let overdue = 0;
   let dueToday = 0;
 
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
+  const endOfToday = endOfDay();
 
   for (const task of tasks) {
     if (task.status === 'completed') {

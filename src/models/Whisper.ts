@@ -22,6 +22,8 @@ export interface IWhisper {
   campus: string;
 
   targetName: string;
+  /** Normalised form of `targetName` — what reviews are grouped and de-duplicated on. */
+  targetKey: string;
   targetType: 'course' | 'professor';
 
   rating: number;
@@ -38,12 +40,26 @@ export interface IWhisper {
 
 type WhisperModel = Model<IWhisper>;
 
+/**
+ * Names are typed by hand, so the same person arrives as "Prof. Sharma",
+ * "prof sharma" and "Dr Sharma". Left alone, each spelling gets its own
+ * average — and the one-review-per-person rule can be sidestepped by adding a
+ * full stop. Honorifics, case, and punctuation are dropped before comparing.
+ */
+export function targetKeyOf(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(prof|professor|dr|doctor|mr|mrs|ms|sir|madam|maam)\b\.?/g, ' ')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
 const WhisperSchema = new Schema<IWhisper, WhisperModel>(
   {
     author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     campus: { type: String, required: true },
 
     targetName: { type: String, required: true, trim: true, maxlength: 100 },
+    targetKey: { type: String, required: true, maxlength: 100 },
     targetType: { type: String, required: true, enum: ['course', 'professor'] },
 
     rating: { type: Number, required: true, min: 1, max: 5 },
@@ -58,7 +74,13 @@ const WhisperSchema = new Schema<IWhisper, WhisperModel>(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
-WhisperSchema.index({ campus: 1, targetName: 1, hiddenAt: 1 });
+WhisperSchema.pre('validate', function normaliseTarget() {
+  if (this.isModified('targetName') || !this.targetKey) {
+    this.targetKey = targetKeyOf(this.targetName ?? '');
+  }
+});
+
+WhisperSchema.index({ campus: 1, targetKey: 1, hiddenAt: 1 });
 WhisperSchema.index({ campus: 1, createdAt: -1 });
 
 /**
@@ -66,9 +88,14 @@ WhisperSchema.index({ campus: 1, createdAt: -1 });
  *
  * Without this, a single anonymous account can post fifty reviews of a
  * professor it dislikes and move the average on its own — the review becomes a
- * brigading tool rather than a signal.
+ * brigading tool rather than a signal. Keyed on the normalised name, so a
+ * respelling is still the same target. Partial, so rows written before the key
+ * existed do not collide with each other.
  */
-WhisperSchema.index({ author: 1, campus: 1, targetName: 1 }, { unique: true });
+WhisperSchema.index(
+  { author: 1, campus: 1, targetKey: 1 },
+  { unique: true, partialFilterExpression: { targetKey: { $type: 'string' } } }
+);
 
 const Whisper =
   (mongoose.models.Whisper as WhisperModel) ||

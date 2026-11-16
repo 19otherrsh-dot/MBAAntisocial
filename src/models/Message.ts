@@ -13,7 +13,7 @@ const MessageSchema = new Schema<IMessage>(
   {
     sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     receiver: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    content: { type: String, required: true },
+    content: { type: String, required: true, maxlength: 2000 },
     read: { type: Boolean, default: false },
   },
   {
@@ -21,7 +21,9 @@ const MessageSchema = new Schema<IMessage>(
   }
 );
 
-MessageSchema.index({ sender: 1, receiver: 1 });
+// A thread is read newest-first in both directions.
+MessageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+MessageSchema.index({ receiver: 1, createdAt: -1 });
 MessageSchema.index({ receiver: 1, read: 1 });
 
 export default mongoose.models.Message || mongoose.model<IMessage>('Message', MessageSchema);

@@ -1,6 +1,11 @@
 import { route, ok, created, paginate, pageMeta } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
-import { createResourceSchema, resourceActionSchema, resourceQuerySchema } from '@/lib/validation';
+import {
+  createResourceSchema,
+  resourceActionSchema,
+  resourceQuerySchema,
+  objectId,
+} from '@/lib/validation';
 import { award, revoke, grantBadge } from '@/lib/gamification';
 import { notify } from '@/lib/notifications';
 import Resource from '@/models/Resource';
@@ -14,12 +19,13 @@ const AUTHOR_FIELDS = 'name image year karma badges';
 export const GET = route({ query: resourceQuerySchema }, async ({ actor, query }) => {
   const { skip, limit } = paginate(query);
 
+  // Scoped to the caller's campus for every role. Alumni used to be exempt,
+  // and "alumni" is a box anyone can tick at sign-up.
   const filter: QueryFilter<IResource> = {
+    campus: actor.campus,
     hiddenAt: { $exists: false },
   };
-  if (actor.role !== 'alumni') {
-    filter.campus = actor.campus;
-  }
+
   if (query.course) filter.course = query.course;
   if (query.kind) filter.kind = query.kind;
   if (query.search) filter.$text = { $search: query.search };
@@ -162,8 +168,7 @@ export const PATCH = route({ body: resourceActionSchema, rateLimit: 'write' }, a
 
 /** Removes an upload. Authors only; moderators use the moderation endpoint. */
 export const DELETE = route({ rateLimit: 'write' }, async ({ actor, request }) => {
-  const id = new URL(request.url).searchParams.get('id');
-  if (!id) throw ApiError.badRequest('Which resource?');
+  const id = objectId.parse(new URL(request.url).searchParams.get('id') ?? '');
 
   const deleted = await Resource.findOneAndDelete({ _id: id, author: actor.id });
   if (!deleted) throw ApiError.notFound('That resource does not exist, or is not yours.');

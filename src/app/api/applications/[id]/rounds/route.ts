@@ -56,6 +56,7 @@ export const PATCH = route(
           priority: 'high',
           dueAt: body.scheduledAt,
           application: application._id,
+          round: round._id,
         });
 
         await notify({
@@ -65,7 +66,7 @@ export const PATCH = route(
           body: `${formatDateTime(body.scheduledAt)}. ${
             meta.practiceWith ? 'Book a mock for it while there is still time.' : 'Good luck.'
           }`,
-          href: `/pipeline/${application._id}`,
+          href: '/pipeline',
           entityType: 'application',
           entity: application._id,
         });
@@ -82,7 +83,14 @@ export const PATCH = route(
 
       application.rounds.splice(index, 1);
       await application.save();
-      await Task.deleteMany({ user: actor.id, application: application._id, status: { $ne: 'completed' } });
+      // Only this round's deadline. Matching on the application alone wiped the
+      // task for every other upcoming round of the same process.
+      await Task.deleteMany({
+        user: actor.id,
+        application: application._id,
+        round: body.roundId,
+        status: { $ne: 'completed' },
+      });
 
       return ok({ removed: true });
     }
@@ -104,7 +112,16 @@ export const PATCH = route(
 
     if (body.label !== undefined) round.label = body.label;
     if (body.notes !== undefined) round.notes = body.notes;
-    if (body.scheduledAt !== undefined) round.scheduledAt = body.scheduledAt ?? undefined;
+    if (body.scheduledAt !== undefined) {
+      round.scheduledAt = body.scheduledAt ?? undefined;
+      // The task is the deadline people actually see; move it with the round.
+      if (body.scheduledAt) {
+        await Task.updateMany(
+          { user: actor.id, application: application._id, round: round._id, status: { $ne: 'completed' } },
+          { $set: { dueAt: body.scheduledAt } }
+        );
+      }
+    }
 
     if (body.outcome !== undefined && body.outcome !== round.outcome) {
       round.outcome = body.outcome;
@@ -116,6 +133,7 @@ export const PATCH = route(
         await Task.deleteMany({
           user: actor.id,
           application: application._id,
+          round: round._id,
           status: { $ne: 'completed' },
         });
       }

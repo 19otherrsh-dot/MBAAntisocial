@@ -25,6 +25,11 @@ export interface MentorProfile {
   companies: string[];
 }
 
+export interface PendingToken {
+  tokenHash: string;
+  expiresAt: Date;
+}
+
 export interface IUser {
   _id: Types.ObjectId;
   name: string;
@@ -72,6 +77,21 @@ export interface IUser {
   honorCodeAcceptedAt?: Date;
   onboardedAt?: Date;
   suspendedAt?: Date;
+  suspendedBy?: Types.ObjectId;
+  suspensionReason: string;
+  /** Set once the address has been confirmed by following an emailed link. */
+  emailVerifiedAt?: Date;
+  /** Pending confirmation. Only the hash is stored; the raw token is emailed. */
+  emailVerification?: PendingToken;
+  passwordReset?: PendingToken;
+  /** Sessions issued before this instant are refused — see `route()`. */
+  passwordChangedAt?: Date;
+  /**
+   * How many anonymous offer reports this person has filed. The reports
+   * themselves carry no author, so this counter is the only thing that stops
+   * one account inventing a salary benchmark on its own.
+   */
+  offerReports: number;
 
   createdAt: Date;
   updatedAt: Date;
@@ -87,6 +107,14 @@ const ratingSummary = {
   sum: { type: Number, default: 0, min: 0 },
   count: { type: Number, default: 0, min: 0 },
 };
+
+const pendingTokenSchema = new Schema<PendingToken>(
+  {
+    tokenHash: { type: String, required: true },
+    expiresAt: { type: Date, required: true },
+  },
+  { _id: false }
+);
 
 const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
@@ -144,6 +172,14 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
     honorCodeAcceptedAt: { type: Date },
     onboardedAt: { type: Date },
     suspendedAt: { type: Date },
+    suspendedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    suspensionReason: { type: String, default: '', maxlength: 500 },
+    emailVerifiedAt: { type: Date },
+    // `select: false` for the same reason as the password hash.
+    emailVerification: { type: pendingTokenSchema, select: false },
+    passwordReset: { type: pendingTokenSchema, select: false },
+    passwordChangedAt: { type: Date },
+    offerReports: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

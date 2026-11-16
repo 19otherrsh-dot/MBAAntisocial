@@ -165,7 +165,7 @@ export default function FeedPage() {
         onChange={setScope}
         options={[
           { value: 'campus', label: 'My Campus' },
-          { value: 'global', label: 'Global (All Campuses)' },
+          { value: 'global', label: 'All campuses' },
         ]}
       />
 
@@ -233,6 +233,7 @@ function Composer({ onPosted }: { onPosted: () => void }) {
 
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<PostCategory>('general');
+  const [everyone, setEveryone] = useState(false);
   const [pending, setPending] = useState(false);
 
   const submit = async () => {
@@ -241,7 +242,13 @@ function Composer({ onPosted }: { onPosted: () => void }) {
 
     setPending(true);
     try {
-      await api.post('/api/feed', { content: trimmed, category, links: [] });
+      await api.post('/api/feed', {
+        content: trimmed,
+        category,
+        links: [],
+        audience: everyone ? 'everyone' : 'campus',
+      });
+      setEveryone(false);
       setContent('');
       setCategory('general');
       onPosted();
@@ -279,6 +286,16 @@ function Composer({ onPosted }: { onPosted: () => void }) {
             label: POST_CATEGORY_META[value].label,
           }))}
         />
+
+        {/* Off by default: a post reaches other campuses only when its author says so. */}
+        <label className="row gap-2 dim" style={{ fontSize: 'var(--t-sm)', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={everyone}
+            onChange={(event) => setEveryone(event.target.checked)}
+          />
+          Share with all campuses
+        </label>
 
         <div className="row gap-3" style={{ marginLeft: 'auto' }}>
           {content.length > MAX_POST_LENGTH - 200 && (
@@ -342,7 +359,7 @@ function PostCard({
           <span className={styles.postName}>
             {post.author?.name}
             {post.author?.year === 2 && <Chip tone="violet">Senior</Chip>}
-            {post.author?.campus && <span style={{ marginLeft: 8, fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>• {post.author.campus}</span>}
+            {post.author?.campus && <span style={{ marginLeft: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>• {post.author.campus}</span>}
           </span>
           <span className={styles.postTime}>{timeAgo(post.createdAt)}</span>
         </div>

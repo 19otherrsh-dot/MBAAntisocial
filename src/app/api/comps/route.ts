@@ -44,7 +44,10 @@ export const GET = route({ query: compQuerySchema }, async ({ actor, query }) =>
 });
 
 export const PATCH = route({ body: compActionSchema, rateLimit: 'write' }, async ({ actor, body }) => {
-  const comp = await CaseComp.findById(body.compId);
+  const comp = await CaseComp.findOne({
+    _id: body.compId,
+    $or: [{ campuses: { $size: 0 } }, { campuses: actor.campus }],
+  });
   if (!comp) throw ApiError.notFound('That competition is no longer listed.');
 
   if (body.action === 'save') {

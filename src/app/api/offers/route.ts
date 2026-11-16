@@ -1,8 +1,10 @@
 import { route, ok, created } from '@/lib/api/handler';
-import connectDB from '@/lib/mongodb';
 import Offer from '@/models/Offer';
 import { createOfferSchema } from '@/lib/validation';
 import { MIN_REPORTABLE_COHORT } from '@/lib/constants';
+import { ApiError } from '@/lib/api/errors';
+import { toBand } from '@/lib/money';
+import User from '@/models/User';
 
 /**
  * Anonymous offer reporting.
@@ -21,16 +23,14 @@ import { MIN_REPORTABLE_COHORT } from '@/lib/constants';
  *    submission timestamp finer than the month.
  */
 
-/** Rounds a figure into a band wide enough to stop it identifying one person. */
-function toBand(value: number): { low: number; high: number } {
-  const step = value >= 1_000_000 ? 100_000 : value >= 100_000 ? 10_000 : 5_000;
-  const low = Math.floor(value / step) * step;
-  return { low, high: low + step };
-}
+/**
+ * Reports one account may file, ever. The reports carry no author, so nothing
+ * on them can be de-duplicated; the cap is counted on the user instead, which
+ * records *that* someone has reported and never *what*.
+ */
+const MAX_REPORTS_PER_USER = 6;
 
 export const GET = route({}, async ({ actor }) => {
-  await connectDB();
-
   const stats = await Offer.aggregate([
     { $match: { campus: actor.campus } },
     {
@@ -60,7 +60,9 @@ export const GET = route({}, async ({ actor }) => {
       track: s._id.track,
       offerType: s._id.offerType,
       avgBase: Math.round(s.avgBase),
-      maxBase: s.maxBase,
+      // A band, like every other individual figure here. The exact maximum is
+      // one specific person's offer, published with a track label on it.
+      topBand: toBand(s.maxBase),
       avgBonus: Math.round(s.avgBonus),
       count: s.count,
     })),
@@ -92,6 +94,22 @@ export const POST = route(
   // someone accepts. Validation goes through the wrapper for a consistent 422.
   { body: createOfferSchema, rateLimit: 'post' },
   async ({ actor, body }) => {
+    /*
+     * Claimed atomically before the report is written, so two concurrent
+     * submissions cannot both slip under the cap. `timestamps: false` keeps the
+     * account's `updatedAt` from lining up with the report's `createdAt`.
+     */
+    const slot = await User.updateOne(
+      { _id: actor.id, offerReports: { $not: { $gte: MAX_REPORTS_PER_USER } } },
+      { $inc: { offerReports: 1 } },
+      { timestamps: false }
+    );
+    if (slot.modifiedCount === 0) {
+      throw ApiError.conflict(
+        `You have reported ${MAX_REPORTS_PER_USER} offers, which is the limit — it keeps one person from setting the benchmark.`
+      );
+    }
+
     const offer = await Offer.create({
       ...body,
       campus: actor.campus,

@@ -1,5 +1,4 @@
 import { route, ok } from '@/lib/api/handler';
-import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import InterviewSlot from '@/models/InterviewSlot';
 import Resource from '@/models/Resource';
@@ -20,8 +19,6 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
  * ERPs cannot report, because they only ever see outcomes.
  */
 export const GET = route({ requireModerator: true }, async ({ actor }) => {
-  await connectDB();
-
   const campus = actor.campus;
   const activeSince = new Date(Date.now() - THIRTY_DAYS_MS);
 
@@ -78,9 +75,11 @@ export const GET = route({ requireModerator: true }, async ({ actor }) => {
       totalResources,
       questionsLogged,
     },
-    outcomes: {
-      trackedApplications,
-      offers,
-    },
+    /*
+     * Pipeline-derived figures are for institute staff only. Moderation and
+     * staff access are separate grants: a student moderator hides content, and
+     * does not get a view of how many classmates hold offers by implication.
+     */
+    outcomes: actor.canReadReport ? { trackedApplications, offers } : null,
   });
 });

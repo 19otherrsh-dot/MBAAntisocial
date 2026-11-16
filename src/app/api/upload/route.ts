@@ -1,7 +1,7 @@
 import { route, created } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { MAX_FILE_SIZE_BYTES } from '@/lib/constants';
+import { MAX_DIRECT_UPLOAD_BYTES } from '@/lib/constants';
 
 /**
  * File upload to Cloudinary.
@@ -21,7 +21,6 @@ import { MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 const FOLDERS = {
   resources: 'mba_antisocial/resources',
   avatars: 'mba_antisocial/avatars',
-  resumes: 'mba_antisocial/resumes',
 } as const;
 
 type FolderKey = keyof typeof FOLDERS;
@@ -45,6 +44,10 @@ const ALLOWED_MIME = new Set([
 const IMAGE_ONLY: FolderKey[] = ['avatars'];
 
 export const POST = route({ rateLimit: 'upload' }, async ({ request, actor }) => {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_SECRET) {
+    throw new ApiError(503, 'uploads_unavailable', 'File uploads are not set up here. Share a link instead.');
+  }
+
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -68,9 +71,9 @@ export const POST = route({ rateLimit: 'upload' }, async ({ request, actor }) =>
    * the raw bytes, so an unbounded file here is an out-of-memory vector rather
    * than merely a large upload.
    */
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+  if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
     throw ApiError.unprocessable(
-      `Keep files under ${Math.round(MAX_FILE_SIZE_BYTES / 1_048_576)} MB.`
+      `Uploads are limited to ${Math.round(MAX_DIRECT_UPLOAD_BYTES / 1_048_576)} MB. For anything larger, share a link to it instead.`
     );
   }
   if (file.size === 0) {

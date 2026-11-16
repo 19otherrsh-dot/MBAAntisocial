@@ -10,13 +10,14 @@ import { useToast } from '@/components/ui/Toast';
 import { useApiQuery, useAction } from '@/lib/client/hooks';
 import { api } from '@/lib/client/api';
 import { ROLE_TRACKS, ROLE_TRACK_META, type RoleTrack } from '@/lib/constants';
+import { formatInr, formatBand } from '@/lib/money';
 import styles from '../app.module.css';
 
 interface OfferStat {
   track: RoleTrack;
   offerType: 'internship' | 'full_time';
   avgBase: number;
-  maxBase: number;
+  topBand: { low: number; high: number };
   avgBonus: number;
   count: number;
 }
@@ -42,13 +43,6 @@ interface OffersResponse {
   suppressedTracks: boolean;
 }
 
-/** Compact money, e.g. 1250000 → "1.25M", 85000 → "85k". */
-function money(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
-  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
-  return String(value);
-}
-
 export default function OfferIntelPage() {
   const [showModal, setShowModal] = useState(false);
   const { data, loading, error, refetch } = useApiQuery<OffersResponse>('/api/offers');
@@ -68,7 +62,7 @@ export default function OfferIntelPage() {
       </div>
 
       <Banner variant="info" icon={<ShieldCheck size={16} />} title="How the anonymity works">
-        Nothing here stores who submitted what — there is no user field on the record at all. On
+        Nothing here stores who submitted what — there is no user field on the record at all, only a count on your account so nobody can file more than six. On
         top of that, individual reports show a <strong>band rather than an exact figure</strong> and
         only the month, and a track benchmark is withheld until{' '}
         {data?.minCohort ?? 5} people have reported. Storage anonymity alone would not be enough:
@@ -90,8 +84,8 @@ export default function OfferIntelPage() {
                   <Stat
                     key={stat.track}
                     label={ROLE_TRACK_META[stat.track].label}
-                    value={money(stat.avgBase)}
-                    meta={`Top ${money(stat.maxBase)} · ${stat.count} reports`}
+                    value={formatInr(stat.avgBase)}
+                    meta={`Top ${formatBand(stat.topBand)} · ${stat.count} reports`}
                   />
                 ))}
               {data?.stats.filter((s) => s.offerType === 'full_time').length === 0 && (
@@ -158,7 +152,8 @@ export default function OfferIntelPage() {
                             style={{ fontSize: 'var(--t-lg)', fontWeight: 620 }}
                             data-numeric
                           >
-                            {money(offer.baseBand.low)} – {money(offer.baseBand.high)}
+                            {formatBand(offer.baseBand)}
+                            {offer.offerType === 'internship' ? ' / month' : ' / year'}
                           </div>
                         </div>
                         {offer.hasBonus && (
@@ -206,7 +201,7 @@ function DropOfferDialog({ onClose, onDone }: { onClose: () => void; onDone: () 
       offerType,
       track,
     });
-    toast.success('Offer dropped', 'Thanks for paying it forward. Stay rich.');
+    toast.success('Offer dropped', 'Thanks for paying it forward.');
     onDone();
   });
 
@@ -227,6 +222,8 @@ function DropOfferDialog({ onClose, onDone }: { onClose: () => void; onDone: () 
         </>
       }
     >
+      {submit.error && <Banner variant="danger">{submit.error}</Banner>}
+
       <div className={styles.checkGrid}>
         <Input label="Company" placeholder="McKinsey & Company" value={company} onChange={(e) => setCompany(e.target.value)} autoFocus />
         <Input label="Role" placeholder="Associate" value={role} onChange={(e) => setRole(e.target.value)} />
@@ -250,11 +247,27 @@ function DropOfferDialog({ onClose, onDone }: { onClose: () => void; onDone: () 
         />
       </div>
 
-      <Input label="Location" placeholder="New York, NY" value={location} onChange={(e) => setLocation(e.target.value)} />
+      <Input label="Location" placeholder="Mumbai" value={location} onChange={(e) => setLocation(e.target.value)} />
 
       <div className={styles.checkGrid}>
-        <Input label="Base Salary (USD)" type="number" placeholder="175000" value={baseSalary} onChange={(e) => setBaseSalary(e.target.value)} />
-        <Input label="Signing Bonus (USD)" type="number" placeholder="30000" value={signingBonus} onChange={(e) => setSigningBonus(e.target.value)} optional />
+        <Input
+          label={offerType === 'internship' ? 'Monthly stipend (₹)' : 'Fixed pay per year (₹)'}
+          type="number"
+          inputMode="numeric"
+          placeholder={offerType === 'internship' ? '150000' : '2500000'}
+          hint={Number(baseSalary) >= 1000 ? formatInr(Number(baseSalary)) : 'In rupees, no commas'}
+          value={baseSalary}
+          onChange={(e) => setBaseSalary(e.target.value)}
+        />
+        <Input
+          label="Joining bonus (₹)"
+          type="number"
+          inputMode="numeric"
+          placeholder="300000"
+          value={signingBonus}
+          onChange={(e) => setSigningBonus(e.target.value)}
+          optional
+        />
       </div>
     </Dialog>
   );

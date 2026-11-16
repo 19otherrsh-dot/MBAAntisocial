@@ -74,6 +74,18 @@ export const registerSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+const password = z
+  .string()
+  .min(10, 'Use at least 10 characters — length beats punctuation.')
+  .max(200, 'That password is too long.');
+
+const emailAddress = z.string().trim().toLowerCase().email('Enter a valid email address.');
+const emailedToken = z.string().trim().min(20, 'That link is incomplete.').max(200);
+
+export const verifyEmailSchema = z.object({ token: emailedToken });
+export const emailOnlySchema = z.object({ email: emailAddress });
+export const resetPasswordSchema = z.object({ token: emailedToken, password });
+
 // ───────────────────────── Profile ─────────────────────────
 
 export const updateProfileSchema = z.object({
@@ -208,7 +220,8 @@ const fileExtension = z
   .trim()
   .toLowerCase()
   .refine(
-    (v) => (ALLOWED_FILE_EXTENSIONS as readonly string[]).includes(v),
+    // `link` marks a resource hosted elsewhere, where the format is not ours to know.
+    (v) => v === 'link' || (ALLOWED_FILE_EXTENSIONS as readonly string[]).includes(v),
     `Supported formats: ${ALLOWED_FILE_EXTENSIONS.join(', ')}.`
   );
 
@@ -225,7 +238,7 @@ export const createResourceSchema = z.object({
   fileSize: z.coerce
     .number()
     .int()
-    .min(1)
+    .min(0)
     .max(MAX_FILE_SIZE_BYTES, `Keep files under ${Math.round(MAX_FILE_SIZE_BYTES / 1_048_576)} MB.`),
   tags: z.array(trimmed(30)).max(8, 'Eight tags is plenty.').default([]),
   /**
@@ -246,7 +259,7 @@ export const resourceActionSchema = z.discriminatedUnion('action', [
     fileUrl: httpsUrl,
     fileName: requiredText(1, 260, 'File name'),
     fileType: fileExtension,
-    fileSize: z.coerce.number().int().min(1).max(MAX_FILE_SIZE_BYTES),
+    fileSize: z.coerce.number().int().min(0).max(MAX_FILE_SIZE_BYTES),
     note: trimmed(300).default(''),
   }),
 ]);
@@ -266,6 +279,7 @@ export const createPostSchema = z.object({
   content: requiredText(1, MAX_POST_LENGTH, 'Post'),
   category: z.enum(POST_CATEGORIES).default('general'),
   links: z.array(httpsUrl).max(3, 'Three links maximum.').default([]),
+  audience: z.enum(['campus', 'everyone']).default('campus'),
 });
 
 export const postActionSchema = z.discriminatedUnion('action', [
@@ -401,7 +415,7 @@ export const createReportSchema = z.object({
 
 export const resolveReportSchema = z.object({
   reportId: objectId,
-  resolution: z.enum(['hide_content', 'dismiss']),
+  resolution: z.enum(['hide_content', 'suspend_user', 'dismiss']),
   note: trimmed(1000).default(''),
 });
 
@@ -452,8 +466,13 @@ export const createOfferSchema = z.object({
   company: requiredText(2, 100, 'Company'),
   role: requiredText(2, 100, 'Role'),
   location: requiredText(2, 100, 'Location'),
-  baseSalary: z.coerce.number().int().min(0, 'Base salary cannot be negative'),
-  signingBonus: z.coerce.number().int().min(0).default(0),
+  // Bounded: one absurd figure would otherwise drag a whole track's average.
+  baseSalary: z.coerce
+    .number()
+    .int()
+    .min(1_000, 'Enter the amount in rupees, e.g. 2500000 for ₹25L.')
+    .max(100_000_000, 'That is above ₹10Cr — check the figure.'),
+  signingBonus: z.coerce.number().int().min(0).max(50_000_000).default(0),
   offerType: z.enum(['internship', 'full_time']),
   track: z.enum(ROLE_TRACKS),
 });
@@ -494,8 +513,12 @@ export const createWhisperSchema = z.object({
 export const createBountySchema = z.object({
   title: requiredText(3, 100, 'Title'),
   description: trimmed(1000).default(''),
-  totalCost: z.coerce.number().int().min(1, 'Cost must be positive'),
-  slotsRequired: z.coerce.number().int().min(2, 'Need at least 2 people to split'),
+  totalCost: z.coerce.number().int().min(1, 'Cost must be positive').max(10_000_000),
+  slotsRequired: z.coerce
+    .number()
+    .int()
+    .min(2, 'Need at least 2 people to split')
+    .max(20, 'Twenty is the most a split can hold.'),
   category: z.enum(['subscription', 'travel', 'event', 'other']).default('other'),
 });
 

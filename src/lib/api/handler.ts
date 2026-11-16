@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { z, type ZodType } from 'zod';
 import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
 import { ApiError, toErrorResponse } from './errors';
 import { consume, type RateLimitName, clientIdentifier } from './rate-limit';
 import { MENTOR_ROLES, MODERATOR_ROLES, STAFF_ROLES, type UserRole } from '@/lib/constants';
@@ -65,31 +66,8 @@ export function route<TBody = undefined, TQuery = undefined>(
       const session = await auth();
       if (!session?.user?.id) throw ApiError.unauthorized();
 
-      const actor: Actor = {
-        id: session.user.id,
-        name: session.user.name ?? '',
-        email: session.user.email ?? '',
-        campus: session.user.campus,
-        batch: session.user.batch,
-        year: session.user.year,
-        role: session.user.role,
-        canMentor: MENTOR_ROLES.includes(session.user.role),
-        canModerate: MODERATOR_ROLES.includes(session.user.role),
-        canReadReport: STAFF_ROLES.includes(session.user.role),
-      };
-
-      if (options.requireMentor && !actor.canMentor) {
-        throw ApiError.forbidden('Only seniors, alumni, and staff can do this.');
-      }
-      if (options.requireModerator && !actor.canModerate) {
-        throw ApiError.forbidden('Moderator access required.');
-      }
-      if (options.requireStaff && !actor.canReadReport) {
-        throw ApiError.forbidden('This report is limited to institute staff.');
-      }
-
       // Throttle on identity so one account cannot burn a shared IP's budget.
-      if (options.rateLimit) consume(options.rateLimit, actor.id);
+      if (options.rateLimit) consume(options.rateLimit, session.user.id);
 
       /*
        * Input is validated before the database is touched. A malformed request
@@ -104,12 +82,63 @@ export function route<TBody = undefined, TQuery = undefined>(
 
       await connectDB();
 
+      const actor = await resolveActor(session.user.id, session.user.authAt);
+
+      if (options.requireMentor && !actor.canMentor) {
+        throw ApiError.forbidden('Only seniors, alumni, and staff can do this.');
+      }
+      if (options.requireModerator && !actor.canModerate) {
+        throw ApiError.forbidden('Moderator access required.');
+      }
+      if (options.requireStaff && !actor.canReadReport) {
+        throw ApiError.forbidden('This report is limited to institute staff.');
+      }
+
       const params = routeArgs ? await routeArgs.params : {};
 
       return await handler({ request, actor, body, query, params });
     } catch (error) {
       return toErrorResponse(error);
     }
+  };
+}
+
+/**
+ * Builds the caller from the database, not from the session token.
+ *
+ * A JWT is a snapshot taken at sign-in and valid for thirty days. Authorising
+ * from it meant a suspended account kept full access until the token expired, a
+ * revoked moderator stayed a moderator, and anything that could write to the
+ * token could grant itself a role. The token now proves only *who* is calling;
+ * what they may do is read fresh on every request, by primary key.
+ */
+async function resolveActor(userId: string, authAt: number | undefined): Promise<Actor> {
+  const user = await User.findById(userId)
+    .select('name email campus batch year role suspendedAt passwordChangedAt')
+    .lean();
+
+  if (!user) throw ApiError.unauthorized();
+
+  if (user.suspendedAt) {
+    throw new ApiError(403, 'suspended', 'This account is suspended. Contact your campus moderator.');
+  }
+
+  // A password change signs out every session that existed before it.
+  if (user.passwordChangedAt && (authAt ?? 0) < user.passwordChangedAt.getTime()) {
+    throw ApiError.unauthorized('Your password changed. Sign in again.');
+  }
+
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    campus: user.campus,
+    batch: user.batch,
+    year: user.year,
+    role: user.role,
+    canMentor: MENTOR_ROLES.includes(user.role),
+    canModerate: MODERATOR_ROLES.includes(user.role),
+    canReadReport: STAFF_ROLES.includes(user.role),
   };
 }
 

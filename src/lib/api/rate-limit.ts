@@ -38,6 +38,8 @@ export interface RateLimitRule {
 export const RATE_LIMITS = {
   register: { limit: 5, windowSeconds: 3600 },
   login: { limit: 10, windowSeconds: 900 },
+  /** Anything that sends an email to an address the caller typed. */
+  authEmail: { limit: 5, windowSeconds: 3600 },
   write: { limit: 60, windowSeconds: 60 },
   post: { limit: 12, windowSeconds: 300 },
   upload: { limit: 20, windowSeconds: 3600 },

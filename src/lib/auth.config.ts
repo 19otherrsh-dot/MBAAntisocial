@@ -10,7 +10,18 @@ import type { NextAuthConfig } from 'next-auth';
  * for the Node.js runtime.
  */
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/legal/honor-code', '/legal/privacy'];
+const PUBLIC_PATHS = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/offline',
+];
+
+/** Auth screens a signed-in user has no reason to be on. */
+const SIGNED_OUT_ONLY = ['/login', '/register', '/forgot-password'];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
@@ -36,7 +47,7 @@ export const authConfig = {
      * on sign-in, so any counter stored here would be frozen at whatever it was
      * the day the user logged in. Live figures come from `/api/me` instead.
      */
-    jwt({ token, user, trigger, session }) {
+    jwt({ token, user }) {
       if (user) {
         token.id = user.id ?? token.sub ?? '';
         token.campus = user.campus ?? '';
@@ -44,25 +55,17 @@ export const authConfig = {
         token.year = user.year ?? 1;
         token.role = user.role ?? 'student';
         token.onboardedAt = user.onboardedAt ?? null;
+        token.authAt = Date.now();
       }
 
-      // `useSession().update(...)` after profile edits, so the sidebar and
-      // route guards reflect a role or campus change without a re-login.
-      if (trigger === 'update' && session) {
-        const patch = session as Partial<{
-          campus: string;
-          batch: string;
-          year: 1 | 2;
-          role: typeof token.role;
-          onboardedAt: string | null;
-        }>;
-        if (patch.campus) token.campus = patch.campus;
-        if (patch.batch) token.batch = patch.batch;
-        if (patch.year) token.year = patch.year;
-        if (patch.role) token.role = patch.role;
-        if (patch.onboardedAt !== undefined) token.onboardedAt = patch.onboardedAt;
-      }
-
+      /*
+       * Nothing here reads the `session` argument of an `update` trigger. That
+       * value is whatever the browser chose to POST, so copying `role` or
+       * `campus` from it let any signed-in user promote themselves to admin of
+       * any campus with a single request. A refresh re-reads the database
+       * instead — see the `jwt` override in `auth.ts`, which is the only place
+       * with a database to read.
+       */
       return token;
     },
 
@@ -74,6 +77,7 @@ export const authConfig = {
         session.user.year = token.year;
         session.user.role = token.role;
         session.user.onboardedAt = token.onboardedAt;
+        session.user.authAt = token.authAt ?? 0;
       }
       return session;
     },
@@ -91,13 +95,21 @@ export const authConfig = {
 
       if (isPublicPath(pathname)) {
         // Bounce signed-in users away from the auth screens.
-        if (isSignedIn && (pathname === '/login' || pathname === '/register')) {
+        if (isSignedIn && SIGNED_OUT_ONLY.includes(pathname)) {
           return Response.redirect(new URL('/home', request.nextUrl));
         }
         return true;
       }
 
-      return isSignedIn;
+      if (!isSignedIn) return false;
+
+      // A new account sees onboarding once, before anything else. Skipping it
+      // is allowed and recorded, so this never becomes a loop.
+      if (!auth?.user?.onboardedAt && pathname !== '/onboarding') {
+        return Response.redirect(new URL('/onboarding', request.nextUrl));
+      }
+
+      return true;
     },
   },
   trustHost: true,

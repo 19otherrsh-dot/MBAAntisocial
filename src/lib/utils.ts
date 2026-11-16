@@ -12,7 +12,17 @@ export function cn(...classes: Array<string | number | bigint | false | null | u
   return classes.filter((value): value is string => typeof value === 'string' && value.length > 0).join(' ');
 }
 
+import { APP_TIME_ZONE } from './time';
+
 const LOCALE = 'en-IN';
+
+/**
+ * On the server, times are rendered in the campus zone — a notification body
+ * is written once and read later, so it cannot follow the reader's clock, and
+ * the host's own zone (usually UTC) is never what anyone meant. In the browser
+ * the reader's own zone applies, which is what a `datetime-local` input uses.
+ */
+const TIME_ZONE: string | undefined = typeof window === 'undefined' ? APP_TIME_ZONE : undefined;
 
 /** Relative time, e.g. "just now", "4h ago", "12 Mar". */
 export function timeAgo(input: Date | string): string {
@@ -25,6 +35,7 @@ export function timeAgo(input: Date | string): string {
   if (seconds < 604_800) return `${Math.floor(seconds / 86_400)}d ago`;
 
   return date.toLocaleDateString(LOCALE, {
+    timeZone: TIME_ZONE,
     day: 'numeric',
     month: 'short',
     ...(date.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
@@ -33,6 +44,7 @@ export function timeAgo(input: Date | string): string {
 
 export function formatDate(input: Date | string, opts?: Intl.DateTimeFormatOptions): string {
   return new Date(input).toLocaleDateString(LOCALE, {
+    timeZone: TIME_ZONE,
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -42,6 +54,7 @@ export function formatDate(input: Date | string, opts?: Intl.DateTimeFormatOptio
 
 export function formatTime(input: Date | string): string {
   return new Date(input).toLocaleTimeString(LOCALE, {
+    timeZone: TIME_ZONE,
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
@@ -51,7 +64,12 @@ export function formatTime(input: Date | string): string {
 /** "Tue, 12 Mar · 4:30 PM". */
 export function formatDateTime(input: Date | string): string {
   const date = new Date(input);
-  const day = date.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+  const day = date.toLocaleDateString(LOCALE, {
+    timeZone: TIME_ZONE,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
   return `${day} · ${formatTime(date)}`;
 }
 

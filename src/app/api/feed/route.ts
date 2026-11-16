@@ -24,9 +24,14 @@ export const GET = route({ query: feedQuerySchema }, async ({ actor, query }) =>
   const filter: QueryFilter<IPost> = {
     hiddenAt: { $exists: false },
   };
-  if (query.scope === 'campus') {
-    filter.campus = actor.campus;
-  }
+  /*
+   * The all-campus view shows only posts whose author chose that audience. It
+   * used to drop the campus filter entirely, which published every campus's
+   * feed — written for classmates — to every other campus.
+   */
+  if (query.scope === 'global') filter.audience = 'everyone';
+  else filter.campus = actor.campus;
+
   if (query.category !== 'all') filter.category = query.category;
 
   const [posts, total] = await Promise.all([
@@ -54,6 +59,7 @@ export const POST = route({ body: createPostSchema, rateLimit: 'post' }, async (
     content: body.content,
     category: body.category,
     links: body.links,
+    audience: body.audience,
   });
 
   await award(actor.id, 'post_created', { entityType: 'post', entity: post._id });
@@ -64,9 +70,10 @@ export const POST = route({ body: createPostSchema, rateLimit: 'post' }, async (
 });
 
 export const PATCH = route({ body: postActionSchema, rateLimit: 'write' }, async ({ actor, body }) => {
+  // Readable means actionable: the caller's own campus, or a post opened to everyone.
   const post = await Post.findOne({
     _id: body.postId,
-    campus: actor.campus,
+    $or: [{ campus: actor.campus }, { audience: 'everyone' }],
     hiddenAt: { $exists: false },
   });
   if (!post) throw ApiError.notFound('That post is not available.');
@@ -118,6 +125,11 @@ export const PATCH = route({ body: postActionSchema, rateLimit: 'write' }, async
 
       const comment = post.comments.find((c) => String(c._id) === body.commentId);
       if (!comment) throw ApiError.notFound('That reply no longer exists.');
+
+      // Marking your own reply useful paid you karma for talking to yourself.
+      if (comment.author.toString() === actor.id) {
+        throw ApiError.badRequest('You cannot mark your own reply as useful.');
+      }
 
       comment.markedUseful = !comment.markedUseful;
       await post.save();

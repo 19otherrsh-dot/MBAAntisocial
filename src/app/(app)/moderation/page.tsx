@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ShieldCheck, EyeOff, Check } from 'lucide-react';
+import { ShieldCheck, EyeOff, Check, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Textarea } from '@/components/ui/Field';
@@ -36,13 +36,15 @@ interface CampusStats {
     totalResources: number;
     questionsLogged: number;
   };
-  outcomes: { trackedApplications: number; offers: number };
+  /** Null for moderators who are not institute staff. */
+  outcomes: { trackedApplications: number; offers: number } | null;
 }
 
 interface Report {
   _id: string;
-  targetType: 'post' | 'comment' | 'resource' | 'user';
+  targetType: 'post' | 'comment' | 'resource' | 'user' | 'whisper';
   target: string;
+  preview: { subject: string; text: string; available: boolean };
   parent?: string;
   reason: ReportReason;
   detail: string;
@@ -74,7 +76,7 @@ export default function ModerationPage() {
     canModerate && tab === 'analytics' ? '/api/admin/stats' : null
   );
 
-  const [resolving, setResolving] = useState<{ report: Report; hide: boolean } | null>(null);
+  const [resolving, setResolving] = useState<{ report: Report; action: Resolution } | null>(null);
 
   if (meLoading) return <div className="skeleton" style={{ height: 260 }} />;
 
@@ -152,21 +154,42 @@ export default function ModerationPage() {
                   </div>
                 </div>
 
-                {report.detail && <p className={styles.slotNote}>{report.detail}</p>}
+                {report.detail && <p className={styles.slotNote}>“{report.detail}”</p>}
+
+                {/* The reported content itself — the thing being judged. */}
+                <div className={styles.feedbackBlock}>
+                  {report.preview.subject && (
+                    <div className={styles.slotRole}>{report.preview.subject}</div>
+                  )}
+                  <p className={styles.feedbackComment}>{report.preview.text}</p>
+                </div>
 
                 <div className={styles.slotActions}>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    icon={<EyeOff size={14} />}
-                    onClick={() => setResolving({ report, hide: true })}
-                  >
-                    Hide content
-                  </Button>
+                  {report.targetType === 'user' ? (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      icon={<UserX size={14} />}
+                      disabled={!report.preview.available}
+                      onClick={() => setResolving({ report, action: 'suspend_user' })}
+                    >
+                      Suspend account
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      icon={<EyeOff size={14} />}
+                      disabled={!report.preview.available}
+                      onClick={() => setResolving({ report, action: 'hide_content' })}
+                    >
+                      Hide content
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => setResolving({ report, hide: false })}
+                    onClick={() => setResolving({ report, action: 'dismiss' })}
                   >
                     Dismiss
                   </Button>
@@ -253,17 +276,21 @@ export default function ModerationPage() {
                   label="Active this month"
                   meta={`${statsData.engagement.activeUsers} of ${statsData.engagement.totalUsers}`}
                 />
-                <Stat
-                  value={statsData.outcomes.trackedApplications}
-                  label="Processes tracked"
-                  meta="Across the batch"
-                />
-                <Stat
-                  value={statsData.outcomes.offers}
-                  label="Offers recorded"
-                  meta="Self-reported by students"
-                  tone={statsData.outcomes.offers > 0 ? 'teal' : undefined}
-                />
+                {statsData.outcomes && (
+                  <>
+                    <Stat
+                      value={statsData.outcomes.trackedApplications}
+                      label="Processes tracked"
+                      meta="Across the batch"
+                    />
+                    <Stat
+                      value={statsData.outcomes.offers}
+                      label="Offers recorded"
+                      meta="Self-reported by students"
+                      tone={statsData.outcomes.offers > 0 ? 'teal' : undefined}
+                    />
+                  </>
+                )}
               </div>
             </section>
           </>
@@ -274,12 +301,33 @@ export default function ModerationPage() {
   );
 }
 
+type Resolution = 'hide_content' | 'suspend_user' | 'dismiss';
+
+const RESOLUTION_COPY: Record<Resolution, { title: string; description: string; confirm: string }> = {
+  hide_content: {
+    title: 'Hide this content',
+    description: 'It disappears from the campus. The record is kept, so the call can be reviewed.',
+    confirm: 'Hide it',
+  },
+  suspend_user: {
+    title: 'Suspend this account',
+    description:
+      'They are signed out immediately and cannot sign back in. Use this for a person, not for one bad post.',
+    confirm: 'Suspend',
+  },
+  dismiss: {
+    title: 'Dismiss this report',
+    description: 'Nothing changes, and the reporter is told a moderator reviewed it.',
+    confirm: 'Dismiss',
+  },
+};
+
 function ResolveDialog({
   state,
   onClose,
   onDone,
 }: {
-  state: { report: Report; hide: boolean } | null;
+  state: { report: Report; action: Resolution } | null;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -289,13 +337,16 @@ function ResolveDialog({
 
   if (!state) return null;
 
+  const copy = RESOLUTION_COPY[state.action];
+  const noteRequired = state.action === 'suspend_user';
+
   const submit = async () => {
     setPending(true);
     setError(null);
     try {
       await api.patch('/api/reports', {
         reportId: state.report._id,
-        resolution: state.hide ? 'hide_content' : 'dismiss',
+        resolution: state.action,
         note: note.trim(),
       });
       setNote('');
@@ -311,19 +362,20 @@ function ResolveDialog({
     <Dialog
       open
       onClose={onClose}
-      title={state.hide ? 'Hide this content' : 'Dismiss this report'}
-      description={
-        state.hide
-          ? 'It disappears from the campus feed. The record is kept.'
-          : 'The content stays up and the reporter is told a moderator reviewed it.'
-      }
+      title={copy.title}
+      description={copy.description}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
           </Button>
-          <Button variant={state.hide ? 'danger' : 'primary'} onClick={submit} loading={pending}>
-            {state.hide ? 'Hide it' : 'Dismiss'}
+          <Button
+            variant={state.action === 'dismiss' ? 'primary' : 'danger'}
+            onClick={submit}
+            loading={pending}
+            disabled={noteRequired && !note.trim()}
+          >
+            {copy.confirm}
           </Button>
         </>
       }
@@ -331,13 +383,13 @@ function ResolveDialog({
       {error && <Banner variant="danger">{error}</Banner>}
 
       <Textarea
-        label="Note for the record"
+        label={noteRequired ? 'Reason' : 'Note for the record'}
         placeholder="Why you made this call. Future moderators will read it."
         value={note}
         onChange={(event) => setNote(event.target.value)}
         maxLength={1000}
         rows={3}
-        optional
+        optional={!noteRequired}
       />
     </Dialog>
   );

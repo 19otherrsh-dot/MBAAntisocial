@@ -4,7 +4,9 @@ import { ApiError } from '@/lib/api/errors';
 import { objectId } from '@/lib/validation';
 import { assertCanMessage } from '@/lib/connections';
 import Message from '@/models/Message';
-import { pusherServer } from '@/lib/pusherServer';
+import User from '@/models/User';
+import { publish } from '@/lib/pusherServer';
+import { userChannel } from '@/lib/realtime';
 
 /**
  * Direct messages, gated by `lib/connections.ts`.
@@ -61,29 +63,49 @@ export const GET = route({ query: querySchema }, async ({ actor, query }) => {
       });
     }
 
-    return ok(Array.from(peers.values()));
+    return ok({ conversations: Array.from(peers.values()) });
   }
 
   // Reading a thread requires the same standing as writing one — otherwise the
   // gate only stops people sending, not looking.
-  await assertCanMessage(actor.id, actor.role, query.peerId);
+  const reason = await assertCanMessage(actor.id, actor.role, query.peerId);
 
-  const thread = await Message.find({
-    $or: [
-      { sender: actor.id, receiver: query.peerId },
-      { sender: query.peerId, receiver: actor.id },
-    ],
-  })
-    .sort({ createdAt: 1 })
-    .limit(500)
-    .lean();
+  const [peer, thread] = await Promise.all([
+    User.findById(query.peerId).select('name image year role').lean(),
+    Message.find({
+      $or: [
+        { sender: actor.id, receiver: query.peerId },
+        { sender: query.peerId, receiver: actor.id },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean(),
+  ]);
+  if (!peer) throw ApiError.notFound('That person could not be found.');
 
   await Message.updateMany(
     { sender: query.peerId, receiver: actor.id, read: false },
     { $set: { read: true } }
   );
 
-  return ok(thread);
+  /*
+   * The peer comes back with the thread so a conversation can be opened before
+   * its first message exists. Without it the page could only render threads
+   * already in the list, which made it impossible to start one at all.
+   */
+  return ok({
+    peer: { _id: String(peer._id), name: peer.name, image: peer.image ?? '', year: peer.year, role: peer.role },
+    reason,
+    // Newest 200, returned oldest-first for display.
+    messages: thread.reverse().map((message) => ({
+      _id: String(message._id),
+      sender: String(message.sender),
+      receiver: String(message.receiver),
+      content: message.content,
+      createdAt: message.createdAt,
+    })),
+  });
 });
 
 export const POST = route({ body: sendSchema, rateLimit: 'write' }, async ({ actor, body }) => {
@@ -99,15 +121,18 @@ export const POST = route({ body: sendSchema, rateLimit: 'write' }, async ({ act
     content: body.content,
   });
 
-  const populated = await Message.findById(message._id).populate('sender', 'name image').lean();
+  const populated = {
+    _id: String(message._id),
+    sender: actor.id,
+    senderName: actor.name,
+    receiver: body.receiverId,
+    content: message.content,
+    createdAt: message.createdAt,
+  };
 
-  try {
-    await pusherServer.trigger(`user-${body.receiverId}`, 'new-message', populated);
-  } catch (error) {
-    // Realtime delivery is a nicety; the message is already stored and will
-    // appear on the recipient's next load regardless.
-    console.error('[pusher] failed to deliver message:', error);
-  }
+  // Realtime delivery is a nicety; the message is already stored and will
+  // appear on the recipient's next load regardless.
+  await publish(userChannel(body.receiverId), 'new-message', populated);
 
   return created(populated);
 });

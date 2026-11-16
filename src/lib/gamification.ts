@@ -1,4 +1,4 @@
-import type { Types, QueryFilter } from 'mongoose';
+import { Types, type QueryFilter } from 'mongoose';
 import User, { type IUser } from '@/models/User';
 import LedgerEntry from '@/models/LedgerEntry';
 import { notify } from './notifications';
@@ -10,13 +10,41 @@ import {
   type PointAction,
 } from './constants';
 
-/** UTC calendar day key, `YYYY-MM-DD`. */
-export function dayKey(date: Date = new Date()): string {
-  return date.toISOString().slice(0, 10);
+import { dayKey, daysBetween } from './time';
+
+export { dayKey };
+
+export type StreakStep = 'same_day' | 'advance' | 'grace' | 'reset';
+
+/**
+ * What a check-in does to a streak, given the day of the previous one.
+ *
+ * Pure, so the rule is testable without a database: consecutive days advance,
+ * a gap inside the grace window holds the streak where it was, anything longer
+ * starts again from one.
+ */
+export function nextStreak(
+  current: number,
+  lastDay: string | null,
+  today: string
+): { streak: number; step: StreakStep } {
+  if (lastDay === today) return { streak: current, step: 'same_day' };
+  const gap = lastDay ? daysBetween(lastDay, today) : Infinity;
+  if (gap === 1) return { streak: current + 1, step: 'advance' };
+  if (gap > 1 && gap <= 1 + STREAK_GRACE_DAYS) return { streak: current, step: 'grace' };
+  return { streak: 1, step: 'reset' };
 }
 
-function daysBetween(a: string, b: string): number {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+/**
+ * A stable ledger entity for "reached an N-day streak".
+ *
+ * The ledger's unique (user, action, entity) index is what makes an award pay
+ * once. A milestone has no document of its own to key on, so it gets a
+ * deterministic id derived from N — which makes each milestone payable exactly
+ * once per person, ever, rather than every time a streak happens to pass it.
+ */
+export function milestoneEntity(milestone: number): Types.ObjectId {
+  return new Types.ObjectId(milestone.toString(16).padStart(24, '0'));
 }
 
 export interface AwardOptions {
@@ -124,8 +152,9 @@ export async function recordCheckIn(userId: string): Promise<StreakResult> {
 
   const today = dayKey();
   const last = user.lastCheckInAt ? dayKey(user.lastCheckInAt) : null;
+  const { streak, step } = nextStreak(user.streak, last, today);
 
-  if (last === today) {
+  if (step === 'same_day') {
     return {
       streak: user.streak,
       longestStreak: user.longestStreak,
@@ -134,21 +163,7 @@ export async function recordCheckIn(userId: string): Promise<StreakResult> {
     };
   }
 
-  const gap = last ? daysBetween(last, today) : Infinity;
-
-  let streak: number;
-  let graceUsed = false;
-
-  if (gap === 1) {
-    streak = user.streak + 1;
-  } else if (gap <= 1 + STREAK_GRACE_DAYS) {
-    // Within the grace window: the streak survives but does not advance.
-    streak = user.streak;
-    graceUsed = true;
-  } else {
-    streak = 1;
-  }
-
+  const graceUsed = step === 'grace';
   const longestStreak = Math.max(user.longestStreak, streak);
 
   await User.updateOne(
@@ -158,10 +173,22 @@ export async function recordCheckIn(userId: string): Promise<StreakResult> {
 
   await award(userId, 'daily_check_in');
 
-  const milestone = STREAK_MILESTONES.find((m) => m === streak);
-  if (milestone) {
-    await award(userId, 'streak_milestone', { entityType: 'streak', entity: undefined });
-    if (milestone >= 30) await grantBadge(userId, 'streak_30');
+  /*
+   * A milestone is reached by *advancing* onto it. A grace day holds the streak
+   * where it was, so without this guard, checking in every other day while
+   * sitting on a milestone paid the bonus out again each time — worth more than
+   * actually showing up daily.
+   */
+  let milestone: number | undefined;
+  if (step === 'advance' && (STREAK_MILESTONES as readonly number[]).includes(streak)) {
+    const result = await award(userId, 'streak_milestone', {
+      entityType: 'streak',
+      entity: milestoneEntity(streak),
+    });
+    // Announced only the first time; climbing back to the same number after a
+    // reset is not news.
+    if (result.awarded) milestone = streak;
+    if (streak >= 30) await grantBadge(userId, 'streak_30');
   }
 
   return { streak, longestStreak, isNewDay: true, milestone, graceUsed };

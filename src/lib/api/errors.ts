@@ -99,6 +99,14 @@ export function toErrorResponse(error: unknown): NextResponse<ApiErrorBody> {
   }
 
   // Mongoose duplicate-key violations map cleanly onto 409.
+  // A malformed id reaching a query is the caller's mistake, not a crash.
+  if (error instanceof Error && error.name === 'CastError') {
+    return NextResponse.json(
+      { error: { code: 'bad_request', message: 'That does not look like a valid id.' } },
+      { status: 400 }
+    );
+  }
+
   if (isDuplicateKeyError(error)) {
     return NextResponse.json(
       { error: { code: 'conflict', message: 'That already exists.' } },

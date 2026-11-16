@@ -1,4 +1,6 @@
 import InterviewSlot from '@/models/InterviewSlot';
+import User from '@/models/User';
+import { startOfWeek, DAY_MS } from './time';
 import { ApiError } from './api/errors';
 import { CANCELLATION_NOTICE_HOURS, MAX_ACTIVE_BOOKINGS_PER_MENTEE } from './constants';
 
@@ -57,6 +59,36 @@ export async function assertBookingCapacity(menteeId: string): Promise<void> {
   if (active >= MAX_ACTIVE_BOOKINGS_PER_MENTEE) {
     throw ApiError.conflict(
       `You already have ${MAX_ACTIVE_BOOKINGS_PER_MENTEE} sessions lined up. Finish one before booking another.`
+    );
+  }
+}
+
+/**
+ * Enforces the mentor's own weekly capacity.
+ *
+ * The profile has always let a mentor say "three sessions a week", and the
+ * product has always described that as a guarantee — but nothing read the
+ * number. A mentor with ten open slots could be booked ten times. The count is
+ * of live and completed sessions in the campus week the slot falls in, so a
+ * cancelled booking frees its place.
+ */
+export async function assertMentorCapacity(mentorId: string, slotStart: Date): Promise<void> {
+  const mentor = await User.findById(mentorId).select('mentorProfile.weeklyCapacity').lean();
+  const capacity = mentor?.mentorProfile?.weeklyCapacity;
+  if (capacity === undefined || capacity === null) return;
+
+  const weekStart = startOfWeek(slotStart);
+  const weekEnd = new Date(weekStart.getTime() + 7 * DAY_MS);
+
+  const taken = await InterviewSlot.countDocuments({
+    mentor: mentorId,
+    status: { $in: ['booked', 'completed'] },
+    startAt: { $gte: weekStart, $lt: weekEnd },
+  });
+
+  if (taken >= capacity) {
+    throw ApiError.conflict(
+      'This mentor is fully booked that week. Pick a slot in another week, or try someone else.'
     );
   }
 }

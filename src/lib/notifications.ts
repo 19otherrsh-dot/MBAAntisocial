@@ -2,7 +2,8 @@ import type { Types } from 'mongoose';
 import Notification from '@/models/Notification';
 import User from '@/models/User';
 import type { NotificationKind } from './constants';
-import { pusherServer } from './pusherServer';
+import { publish } from './pusherServer';
+import { userChannel } from './realtime';
 
 /**
  * Central notification engine (§7).
@@ -67,11 +68,7 @@ export async function notify(input: NotifyInput): Promise<void> {
     actor: input.actor,
   });
 
-  try {
-    await pusherServer.trigger(`user-${userId}`, 'new-notification', notification);
-  } catch (err) {
-    console.error('[pusher] failed to trigger new-notification:', err);
-  }
+  await publish(userChannel(userId), 'new-notification', notification);
 }
 
 /**

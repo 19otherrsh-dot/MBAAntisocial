@@ -1,7 +1,6 @@
 import { route, ok, created } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
-import connectDB from '@/lib/mongodb';
-import Whisper from '@/models/Whisper';
+import Whisper, { targetKeyOf } from '@/models/Whisper';
 import { createWhisperSchema } from '@/lib/validation';
 import { MIN_REPORTABLE_COHORT } from '@/lib/constants';
 
@@ -21,13 +20,16 @@ import { MIN_REPORTABLE_COHORT } from '@/lib/constants';
 const MIN_REVIEWS_TO_PUBLISH_AVERAGE = 3;
 
 export const GET = route({}, async ({ actor }) => {
-  await connectDB();
-
   const stats = await Whisper.aggregate([
     { $match: { campus: actor.campus, hiddenAt: { $exists: false } } },
     {
       $group: {
-        _id: { targetName: '$targetName', targetType: '$targetType' },
+        // Grouped on the normalised key, so respellings share one average.
+        _id: {
+          key: { $ifNull: ['$targetKey', { $toLower: '$targetName' }] },
+          targetType: '$targetType',
+        },
+        targetName: { $first: '$targetName' },
         avgRating: { $avg: '$rating' },
         avgDifficulty: { $avg: '$difficulty' },
         avgWorkload: { $avg: '$workload' },
@@ -46,7 +48,7 @@ export const GET = route({}, async ({ actor }) => {
 
   return ok({
     stats: stats.map((s) => ({
-      targetName: s._id.targetName,
+      targetName: s.targetName,
       targetType: s._id.targetType,
       avgRating: s.avgRating.toFixed(1),
       avgDifficulty: s.avgDifficulty.toFixed(1),
@@ -73,9 +75,20 @@ export const GET = route({}, async ({ actor }) => {
 export const POST = route(
   { body: createWhisperSchema, rateLimit: 'post' },
   async ({ actor, body }) => {
+    const targetKey = targetKeyOf(body.targetName);
+    if (!targetKey) throw ApiError.badRequest('That name does not contain any letters.');
+
     try {
+      // Reuse the spelling the campus already uses for this target, so the
+      // list does not fill up with variants of one name.
+      const existing = await Whisper.findOne({ campus: actor.campus, targetKey })
+        .select('targetName')
+        .lean();
+
       const whisper = await Whisper.create({
         ...body,
+        targetName: existing?.targetName ?? body.targetName,
+        targetKey,
         author: actor.id,
         campus: actor.campus,
       });

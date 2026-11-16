@@ -12,6 +12,8 @@ interface AppUserFields {
   year: 1 | 2;
   role: UserRole;
   onboardedAt: string | null;
+  /** When this session was established, in epoch ms. */
+  authAt: number;
 }
 
 declare module 'next-auth' {

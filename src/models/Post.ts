@@ -26,6 +26,12 @@ export interface IPost {
 
   content: string;
   category: PostCategory;
+  /**
+   * Who can read it. Defaults to the author's campus; `everyone` is an explicit,
+   * per-post choice. A post written for one campus is never shown to another
+   * just because a reader flipped a filter.
+   */
+  audience: 'campus' | 'everyone';
   /** Attached links, rendered as cards. No image host is wired up yet. */
   links: string[];
 
@@ -69,6 +75,7 @@ const PostSchema = new Schema<IPost, PostModel>(
 
     content: { type: String, required: true, trim: true, maxlength: MAX_POST_LENGTH },
     category: { type: String, enum: POST_CATEGORIES, default: 'general' },
+    audience: { type: String, enum: ['campus', 'everyone'], default: 'campus' },
     links: [{ type: String, maxlength: 2000 }],
 
     reactions: {
@@ -91,6 +98,8 @@ const PostSchema = new Schema<IPost, PostModel>(
 // The feed read path: one campus, newest first, optionally by category.
 PostSchema.index({ campus: 1, hiddenAt: 1, createdAt: -1 });
 PostSchema.index({ campus: 1, category: 1, createdAt: -1 });
+// The all-campus view: only posts whose author chose that audience.
+PostSchema.index({ audience: 1, createdAt: -1 });
 PostSchema.index({ author: 1, createdAt: -1 });
 
 const Post =

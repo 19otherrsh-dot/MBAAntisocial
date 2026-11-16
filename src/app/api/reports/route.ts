@@ -1,3 +1,4 @@
+import type { Types } from 'mongoose';
 import { route, ok, created } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
 import { createReportSchema, resolveReportSchema } from '@/lib/validation';
@@ -6,6 +7,8 @@ import Report from '@/models/Report';
 import Post from '@/models/Post';
 import Resource from '@/models/Resource';
 import Whisper from '@/models/Whisper';
+import User from '@/models/User';
+import { MODERATOR_ROLES, STAFF_ROLES } from '@/lib/constants';
 
 /**
  * Reporting and the moderator queue (§11).
@@ -47,8 +50,92 @@ export const GET = route({ requireModerator: true }, async ({ actor }) => {
     .populate('reporter', 'name image')
     .lean();
 
-  return ok({ reports: reports.map((r) => ({ ...r, _id: String(r._id) })) });
+  /*
+   * Each report carries the thing it is about. The queue used to show only the
+   * reason and who filed it, so a moderator was choosing between "hide" and
+   * "dismiss" without ever seeing the content in question.
+   */
+  const previews = await Promise.all(reports.map((report) => previewOf(report, actor.campus)));
+
+  return ok({
+    reports: reports.map((r, index) => ({ ...r, _id: String(r._id), preview: previews[index] })),
+  });
 });
+
+interface Preview {
+  /** Who or what the report is about, e.g. an author or a professor's name. */
+  subject: string;
+  text: string;
+  /** False when the target has since been deleted or already hidden. */
+  available: boolean;
+}
+
+const GONE: Preview = { subject: '', text: 'This content no longer exists.', available: false };
+
+async function previewOf(
+  report: { targetType: string; target: Types.ObjectId; parent?: Types.ObjectId },
+  campus: string
+): Promise<Preview> {
+  if (report.targetType === 'post') {
+    const post = await Post.findOne({ _id: report.target, campus })
+      .select('content author hiddenAt')
+      .populate('author', 'name')
+      .lean();
+    if (!post) return GONE;
+    return { subject: nameOf(post.author), text: post.content, available: !post.hiddenAt };
+  }
+
+  if (report.targetType === 'comment' && report.parent) {
+    const post = await Post.findOne({ _id: report.parent, campus })
+      .select('comments')
+      .populate('comments.author', 'name')
+      .lean();
+    const comment = post?.comments.find((entry) => String(entry._id) === String(report.target));
+    if (!comment) return GONE;
+    return { subject: nameOf(comment.author), text: comment.content, available: !comment.hiddenAt };
+  }
+
+  if (report.targetType === 'resource') {
+    const resource = await Resource.findOne({ _id: report.target, campus })
+      .select('title description author hiddenAt')
+      .populate('author', 'name')
+      .lean();
+    if (!resource) return GONE;
+    return {
+      subject: nameOf(resource.author),
+      text: [resource.title, resource.description].filter(Boolean).join(' — '),
+      available: !resource.hiddenAt,
+    };
+  }
+
+  if (report.targetType === 'whisper') {
+    // The author stays unpublished even here: a moderator judges the words,
+    // and does not need to know who wrote them to take them down.
+    const whisper = await Whisper.findOne({ _id: report.target, campus })
+      .select('targetName content hiddenAt')
+      .lean();
+    if (!whisper) return GONE;
+    return { subject: `About ${whisper.targetName}`, text: whisper.content, available: !whisper.hiddenAt };
+  }
+
+  if (report.targetType === 'user') {
+    const user = await User.findOne({ _id: report.target, campus })
+      .select('name batch year suspendedAt')
+      .lean();
+    if (!user) return GONE;
+    return {
+      subject: user.name,
+      text: `${user.year === 2 ? 'Second' : 'First'} year · ${user.batch}`,
+      available: !user.suspendedAt,
+    };
+  }
+
+  return GONE;
+}
+
+function nameOf(value: unknown): string {
+  return (value as { name?: string } | null)?.name ?? 'Unknown';
+}
 
 /** Resolves a report, optionally hiding the reported content. */
 export const PATCH = route(
@@ -86,7 +173,40 @@ export const PATCH = route(
       }
     }
 
-    report.status = body.resolution === 'hide_content' ? 'actioned' : 'dismissed';
+    if (body.resolution === 'suspend_user') {
+      if (report.targetType !== 'user') {
+        throw ApiError.badRequest('Only a report about a person can end in a suspension.');
+      }
+      if (!body.note) {
+        throw ApiError.unprocessable('Some fields need fixing.', {
+          note: 'Say why. A suspension without a recorded reason cannot be reviewed.',
+        });
+      }
+      if (String(report.target) === actor.id) {
+        throw ApiError.badRequest('You cannot suspend yourself.');
+      }
+
+      const subject = await User.findOne({ _id: report.target, campus: actor.campus }).select('role');
+      if (!subject) throw ApiError.notFound('That account no longer exists.');
+
+      // Moderators and staff are removed by an admin, not by each other.
+      const isPrivileged =
+        MODERATOR_ROLES.includes(subject.role) || STAFF_ROLES.includes(subject.role);
+      if (isPrivileged && actor.role !== 'admin') {
+        throw ApiError.forbidden('Only an admin can suspend a moderator or staff account.');
+      }
+
+      /*
+       * Takes effect on the very next request: `route()` reads `suspendedAt`
+       * from the database each time rather than trusting a thirty-day token.
+       */
+      await User.updateOne(
+        { _id: subject._id },
+        { $set: { suspendedAt: new Date(), suspendedBy: actor.id, suspensionReason: body.note.slice(0, 500) } }
+      );
+    }
+
+    report.status = body.resolution === 'dismiss' ? 'dismissed' : 'actioned';
     report.resolvedBy = actor.id as never;
     report.resolvedAt = new Date();
     report.resolutionNote = body.note;
@@ -97,8 +217,10 @@ export const PATCH = route(
       kind: 'moderation_action',
       title: 'Your report was reviewed',
       body:
-        report.status === 'actioned'
-          ? 'The content has been removed from your campus feed. Thanks for flagging it.'
+        body.resolution === 'suspend_user'
+          ? 'A moderator reviewed it and has acted on the account. Thanks for flagging it.'
+          : report.status === 'actioned'
+          ? 'The content has been removed from your campus. Thanks for flagging it.'
           : 'A moderator reviewed it and left the content up.',
       href: '/feed',
     });

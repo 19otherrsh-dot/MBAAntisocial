@@ -3,6 +3,7 @@ import { ApiError } from '@/lib/api/errors';
 import { slotActionSchema, objectId } from '@/lib/validation';
 import {
   assertBookingCapacity,
+  assertMentorCapacity,
   assertNoMentorConflict,
   isInsideNoticeWindow,
   resolveMeetingLink,
@@ -78,6 +79,7 @@ async function book(userId: string, campus: string, slotId: string, bookingNote:
   }
 
   await assertBookingCapacity(userId);
+  await assertMentorCapacity(slot.mentor.toString(), slot.startAt);
 
   const { needsLink } = resolveMeetingLink(slot.meetingLink);
 

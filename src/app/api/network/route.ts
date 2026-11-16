@@ -1,6 +1,5 @@
 import { route, ok, created } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
-import connectDB from '@/lib/mongodb';
 import Contact from '@/models/Contact';
 import { createContactSchema, updateContactSchema } from '@/lib/validation';
 
@@ -12,8 +11,6 @@ import { createContactSchema, updateContactSchema } from '@/lib/validation';
  * that could be forgotten.
  */
 export const GET = route({}, async ({ actor }) => {
-  await connectDB();
-
   // Oldest contact first: the top of this list is who is due a follow-up.
   const contacts = await Contact.find({ owner: actor.id }).sort({ lastContactedAt: 1 }).lean();
 

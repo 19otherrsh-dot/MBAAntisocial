@@ -17,7 +17,7 @@ import {
   type ResourceKind,
   type Tone,
 } from '@/lib/constants';
-import { cn, formatFileSize, timeAgo, pluralise } from '@/lib/utils';
+import { cn, formatFileSize, hostnameOf, timeAgo, pluralise } from '@/lib/utils';
 import styles from '../app.module.css';
 
 interface Resource {
@@ -253,7 +253,7 @@ export default function ResourcesPage() {
                   </span>
                   <div className="stack gap-1" style={{ alignItems: 'flex-end' }}>
                     <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>
-                      {formatFileSize(resource.fileSize)}
+                      {resource.fileSize > 0 ? formatFileSize(resource.fileSize) : hostnameOf(resource.fileUrl)}
                     </span>
                     {resource.version > 1 && (
                       <Chip outline icon={<History size={10} />} title={`Version ${resource.version}`}>

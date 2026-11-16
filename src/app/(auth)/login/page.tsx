@@ -4,10 +4,11 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { Mail, KeyRound, AlertCircle } from 'lucide-react';
+import { Mail, KeyRound, AlertCircle, MailCheck } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Banner } from '@/components/ui/Display';
+import { api } from '@/lib/client/api';
 import styles from '../auth.module.css';
 
 /**
@@ -23,6 +24,18 @@ export default function LoginPage() {
   );
 }
 
+/**
+ * Only same-origin paths are honoured. `callbackUrl` arrives in the query
+ * string, so following it blindly would let a crafted link bounce a freshly
+ * signed-in user to any site.
+ */
+function safeCallback(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
+    return '/home';
+  }
+  return value;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,17 +43,49 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  const justVerified = searchParams.get('verified') === '1';
+  const justReset = searchParams.get('reset') === '1';
+
+  const resend = async () => {
+    try {
+      await api.post('/api/auth/verify/resend', { email: email.trim() });
+    } finally {
+      // Same confirmation either way; the endpoint does not say who exists.
+      setResent(true);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setPending(true);
     setError(null);
+    setUnverified(false);
+    setResent(false);
 
     const result = await signIn('credentials', {
       email: email.trim(),
       password,
       redirect: false,
     });
+
+    if (result?.error && result.code === 'unverified') {
+      setUnverified(true);
+      setPending(false);
+      return;
+    }
+
+    if (result?.error && (result.code === 'suspended' || result.code === 'rate_limited')) {
+      setError(
+        result.code === 'suspended'
+          ? 'This account is suspended. Contact your campus moderator.'
+          : 'Too many attempts. Wait a few minutes, then try again.'
+      );
+      setPending(false);
+      return;
+    }
 
     if (result?.error) {
       /*
@@ -55,7 +100,7 @@ function LoginForm() {
     // `refresh()` first so the server components pick up the new session
     // before the dashboard route renders.
     router.refresh();
-    router.push(searchParams.get('callbackUrl') ?? '/home');
+    router.push(safeCallback(searchParams.get('callbackUrl')));
   };
 
   return (
@@ -66,9 +111,40 @@ function LoginForm() {
       </p>
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        {justVerified && !error && !unverified && (
+          <Banner variant="success" icon={<MailCheck size={16} />}>
+            Email confirmed. Sign in to get started.
+          </Banner>
+        )}
+
+        {justReset && !error && (
+          <Banner variant="success" icon={<KeyRound size={16} />}>
+            Password updated. Sign in with the new one.
+          </Banner>
+        )}
+
         {error && (
           <Banner variant="danger" icon={<AlertCircle size={16} />}>
             {error}
+          </Banner>
+        )}
+
+        {unverified && (
+          <Banner
+            variant="warning"
+            icon={<Mail size={16} />}
+            title="Confirm your email first"
+            action={
+              resent ? undefined : (
+                <Button type="button" size="sm" variant="secondary" onClick={resend}>
+                  Send the link again
+                </Button>
+              )
+            }
+          >
+            {resent
+              ? 'Sent. Check your inbox, and the spam folder while you are there.'
+              : 'We emailed you a confirmation link when you signed up. Follow it, then sign in.'}
           </Banner>
         )}
 
@@ -104,6 +180,8 @@ function LoginForm() {
 
       <p className={styles.footerNote}>
         New here? <Link href="/register">Create an account</Link>
+        {' · '}
+        <Link href="/forgot-password">Forgot password?</Link>
       </p>
     </div>
   );

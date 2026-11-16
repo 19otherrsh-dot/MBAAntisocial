@@ -321,7 +321,18 @@ export const RESOURCE_KIND_META: Record<ResourceKind, { label: string; tone: Ton
 };
 
 export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xlsx', 'md', 'txt'] as const;
+/** Largest file a resource may *reference*, e.g. a deck hosted on Drive. */
 export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Largest file that can be posted through this server.
+ *
+ * Serverless hosts cap a request body at around 4.5 MB, and the cap is enforced
+ * by the platform before any of this code runs — so advertising 25 MB meant a
+ * large upload failed with an opaque gateway error. Anything bigger is shared
+ * by link instead.
+ */
+export const MAX_DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 // ───────────────────────── Feed (§6.2) ─────────────────────────
 

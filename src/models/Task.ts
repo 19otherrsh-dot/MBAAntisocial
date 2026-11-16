@@ -43,6 +43,8 @@ export interface ITask {
   caseComp?: Types.ObjectId;
   /** Links a task to a placement round, so closing the process clears it. */
   application?: Types.ObjectId;
+  /** The specific round this deadline belongs to, so removing one round leaves the others' tasks alone. */
+  round?: Types.ObjectId;
 
   createdAt: Date;
   updatedAt: Date;
@@ -72,6 +74,7 @@ const TaskSchema = new Schema<ITask, TaskModel>(
 
     caseComp: { type: Schema.Types.ObjectId, ref: 'CaseComp' },
     application: { type: Schema.Types.ObjectId, ref: 'Application' },
+    round: { type: Schema.Types.ObjectId },
   },
   { timestamps: true }
 );

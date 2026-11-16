@@ -185,7 +185,7 @@ export default function JobsPage() {
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Posted {timeAgo(job.createdAt)}
                   </div>
                   

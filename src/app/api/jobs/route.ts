@@ -1,6 +1,6 @@
 import { route, ok, created, paginate, pageMeta } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
-import { createJobSchema, jobQuerySchema } from '@/lib/validation';
+import { createJobSchema, jobQuerySchema, objectId } from '@/lib/validation';
 import Job from '@/models/Job';
 import type { QueryFilter } from 'mongoose';
 import type { IJob } from '@/models/Job';
@@ -25,6 +25,10 @@ export const GET = route({ query: jobQuerySchema }, async ({ actor, query }) => 
   };
   if (query.kind !== 'all') filter.kind = query.kind;
 
+  // A closing date that has passed retires the post without anyone having to
+  // remember to take it down. Filtered in the query so page counts stay true.
+  filter.$or = [{ closesAt: { $exists: false } }, { closesAt: null }, { closesAt: { $gte: new Date() } }];
+
   const [jobs, total] = await Promise.all([
     Job.find(filter)
       .sort({ createdAt: -1 })
@@ -35,18 +39,12 @@ export const GET = route({ query: jobQuerySchema }, async ({ actor, query }) => 
     Job.countDocuments(filter),
   ]);
 
-  const now = Date.now();
-
   return ok({
-    jobs: jobs
-      // A closing date that has passed retires the post without anyone having
-      // to remember to take it down.
-      .filter((job) => !job.closesAt || new Date(job.closesAt).getTime() >= now)
-      .map((job) => ({
-        ...job,
-        _id: String(job._id),
-        isOwn: String((job.author as { _id?: unknown })?._id ?? job.author) === actor.id,
-      })),
+    jobs: jobs.map((job) => ({
+      ...job,
+      _id: String(job._id),
+      isOwn: String((job.author as { _id?: unknown })?._id ?? job.author) === actor.id,
+    })),
     pagination: pageMeta(query, total),
   });
 });
@@ -83,8 +81,7 @@ export const POST = route({ body: createJobSchema, rateLimit: 'post' }, async ({
 });
 
 export const DELETE = route({ rateLimit: 'write' }, async ({ actor, request }) => {
-  const id = new URL(request.url).searchParams.get('id');
-  if (!id) throw ApiError.badRequest('Which post?');
+  const id = objectId.parse(new URL(request.url).searchParams.get('id') ?? '');
 
   const deleted = await Job.findOneAndDelete({ _id: id, author: actor.id });
   if (!deleted) throw ApiError.notFound('That post does not exist, or is not yours.');

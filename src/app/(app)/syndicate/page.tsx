@@ -11,6 +11,7 @@ import { useApiQuery, useAction } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
 import { api } from '@/lib/client/api';
 import { timeAgo } from '@/lib/utils';
+import { formatInr } from '@/lib/money';
 import styles from '../app.module.css';
 
 interface UserPopulated {
@@ -50,7 +51,7 @@ export default function SyndicatePage() {
         <div>
           <h2 className={styles.pageTitle}>The Syndicate</h2>
           <p className={styles.pageSubtitle}>
-            Form financial alliances. Split WSJ, PrepLounge, or that Airbnb to Aspen.
+            Form financial alliances. Split a subscription, a cab to the airport, or that Goa villa.
           </p>
         </div>
         <Button variant="primary" icon={<Plus size={16} />} onClick={() => setShowAdd(true)}>
@@ -73,7 +74,7 @@ export default function SyndicatePage() {
         <div className={styles.cardList}>
           {data?.bounties.map((bounty) => {
             const isFilled = bounty.status === 'filled';
-            const costPerPerson = (bounty.totalCost / bounty.slotsRequired).toFixed(2);
+            const costPerPerson = Math.ceil(bounty.totalCost / bounty.slotsRequired);
             const mySlot = bounty.slotsFilled.find(u => u._id === me?.id);
             const progressPct = Math.round((bounty.slotsFilled.length / bounty.slotsRequired) * 100);
 
@@ -100,8 +101,8 @@ export default function SyndicatePage() {
 
                   <div style={{ marginTop: 'var(--s-4)', background: 'var(--bg)', padding: 'var(--s-3)', borderRadius: 'var(--r-md)' }}>
                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--s-2)' }}>
-                        <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>Total: ${bounty.totalCost}</span>
-                        <span style={{ fontSize: 'var(--t-sm)', fontWeight: 600, color: 'var(--accent)' }}>${costPerPerson} per person</span>
+                        <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>Total: {formatInr(bounty.totalCost)}</span>
+                        <span style={{ fontSize: 'var(--t-sm)', fontWeight: 600, color: 'var(--accent)' }}>{formatInr(costPerPerson)} per person</span>
                      </div>
                      <div style={{ width: '100%', height: 6, background: 'var(--bg-sunken)', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{ width: `${progressPct}%`, height: '100%', background: isFilled ? 'var(--text-secondary)' : 'var(--accent)' }} />
@@ -132,7 +133,7 @@ export default function SyndicatePage() {
                         loading={claimAction.pending}
                         onClick={() => claimAction.run(bounty._id)}
                       >
-                        Claim Slot (${costPerPerson})
+                        Claim a slot · {formatInr(costPerPerson)}
                       </Button>
                     )}
                   </div>
@@ -177,7 +178,7 @@ function CreateBountyDialog({ onClose, onDone }: { onClose: () => void; onDone: 
       open
       onClose={onClose}
       title="Propose a Split"
-      description="You automatically take the first slot. Once filled, you can collect Venmo/Zelle from the syndicate."
+      description="You automatically take the first slot. Once it fills, settle up over UPI — nothing is charged here."
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={submit.pending}>Cancel</Button>
@@ -187,10 +188,10 @@ function CreateBountyDialog({ onClose, onDone }: { onClose: () => void; onDone: 
         </>
       }
     >
-      <Input label="What are you splitting?" placeholder="Wall Street Journal Annual Sub" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+      <Input label="What are you splitting?" placeholder="Mint + Economist annual subscription" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
       
       <div className={styles.checkGrid}>
-        <Input label="Total Cost (USD)" type="number" placeholder="200" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} />
+        <Input label="Total cost (₹)" type="number" inputMode="numeric" placeholder="6000" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} />
         <Select label="Total People Needed" value={slotsRequired} onChange={(e) => setSlotsRequired(e.target.value)} options={['2','3','4','5','6','7','8'].map(v => ({ value: v, label: v }))} />
       </div>
 
@@ -200,7 +201,7 @@ function CreateBountyDialog({ onClose, onDone }: { onClose: () => void; onDone: 
         onChange={(e) => setCategory(e.target.value as Bounty['category'])} 
         options={[
           { value: 'subscription', label: 'Subscription (News, Prep)' },
-          { value: 'travel', label: 'Travel (Uber, Airbnb)' },
+          { value: 'travel', label: 'Travel (cab, train, stay)' },
           { value: 'event', label: 'Event Tickets' },
           { value: 'other', label: 'Other' }
         ]} 
@@ -208,7 +209,7 @@ function CreateBountyDialog({ onClose, onDone }: { onClose: () => void; onDone: 
 
       <Textarea
         label="Details"
-        placeholder="Will share the login credentials once all 4 slots are filled and paid."
+        placeholder="What is included, when you need the money by, and how to pay you."
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         rows={3}

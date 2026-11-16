@@ -1,15 +1,20 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Send } from 'lucide-react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Send } from 'lucide-react';
 import { useMe } from '@/lib/client/me';
-import { pusherClient } from '@/lib/pusherClient';
+import { useApiQuery } from '@/lib/client/hooks';
+import { useRealtime } from '@/lib/client/realtime';
+import { api, errorMessage } from '@/lib/client/api';
+import { userChannel } from '@/lib/realtime';
 import { Avatar } from '@/components/ui/Display';
-import { Input } from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
-import styles from '../app.module.css';
+import { cn, timeAgo } from '@/lib/utils';
+import chat from '../chat.module.css';
 
-interface Peer {
+interface Conversation {
   user: { _id: string; name: string; image?: string };
   lastMessage: string;
   time: string;
@@ -18,180 +23,214 @@ interface Peer {
 
 interface Message {
   _id: string;
-  sender: string | { _id: string; name: string; image?: string };
+  sender: string;
   receiver: string;
   content: string;
   createdAt: string;
+  /** Local-only: the send was refused or never reached the server. */
+  failed?: string;
 }
 
+interface Thread {
+  peer: { _id: string; name: string; image: string; year: 1 | 2; role: string };
+  reason: 'completed_session' | 'existing_thread' | 'open_to_contact' | 'moderator';
+  messages: Message[];
+}
+
+const REASON_LABEL: Record<Thread['reason'], string> = {
+  completed_session: 'You completed a session together',
+  existing_thread: 'They messaged you',
+  open_to_contact: 'They posted an opportunity inviting contact',
+  moderator: 'Moderator conversation',
+};
+
+const OBJECT_ID = /^[0-9a-f]{24}$/i;
+
 export default function MessagesPage() {
+  // `useSearchParams` needs a Suspense boundary to keep the route prerenderable.
+  return (
+    <Suspense fallback={<div className="skeleton" style={{ height: 420 }} />}>
+      <Messages />
+    </Suspense>
+  );
+}
+
+function Messages() {
   const { me } = useMe();
-  const [peers, setPeers] = useState<Peer[]>([]);
-  const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [loadingPeers, setLoadingPeers] = useState(true);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   /*
-   * Which conversation the loaded messages belong to. Deriving `loadingMessages`
-   * from this rather than flipping a flag at the top of the effect avoids a
-   * synchronous setState inside an effect body — which costs an extra render
-   * pass before paint and, when the selection changes twice quickly, can leave
-   * the spinner showing for a conversation that already arrived.
+   * The open conversation lives in the URL (`?peer=<id>`), not in component
+   * state. That is what lets a "Message" button anywhere in the app link
+   * straight into a thread — including one that has no messages yet.
    */
-  const [loadedPeerId, setLoadedPeerId] = useState<string | null>(null);
-  const loadingMessages = selectedPeerId !== null && loadedPeerId !== selectedPeerId;
+  const peerParam = searchParams.get('peer');
+  const peerId = peerParam && OBJECT_ID.test(peerParam) ? peerParam : null;
 
+  const list = useApiQuery<{ conversations: Conversation[] }>('/api/messages');
+  const thread = useApiQuery<Thread>(peerId ? '/api/messages' : null, { peerId });
 
+  const [draft, setDraft] = useState('');
+  // Messages added since the thread loaded: sent here, or arrived over the socket.
+  const [extra, setExtra] = useState<{ peerId: string; messages: Message[] }>({ peerId: '', messages: [] });
   const bottomRef = useRef<HTMLDivElement>(null);
+  const localSeq = useRef(0);
 
-  useEffect(() => {
-    fetch('/api/messages')
-      .then(res => res.json())
-      .then(data => {
-        setPeers(Array.isArray(data) ? data : []);
-        setLoadingPeers(false);
-      });
-  }, []);
+  const appended = extra.peerId === peerId ? extra.messages : [];
+  const loaded = thread.data?.messages ?? [];
+  const seen = new Set(loaded.map((message) => message._id));
+  const messages = [...loaded, ...appended.filter((message) => !seen.has(message._id))];
 
-  useEffect(() => {
-    if (!selectedPeerId) return;
+  const append = (target: string, message: Message) =>
+    setExtra((current) => ({
+      peerId: target,
+      messages: [...(current.peerId === target ? current.messages : []), message],
+    }));
 
-    let active = true;
-    fetch(`/api/messages?peerId=${selectedPeerId}`)
-      .then(res => res.json())
-      .then(data => {
-        // Drop the response if the user has already moved to another thread.
-        if (!active) return;
-        setMessages(Array.isArray(data) ? data : []);
-        setLoadedPeerId(selectedPeerId);
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [selectedPeerId]);
-
-  useEffect(() => {
-    if (!me) return;
-    const channel = pusherClient.subscribe(`user-${me.id}`);
-    channel.bind('new-message', (data: Message) => {
-      // If the message is from the currently selected peer, append it
-      const senderId = typeof data.sender === 'string' ? data.sender : data.sender._id;
-      if (selectedPeerId === senderId) {
-        setMessages(prev => [...prev, data]);
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      } else {
-        // Otherwise, just refresh peers list to show new unread
-        fetch('/api/messages')
-          .then(res => res.json())
-          .then(data => setPeers(Array.isArray(data) ? data : []));
-      }
-    });
-
-    return () => {
-      pusherClient.unsubscribe(`user-${me.id}`);
-    };
-  }, [me, selectedPeerId]);
-
-  const sendMessage = async () => {
-    if (!input.trim() || !selectedPeerId) return;
-    
-    const content = input.trim();
-    setInput('');
-    
-    // Optimistic UI
-    const tempId = Date.now().toString();
-    setMessages(prev => [...prev, {
-      _id: tempId,
-      sender: me!.id,
-      receiver: selectedPeerId,
-      content,
-      createdAt: new Date().toISOString()
-    }]);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-
-    await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiverId: selectedPeerId, content })
-    });
+  const open = (id: string | null) => {
+    router.push(id ? `/messages?peer=${id}` : '/messages', { scroll: false });
   };
 
-  const activePeer = peers.find(p => p.user._id === selectedPeerId);
+  const refetchList = list.refetch;
+  useRealtime<Message>(me ? userChannel(me.id) : null, 'new-message', (message) => {
+    if (message.sender === peerId) append(message.sender, message);
+    refetchList();
+  });
+
+  const messageCount = messages.length;
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [messageCount, peerId]);
+
+  const send = async () => {
+    const content = draft.trim();
+    if (!content || !peerId || !me) return;
+    setDraft('');
+
+    try {
+      const saved = await api.post<Message>('/api/messages', { receiverId: peerId, content });
+      append(peerId, saved);
+      refetchList();
+    } catch (caught) {
+      // Shown in place, marked as unsent — not silently dropped, and not left
+      // looking as though it was delivered.
+      append(peerId, {
+        _id: `local-${(localSeq.current += 1)}`,
+        sender: me.id,
+        receiver: peerId,
+        content,
+        createdAt: new Date().toISOString(),
+        failed: errorMessage(caught) || 'Not sent.',
+      });
+    }
+  };
+
+  const conversations = list.data?.conversations ?? [];
+  const peer = thread.data?.peer;
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '16px', marginTop: '16px' }}>
-      {/* Sidebar */}
-      <div style={{ width: '300px', borderRight: '1px solid var(--border-subtle)', paddingRight: '16px', display: 'flex', flexDirection: 'column' }}>
-        <h2 className={styles.pageTitle} style={{ marginBottom: '16px' }}>Messages</h2>
-        <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {loadingPeers ? (
-            <div className="skeleton" style={{ height: 60 }} />
-          ) : peers.length === 0 ? (
-            <p className="muted">No conversations yet.</p>
+    <div className={cn(chat.shell, peerId && chat.shellOpen)}>
+      <aside className={chat.list}>
+        <div className={chat.listHead}>Messages</div>
+        <div className={chat.listBody}>
+          {list.loading ? (
+            <div className="skeleton" style={{ height: 64 }} />
+          ) : conversations.length === 0 ? (
+            <p className={chat.listHint}>
+              No conversations yet. Messaging opens with someone once you have completed a session
+              together, or when they post an opportunity inviting contact.{' '}
+              <Link href="/sessions">Find a slot</Link>
+            </p>
           ) : (
-            peers.map(peer => (
+            conversations.map((conversation) => (
               <button
-                key={peer.user._id}
-                onClick={() => setSelectedPeerId(peer.user._id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: selectedPeerId === peer.user._id ? 'var(--bg-elevated)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
+                key={conversation.user._id}
+                type="button"
+                className={cn(
+                  chat.peer,
+                  peerId === conversation.user._id && chat.peerActive,
+                  conversation.unread && peerId !== conversation.user._id && chat.peerUnread
+                )}
+                onClick={() => open(conversation.user._id)}
               >
-                <Avatar name={peer.user.name} image={peer.user.image} seed={peer.user._id} size={40} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: selectedPeerId === peer.user._id ? 600 : 500, color: 'var(--text-primary)' }}>
-                    {peer.user.name}
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: peer.unread ? 'var(--accent-text)' : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {peer.lastMessage}
-                  </div>
-                </div>
+                <Avatar
+                  name={conversation.user.name}
+                  image={conversation.user.image}
+                  seed={conversation.user._id}
+                  size={38}
+                />
+                <span className={chat.peerText}>
+                  <span className={chat.peerName}>{conversation.user.name}</span>
+                  <span className={cn(chat.peerLast, 'truncate')} style={{ display: 'block' }}>
+                    {conversation.lastMessage}
+                  </span>
+                </span>
+                {conversation.unread && peerId !== conversation.user._id && (
+                  <span className={chat.unreadDot} aria-label="Unread" />
+                )}
               </button>
             ))
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* Chat Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
-        {selectedPeerId ? (
+      <section className={chat.thread}>
+        {!peerId ? (
+          <div className={chat.placeholder}>
+            <strong>Pick a conversation</strong>
+            <p>
+              There are no cold DMs here on purpose. A thread opens after a completed session, or
+              from an opportunity someone posted.
+            </p>
+          </div>
+        ) : thread.error ? (
+          <div className={chat.placeholder}>
+            <strong>This conversation is not open yet</strong>
+            <p>{thread.error}</p>
+            <Button variant="secondary" onClick={() => open(null)}>
+              Back to messages
+            </Button>
+          </div>
+        ) : (
           <>
-            {/* Chat Header */}
-            <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <Avatar name={activePeer?.user.name || 'User'} image={activePeer?.user.image} seed={activePeer?.user._id} size={32} />
-               <span style={{ fontWeight: 600 }}>{activePeer?.user.name}</span>
-            </div>
-
-            {/* Messages */}
-            <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {loadingMessages ? (
-                <div className="skeleton" style={{ height: 100 }} />
+            <header className={chat.threadHead}>
+              <button type="button" className={chat.back} onClick={() => open(null)} aria-label="Back to conversations">
+                <ArrowLeft size={18} />
+              </button>
+              {peer ? (
+                <>
+                  <Avatar name={peer.name} image={peer.image} seed={peer._id} size={32} />
+                  <div>
+                    <div className={chat.threadTitle}>{peer.name}</div>
+                    <div className={chat.threadSub}>{REASON_LABEL[thread.data!.reason]}</div>
+                  </div>
+                </>
               ) : (
-                messages.map(msg => {
-                  const senderId = typeof msg.sender === 'string' ? msg.sender : msg.sender._id;
-                  const isMe = senderId === me?.id;
+                <div className="skeleton" style={{ height: 32, width: 180 }} />
+              )}
+            </header>
+
+            <div className={chat.stream} aria-live="polite">
+              {thread.loading ? (
+                <div className="skeleton" style={{ height: 96 }} />
+              ) : messages.length === 0 ? (
+                <div className={chat.placeholder}>
+                  <strong>Say hello</strong>
+                  <p>Nothing here yet. Keep the first message specific — it gets a better reply.</p>
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const mine = message.sender === me?.id;
                   return (
-                    <div key={msg._id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                      <div style={{
-                        background: isMe ? 'var(--accent-bg)' : 'var(--bg-elevated)',
-                        color: isMe ? 'white' : 'var(--text-primary)',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        maxWidth: '70%',
-                        fontSize: '0.9375rem'
-                      }}>
-                        {msg.content}
+                    <div key={message._id} className={cn(chat.msg, mine && chat.msgMine)}>
+                      <div
+                        className={cn(chat.bubble, message.failed && chat.bubbleFailed)}
+                        title={timeAgo(message.createdAt)}
+                      >
+                        {message.content}
                       </div>
+                      {message.failed && <span className={chat.msgNote}>Not sent — {message.failed}</span>}
                     </div>
                   );
                 })
@@ -199,27 +238,35 @@ export default function MessagesPage() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Input Area */}
-            <div style={{ padding: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                />
-              </div>
-              <Button onClick={sendMessage} icon={<Send size={16} />} disabled={!input.trim()}>
+            <form
+              className={chat.composer}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void send();
+              }}
+            >
+              <textarea
+                className={chat.composerInput}
+                rows={1}
+                value={draft}
+                maxLength={2000}
+                placeholder="Write a message"
+                aria-label="Message"
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    void send();
+                  }
+                }}
+              />
+              <Button type="submit" icon={<Send size={16} />} disabled={!draft.trim() || !peer}>
                 Send
               </Button>
-            </div>
+            </form>
           </>
-        ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-            Select a conversation to start messaging
-          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

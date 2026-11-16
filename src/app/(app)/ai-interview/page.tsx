@@ -1,205 +1,435 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Play, SquareSquare } from 'lucide-react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { BookOpen, CalendarClock, ClipboardCheck, RotateCcw, Send, Square } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Avatar } from '@/components/ui/Display';
-import { Select } from '@/components/ui/Field';
-import { useMe } from '@/lib/client/me';
-import { ROLE_TRACKS, ROLE_TRACK_META, type RoleTrack } from '@/lib/constants';
+import { Banner, Chip } from '@/components/ui/Display';
+import { Input, Select } from '@/components/ui/Field';
+import Markdown from '@/components/ui/Markdown';
+import { useApiQuery } from '@/lib/client/hooks';
+import { api, errorMessage } from '@/lib/client/api';
+import { readTextStream } from '@/lib/client/stream';
+import {
+  ROLE_TRACKS,
+  ROLE_TRACK_META,
+  type RoleTrack,
+  type RubricCriterion,
+} from '@/lib/constants';
+import { cn, pluralise } from '@/lib/utils';
 import styles from '../app.module.css';
+import chat from '../chat.module.css';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-export default function AIInterviewPage() {
-  const { me } = useMe();
-  const [track, setTrack] = useState<RoleTrack>('consulting');
-  const [started, setStarted] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+interface Debrief {
+  scores: Record<string, number>;
+  strengths: string[];
+  improvements: string[];
+  verdict: string;
+}
 
+interface PipelineLite {
+  applications: Array<{ _id: string; company: string; track: RoleTrack; intelAvailable: number }>;
+}
+
+/** Answers needed before a scorecard means anything. Mirrors the API. */
+const MIN_ANSWERS_FOR_DEBRIEF = 3;
+
+export default function AIInterviewPage() {
+  // `useSearchParams` needs a Suspense boundary to keep the route prerenderable.
+  return (
+    <Suspense fallback={<div className="skeleton" style={{ height: 420 }} />}>
+      <Interview />
+    </Suspense>
+  );
+}
+
+function Interview() {
+  const params = useSearchParams();
+  const presetTrack = params.get('track');
+
+  // `?company=Bain` deep-links from a pipeline card straight into practice.
+  const [company, setCompany] = useState(params.get('company') ?? '');
+  const [track, setTrack] = useState<RoleTrack>(
+    (ROLE_TRACKS as readonly string[]).includes(presetTrack ?? '') ? (presetTrack as RoleTrack) : 'consulting'
+  );
+
+  const pipeline = useApiQuery<PipelineLite>('/api/applications', { stage: 'open' });
+
+  const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [grounded, setGrounded] = useState(0);
+  const [debrief, setDebrief] = useState<{ result: Debrief; rubric: RubricCriterion[] } | null>(null);
+  const [scoring, setScoring] = useState(false);
 
+  const abortRef = useRef<AbortController | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const last = messages[messages.length - 1];
+  const scrollKey = `${messages.length}:${last?.content.length ?? 0}:${debrief ? 1 : 0}`;
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, [scrollKey]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  // Stop any in-flight reply if the page is left mid-answer.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-    const newMessages: Message[] = [...messages, { role: 'user', content: input }];
-    setMessages(newMessages);
-    setInput('');
-    setIsLoading(true);
+  /** Sends the conversation so far and streams the interviewer's next turn. */
+  const ask = async (history: Message[]) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+    setError(null);
 
     try {
       const response = await fetch('/api/ai/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, track: ROLE_TRACK_META[track].label }),
+        body: JSON.stringify({ mode: 'interview', track, company: company.trim(), messages: history }),
+        signal: controller.signal,
       });
 
-      if (!response.ok) throw new Error('API error');
-      if (!response.body) throw new Error('No body');
+      setGrounded(Number(response.headers.get('X-Grounded-Questions') ?? 0));
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      let assistantMessage = '';
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        // The vercel AI SDK returns chunks like 0:"chunk text"\n
-        // We will parse it simply.
-        const lines = chunk.split('\\n');
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-             try {
-                const text = JSON.parse(line.substring(2));
-                assistantMessage += text;
-                setMessages((prev) => {
-                   const updated = [...prev];
-                   updated[updated.length - 1].content = assistantMessage;
-                   return updated;
-                });
-             } catch {
-               // A chunk can split mid-token, so a parse failure here is the
-               // expected case rather than an error — the next chunk completes it.
-             }
-          }
-        }
+      await readTextStream(response, (text) => {
+        setMessages([...history, { role: 'assistant', content: text }]);
+      });
+    } catch (caught) {
+      // Stopping is the user's own choice, not an error to report.
+      if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+        setError(errorMessage(caught) || 'The interviewer dropped off. Try again.');
       }
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Connection error. Please try again.' }]);
     } finally {
-      setIsLoading(false);
+      setBusy(false);
     }
   };
 
-  const stop = () => {
-    // Basic stop: just set isLoading false. We can't cancel fetch unless we use AbortController.
-    setIsLoading(false);
+  const start = () => {
+    setStarted(true);
+    setMessages([]);
+    setDebrief(null);
+    // An empty history tells the server to open the interview.
+    void ask([]);
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className={styles.pageHead} style={{ paddingBottom: 'var(--s-3)' }}>
-        <div>
-          <h2 className={styles.pageTitle}>AI Mock Interviewer</h2>
-          <p className={styles.pageSubtitle}>
-            Practice your cases and behavioral stories with a brutally honest AI alum.
+  const send = () => {
+    const content = input.trim();
+    if (!content || busy) return;
+    setInput('');
+    const history: Message[] = [...messages, { role: 'user', content }];
+    setMessages(history);
+    void ask(history);
+  };
+
+  const finish = async () => {
+    setScoring(true);
+    setError(null);
+    try {
+      const result = await api.post<{ debrief: Debrief; rubric: RubricCriterion[] }>('/api/ai/interview', {
+        mode: 'debrief',
+        track,
+        company: company.trim(),
+        messages,
+      });
+      setDebrief({ result: result.debrief, rubric: result.rubric });
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setScoring(false);
+    }
+  };
+
+  const reset = () => {
+    abortRef.current?.abort();
+    setStarted(false);
+    setMessages([]);
+    setDebrief(null);
+    setError(null);
+    setGrounded(0);
+  };
+
+  const answered = messages.filter((message) => message.role === 'user').length;
+  const applications = pipeline.data?.applications ?? [];
+
+  if (!started) {
+    return (
+      <>
+        <div className={styles.pageHead}>
+          <div>
+            <h2 className={styles.pageTitle}>AI mock interviewer</h2>
+            <p className={styles.pageSubtitle}>
+              Practise against the questions your own campus was asked — then book a senior for the real thing.
+            </p>
+          </div>
+        </div>
+
+        <div className={chat.setup}>
+          <div>
+            <h3 className={chat.setupTitle}>Who are you interviewing with?</h3>
+            <p className={chat.setupBody}>
+              Name a company and the interviewer draws on what your batch and seniors logged in
+              Interview Intel after their rounds there. Leave it blank for a general round.
+            </p>
+          </div>
+
+          {applications.length > 0 && (
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 'var(--s-2)' }}>From your pipeline</div>
+              <div className={chat.quickPicks}>
+                {applications.slice(0, 6).map((application) => (
+                  <button
+                    key={application._id}
+                    type="button"
+                    className={cn(chat.quickPick, company === application.company && chat.quickPickActive)}
+                    onClick={() => {
+                      setCompany(application.company);
+                      setTrack(application.track);
+                    }}
+                  >
+                    {application.company}
+                    {application.intelAvailable > 0 && (
+                      <span className={chat.quickPickCount}>
+                        {pluralise(application.intelAvailable, 'question')}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Input
+            label="Company"
+            placeholder="e.g. Bain & Company"
+            value={company}
+            maxLength={120}
+            onChange={(event) => setCompany(event.target.value)}
+            optional
+          />
+
+          <Select
+            label="Role track"
+            value={track}
+            onChange={(event) => setTrack(event.target.value as RoleTrack)}
+            options={ROLE_TRACKS.map((value) => ({ value, label: ROLE_TRACK_META[value].label }))}
+          />
+
+          <Button size="lg" fullWidth onClick={start}>
+            Start the interview
+          </Button>
+
+          <p className="dim" style={{ fontSize: 'var(--t-sm)' }}>
+            It will not hand you answers, and it will say when one was weak. Answer three or more
+            questions to get a scorecard on the same rubric your seniors use.
           </p>
         </div>
-        {!started && (
-          <Button onClick={() => setStarted(true)} icon={<Play size={16} />}>
-            Start Interview
-          </Button>
+      </>
+    );
+  }
+
+  return (
+    <div className={cn(chat.shell, chat.shellSingle)}>
+      <section className={chat.thread}>
+        <header className={chat.threadHead}>
+          <div>
+            <div className={chat.threadTitle}>
+              {company.trim() ? `${company.trim()} · ` : ''}
+              {ROLE_TRACK_META[track].label}
+            </div>
+            <div className={chat.threadSub}>Mock interview · {pluralise(answered, 'answer')} so far</div>
+          </div>
+          <div className={chat.threadHeadPush}>
+            {grounded > 0 && (
+              <Chip
+                tone="violet"
+                icon={<BookOpen size={12} />}
+                title="The interviewer is drawing on questions logged in Interview Intel"
+              >
+                {pluralise(grounded, 'question')} from your campus
+              </Chip>
+            )}
+            <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={reset}>
+              New
+            </Button>
+          </div>
+        </header>
+
+        <div className={chat.stream} aria-live="polite">
+          {messages.map((message, index) => (
+            <div key={index} className={cn(chat.msg, message.role === 'user' && chat.msgMine)}>
+              {message.role === 'assistant' && <span className={chat.msgAuthor}>Interviewer</span>}
+              <div className={chat.bubble}>
+                {message.role === 'assistant' ? (
+                  <Markdown className={chat.prose}>{message.content}</Markdown>
+                ) : (
+                  message.content
+                )}
+              </div>
+            </div>
+          ))}
+
+          {busy && last?.role !== 'assistant' && (
+            <div className={chat.msg}>
+              <span className={chat.msgAuthor}>Interviewer</span>
+              <div className={chat.bubble}>
+                <span className={chat.typing} aria-label="Thinking">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <Banner
+              variant="danger"
+              action={
+                !debrief && (
+                  <Button size="sm" variant="secondary" onClick={() => void ask(messages)}>
+                    Try again
+                  </Button>
+                )
+              }
+            >
+              {error}
+            </Banner>
+          )}
+
+          {debrief && <Scorecard debrief={debrief.result} rubric={debrief.rubric} company={company.trim()} onReset={reset} />}
+
+          <div ref={endRef} />
+        </div>
+
+        {!debrief && (
+          <form
+            className={chat.composer}
+            onSubmit={(event) => {
+              event.preventDefault();
+              send();
+            }}
+          >
+            <textarea
+              className={chat.composerInput}
+              rows={2}
+              value={input}
+              maxLength={4000}
+              placeholder="Answer as you would in the room"
+              aria-label="Your answer"
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  send();
+                }
+              }}
+            />
+            {busy ? (
+              <Button type="button" variant="secondary" icon={<Square size={14} />} onClick={() => abortRef.current?.abort()}>
+                Stop
+              </Button>
+            ) : (
+              <Button type="submit" icon={<Send size={16} />} disabled={!input.trim()}>
+                Send
+              </Button>
+            )}
+            {answered >= MIN_ANSWERS_FOR_DEBRIEF && !busy && (
+              <Button
+                type="button"
+                variant="soft"
+                icon={<ClipboardCheck size={16} />}
+                loading={scoring}
+                onClick={finish}
+              >
+                Finish
+              </Button>
+            )}
+          </form>
         )}
-        {started && (
-          <Button variant="soft" onClick={stop} icon={<SquareSquare size={16} />} disabled={!isLoading}>
-            Stop Generating
-          </Button>
-        )}
+      </section>
+    </div>
+  );
+}
+
+function Scorecard({
+  debrief,
+  rubric,
+  company,
+  onReset,
+}: {
+  debrief: Debrief;
+  rubric: RubricCriterion[];
+  company: string;
+  onReset: () => void;
+}) {
+  return (
+    <div className={cn(chat.scorecard, 'animate-rise')}>
+      <div>
+        <div className={chat.scoreTitle}>Your scorecard</div>
+        <p className={chat.scoreVerdict}>{debrief.verdict}</p>
       </div>
 
-      {!started ? (
-        <div className="surface-card" style={{ maxWidth: 600, margin: '0 auto', marginTop: 'var(--s-6)' }}>
-          <h3 className="h4" style={{ marginBottom: 'var(--s-3)' }}>Interview Setup</h3>
-          <p className="dim" style={{ marginBottom: 'var(--s-4)' }}>
-            The Antisocial AI Interviewer is tough. It won&rsquo;t give you the answers, it will
-            pressure-test your logic, and it expects you to lead the conversation once it gives you
-            a prompt.
-          </p>
-          <div style={{ marginBottom: 'var(--s-4)' }}>
-            <Select
-              label="Select your target track"
-              value={track}
-              onChange={(e) => setTrack(e.target.value as RoleTrack)}
-              options={ROLE_TRACKS.map((t) => ({ value: t, label: ROLE_TRACK_META[t].label }))}
-            />
-          </div>
-          <Button variant="primary" onClick={() => setStarted(true)} style={{ width: '100%' }}>
-            I&rsquo;m ready. Let&rsquo;s go.
-          </Button>
-        </div>
-      ) : (
-        <>
-          {/* Chat History */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--s-4)', background: 'var(--surface)', borderRadius: 'var(--r-md) var(--r-md) 0 0', display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
-            {messages.length === 0 ? (
-              <div className="dim" style={{ textAlign: 'center', marginTop: 'var(--s-6)' }}>
-                Waiting for you to begin. Say hi and state your readiness for the {ROLE_TRACK_META[track].label} interview.
+      <div className={chat.scoreGrid}>
+        {rubric.map((criterion) => {
+          const score = debrief.scores[criterion.key] ?? 0;
+          return (
+            <div key={criterion.key} className={chat.scoreCell} title={criterion.help}>
+              <div className={chat.scoreLabel}>{criterion.label}</div>
+              <div className={chat.scoreValue}>
+                {score}
+                <small>/5</small>
               </div>
-            ) : (
-              messages.map((msg, i) => {
-                const isMe = msg.role === 'user';
-                return (
-                  <div key={i} style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                    {!isMe && (
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                        <Bot size={18} />
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                      {!isMe && <span className="dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 2 }}>Alumni AI</span>}
-                      <div style={{
-                        padding: '12px 16px',
-                        borderRadius: 'var(--r-md)',
-                        background: isMe ? 'var(--accent)' : 'var(--bg)',
-                        color: isMe ? 'var(--on-accent)' : 'var(--text)',
-                        border: isMe ? 'none' : '1px solid var(--line)',
-                        whiteSpace: 'pre-wrap',
-                        lineHeight: 1.5,
-                      }}>
-                        {msg.content}
-                      </div>
-                    </div>
-                    {isMe && (
-                      <Avatar name={me?.name || 'User'} image={me?.image} seed={me?.id} size={32} />
-                    )}
-                  </div>
-                );
-              })
-            )}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: 'flex-start' }}>
-                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                   <Bot size={18} />
-                 </div>
-                 <div style={{ padding: '12px 16px', borderRadius: 'var(--r-md)', background: 'var(--bg)', border: '1px solid var(--line)' }}>
-                   <span className="dim">Typing...</span>
-                 </div>
+              <div className={chat.scoreBar}>
+                <div className={chat.scoreBarFill} style={{ width: `${(score / 5) * 100}%` }} />
               </div>
-            )}
-            <div ref={endRef} />
-          </div>
+            </div>
+          );
+        })}
+      </div>
 
-          {/* Input Form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 'var(--s-2)', padding: 'var(--s-3)', background: 'var(--surface-raised)', borderTop: '1px solid var(--line)', borderRadius: '0 0 var(--r-md) var(--r-md)' }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Your response..."
-              className="input"
-              style={{ flex: 1, border: 'none', background: 'var(--bg)' }}
-              disabled={isLoading}
-              autoFocus
-            />
-            <Button type="submit" variant="primary" disabled={!input.trim() || isLoading} icon={<Send size={16} />}>
-              Respond
+      <div className={chat.scoreLists}>
+        <div>
+          <div className={chat.scoreListHead}>What worked</div>
+          <ul className={chat.scoreList}>
+            {debrief.strengths.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className={chat.scoreListHead}>Fix before the real one</div>
+          <ul className={chat.scoreList}>
+            {debrief.improvements.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* The AI is a warm-up. The point of the product is the senior. */}
+      <div className={chat.scoreActions}>
+        <Link href="/sessions">
+          <Button icon={<CalendarClock size={16} />}>Book a senior for the real thing</Button>
+        </Link>
+        {company && (
+          <Link href={`/intel?company=${encodeURIComponent(company)}`}>
+            <Button variant="secondary" icon={<BookOpen size={16} />}>
+              See what was asked at {company}
             </Button>
-          </form>
-        </>
-      )}
+          </Link>
+        )}
+        <Button variant="ghost" icon={<RotateCcw size={16} />} onClick={onReset}>
+          Go again
+        </Button>
+      </div>
     </div>
   );
 }

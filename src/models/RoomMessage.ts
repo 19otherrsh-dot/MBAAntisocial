@@ -5,6 +5,8 @@ export interface IRoomMessage {
   room: Types.ObjectId;
   author: Types.ObjectId;
   content: string;
+  /** Copied from the room, so the transcript is deleted when the room is. */
+  expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,15 +15,19 @@ type RoomMessageModel = Model<IRoomMessage>;
 
 const RoomMessageSchema = new Schema<IRoomMessage, RoomMessageModel>(
   {
-    room: { type: Schema.Types.ObjectId, ref: 'StudyRoom', required: true, index: true },
+    room: { type: Schema.Types.ObjectId, ref: 'StudyRoom', required: true },
     author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, required: true, trim: true, maxlength: 2000 },
+    expiresAt: { type: Date },
   },
   { timestamps: true }
 );
 
 // We want to fetch messages sorted by creation time efficiently
 RoomMessageSchema.index({ room: 1, createdAt: 1 });
+
+// TTL: a room's transcript goes when the room does.
+RoomMessageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const RoomMessage =
   (mongoose.models.RoomMessage as RoomMessageModel) ||

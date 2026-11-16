@@ -1,148 +1,121 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Bot, SquareSquare, UploadCloud, FileText } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { CalendarClock, FileText, Flame, RotateCcw, Square } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Avatar } from '@/components/ui/Display';
-import { useMe } from '@/lib/client/me';
-import { MAX_FILE_SIZE_BYTES } from '@/lib/constants';
+import { Banner, Segmented } from '@/components/ui/Display';
+import Markdown from '@/components/ui/Markdown';
+import { errorMessage } from '@/lib/client/api';
+import { readTextStream } from '@/lib/client/stream';
+import { MAX_DIRECT_UPLOAD_BYTES } from '@/lib/constants';
+import { cn, formatFileSize } from '@/lib/utils';
 import styles from '../app.module.css';
+import chat from '../chat.module.css';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+type Intensity = 'gentle' | 'honest' | 'savage';
 
-export default function AIResumeRoasterPage() {
-  const { me } = useMe();
+const INTENSITY_NOTE: Record<Intensity, string> = {
+  gentle: 'Kind but direct. The fixes that matter most, without the bruising.',
+  honest: 'What a tired recruiter actually thinks, with no padding.',
+  savage: 'No mercy for the bullets. It roasts the writing, never you.',
+};
+
+const MAX_MB = Math.round(MAX_DIRECT_UPLOAD_BYTES / 1_048_576);
+
+export default function ResumeRoastPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  
+  const [intensity, setIntensity] = useState<Intensity>('honest');
+  const [roast, setRoast] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const roastLength = roast.length;
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (busy) endRef.current?.scrollIntoView({ block: 'end' });
+  }, [roastLength, busy]);
 
-  const handleStartRoast = async () => {
-    if (!file || isLoading) return;
-
-    setUploading(true);
-    let uploadedUrl = '';
-    
-    // Upload PDF to Cloudinary
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-      
-      const data = await response.json();
-      uploadedUrl = data.url;
-    } catch (e) {
-      setUploading(false);
-      console.error(e);
-      setMessages([{ role: 'assistant', content: 'Could not upload that file. Try again.' }]);
+  const pick = (next: File | null) => {
+    setError(null);
+    if (next && next.size > MAX_DIRECT_UPLOAD_BYTES) {
+      setFile(null);
+      setError(`That PDF is ${formatFileSize(next.size)}. Keep it under ${MAX_MB} MB — export without embedded images.`);
       return;
     }
-    
-    setUploading(false);
-    setIsLoading(true);
-    setMessages([{ role: 'user', content: `(Uploaded Resume: ${file.name})` }]);
+    setFile(next);
+  };
 
-    // Trigger AI Roast API
+  const start = async () => {
+    if (!file) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+    setError(null);
+    setRoast('');
+
     try {
-      const response = await fetch('/api/ai/roast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfUrl: uploadedUrl }),
-      });
+      // Sent straight to the roast endpoint, read in memory, and discarded.
+      const form = new FormData();
+      form.append('file', file);
+      form.append('intensity', intensity);
 
-      if (!response.ok) throw new Error('API error');
-      if (!response.body) throw new Error('No body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      let assistantMessage = '';
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\\n');
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-             try {
-                const text = JSON.parse(line.substring(2));
-                assistantMessage += text;
-                setMessages((prev) => {
-                   const updated = [...prev];
-                   updated[updated.length - 1].content = assistantMessage;
-                   return updated;
-                });
-             } catch {
-               // A chunk can split mid-token, so a parse failure here is the
-               // expected case rather than an error — the next chunk completes it.
-             }
-          }
-        }
+      const response = await fetch('/api/ai/roast', { method: 'POST', body: form, signal: controller.signal });
+      await readTextStream(response, setRoast);
+    } catch (caught) {
+      if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+        setError(errorMessage(caught) || 'The roaster gave up. Try again.');
       }
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'The roasting bot crashed (probably out of disgust). Try again.' }]);
     } finally {
-      setIsLoading(false);
-      setFile(null); // Clear file so they can upload another
+      setBusy(false);
     }
   };
 
-  const hasStarted = messages.length > 0 || uploading || isLoading;
+  const reset = () => {
+    abortRef.current?.abort();
+    setRoast('');
+    setFile(null);
+    setError(null);
+  };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className={styles.pageHead} style={{ paddingBottom: 'var(--s-3)' }}>
-        <div>
-          <h2 className={styles.pageTitle}>AI Resume Roaster</h2>
-          <p className={styles.pageSubtitle}>
-            Submit your resume. Get roasted by an elite recruiter. Fix your fluff.
-          </p>
-        </div>
-        {isLoading && (
-          <Button variant="soft" onClick={() => setIsLoading(false)} icon={<SquareSquare size={16} />} disabled={!isLoading}>
-            Stop Roasting
-          </Button>
-        )}
-      </div>
+  const showResult = busy || roast.length > 0;
 
-      {!hasStarted ? (
-        <div className="surface-card" style={{ maxWidth: 600, margin: '0 auto', marginTop: 'var(--s-6)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--s-4)', color: 'var(--accent)' }}>
-             <FileText size={48} strokeWidth={1} />
+  if (!showResult) {
+    return (
+      <>
+        <div className={styles.pageHead}>
+          <div>
+            <h2 className={styles.pageTitle}>Resume roast</h2>
+            <p className={styles.pageSubtitle}>
+              A line-by-line teardown before a recruiter does it for real — and silently.
+            </p>
           </div>
-          <h3 className="h4" style={{ marginBottom: 'var(--s-3)', textAlign: 'center' }}>Upload Your Resume</h3>
-          <p className="dim" style={{ marginBottom: 'var(--s-6)', textAlign: 'center' }}>
-            Upload your PDF. The Antisocial MBA bot will tear apart every meaningless buzzword and force you to quantify your impact.
-          </p>
-          
-          <div className="stack gap-2" style={{ marginBottom: 'var(--s-6)' }}>
+        </div>
+
+        <div className={chat.setup}>
+          <div>
+            <h3 className={chat.setupTitle}>Upload your resume</h3>
+            <p className={chat.setupBody}>
+              It gets read once and is not kept — there is no copy of your resume on our side after
+              the roast finishes.
+            </p>
+          </div>
+
+          {error && <Banner variant="danger">{error}</Banner>}
+
+          <div className="stack gap-2">
             <input
               id="resume-file"
               type="file"
-              accept=".pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              accept="application/pdf,.pdf"
+              aria-label="Resume PDF"
+              onChange={(event) => pick(event.target.files?.[0] ?? null)}
               style={{
-                padding: 'var(--s-6)',
+                padding: 'var(--s-5)',
                 border: '2px dashed var(--line-strong)',
                 borderRadius: 'var(--r-md)',
                 background: 'var(--bg-sunken)',
@@ -152,82 +125,88 @@ export default function AIResumeRoasterPage() {
                 cursor: 'pointer',
               }}
             />
-            <span className="dim" style={{ fontSize: 'var(--t-xs)', textAlign: 'center' }}>
-              PDF only, max {Math.round(MAX_FILE_SIZE_BYTES / 1_048_576)} MB
+            <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>
+              PDF, up to {MAX_MB} MB. Exported from a document, not a scan.
             </span>
           </div>
 
-          <Button 
-            variant="primary" 
-            onClick={handleStartRoast} 
-            disabled={!file} 
-            loading={uploading || isLoading}
-            style={{ width: '100%' }}
-            icon={<UploadCloud size={16} />}
-          >
-            Roast Me
+          <div className="stack gap-2">
+            <span style={{ fontSize: 'var(--t-sm)', fontWeight: 560 }}>How hard?</span>
+            <Segmented
+              ariaLabel="Roast intensity"
+              value={intensity}
+              onChange={setIntensity}
+              options={[
+                { value: 'gentle' as const, label: 'Gentle' },
+                { value: 'honest' as const, label: 'Honest' },
+                { value: 'savage' as const, label: 'Savage' },
+              ]}
+            />
+            <span className="dim" style={{ fontSize: 'var(--t-sm)' }}>{INTENSITY_NOTE[intensity]}</span>
+          </div>
+
+          <Button size="lg" fullWidth icon={<Flame size={16} />} disabled={!file} onClick={start}>
+            Roast it
           </Button>
         </div>
-      ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--s-4)', background: 'var(--surface)', borderRadius: 'var(--r-md) var(--r-md) 0 0', display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
-            {uploading && (
-              <div className="dim" style={{ textAlign: 'center', marginTop: 'var(--s-6)' }}>
-                Uploading PDF... 
-              </div>
+      </>
+    );
+  }
+
+  return (
+    <div className={cn(chat.shell, chat.shellSingle)}>
+      <section className={chat.thread}>
+        <header className={chat.threadHead}>
+          <FileText size={18} aria-hidden />
+          <div>
+            <div className={chat.threadTitle}>{file?.name ?? 'Your resume'}</div>
+            <div className={chat.threadSub}>
+              {busy ? 'Reading… and wincing' : 'Roast complete'} · {intensity}
+            </div>
+          </div>
+          <div className={chat.threadHeadPush}>
+            {busy ? (
+              <Button size="sm" variant="secondary" icon={<Square size={14} />} onClick={() => abortRef.current?.abort()}>
+                Stop
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={reset}>
+                Another
+              </Button>
             )}
-            
-            {messages.map((msg, i) => {
-              const isMe = msg.role === 'user';
-              return (
-                <div key={i} style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                  {!isMe && (
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                      <Bot size={18} />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                    {!isMe && <span className="dim" style={{ fontSize: 'var(--t-xs)', marginBottom: 2 }}>Alumni AI</span>}
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: 'var(--r-md)',
-                      background: isMe ? 'var(--accent)' : 'var(--bg)',
-                      color: isMe ? 'var(--on-accent)' : 'var(--text)',
-                      border: isMe ? 'none' : '1px solid var(--line)',
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: 1.5,
-                    }}>
-                      {msg.content}
-                    </div>
-                  </div>
-                  {isMe && (
-                    <Avatar name={me?.name || 'User'} image={me?.image} seed={me?.id} size={32} />
-                  )}
-                </div>
-              );
-            })}
-            
-            {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
-              <div style={{ display: 'flex', gap: 'var(--s-3)', alignSelf: 'flex-start' }}>
-                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-accent)' }}>
-                   <Bot size={18} />
-                 </div>
-                 <div style={{ padding: '12px 16px', borderRadius: 'var(--r-md)', background: 'var(--bg)', border: '1px solid var(--line)' }}>
-                   <span className="dim">Reading your resume... and cringing...</span>
-                 </div>
-              </div>
-            )}
-            
-            {!isLoading && messages.length > 1 && (
-              <div style={{ marginTop: 'var(--s-6)', textAlign: 'center' }}>
-                <Button variant="secondary" onClick={() => setMessages([])}>
-                  Submit another Resume
-                </Button>
-              </div>
-            )}
-            
-            <div ref={endRef} />
+          </div>
+        </header>
+
+        <div className={chat.document} aria-live="polite">
+          {roast ? (
+            <Markdown className={chat.prose}>{roast}</Markdown>
+          ) : (
+            <span className={chat.typing} aria-label="Reading your resume">
+              <span />
+              <span />
+              <span />
+            </span>
+          )}
+
+          {error && (
+            <Banner variant="danger" className="animate-rise">
+              {error}
+            </Banner>
+          )}
+
+          {!busy && roast && (
+            <div className={chat.scoreActions} style={{ marginTop: 'var(--s-6)' }}>
+              <Link href="/sessions?sessionType=resume_review">
+                <Button icon={<CalendarClock size={16} />}>Get a senior to review the rewrite</Button>
+              </Link>
+              <Button variant="secondary" icon={<RotateCcw size={16} />} onClick={reset}>
+                Roast another version
+              </Button>
+            </div>
+          )}
+          <div ref={endRef} />
         </div>
-      )}
+      </section>
     </div>
   );
 }

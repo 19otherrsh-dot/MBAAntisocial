@@ -40,6 +40,7 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [awaitingEmail, setAwaitingEmail] = useState(false);
 
   // Typed per key, so the boolean `isAlumni` field does not need a cast at the
   // call site the way a blanket `string` signature forced.
@@ -62,10 +63,18 @@ export default function RegisterPage() {
     setFieldErrors({});
 
     try {
-      await api.post('/api/auth/register', {
+      const created = await api.post<{ verificationRequired: boolean }>('/api/auth/register', {
         ...form,
         year: Number(form.year),
       });
+
+      // With confirmation on, there is no session to start yet — the account
+      // exists but cannot sign in until the emailed link has been followed.
+      if (created.verificationRequired) {
+        setAwaitingEmail(true);
+        setPending(false);
+        return;
+      }
 
       // Sign in immediately — asking someone to type the same password again
       // on a separate screen is a step with no purpose.
@@ -95,6 +104,22 @@ export default function RegisterPage() {
       setPending(false);
     }
   };
+
+  if (awaitingEmail) {
+    return (
+      <div className={styles.formBody}>
+        <h1 className={styles.title}>Check your inbox</h1>
+        <p className={styles.subtitle}>
+          We sent a confirmation link to <strong>{form.email.trim()}</strong>. Follow it and your
+          account is ready — it is how we know you are actually at {form.campus}.
+        </p>
+        <p className={styles.footerNote}>
+          Nothing after a few minutes? Check spam, or <Link href="/login">sign in</Link> to send it
+          again.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.formBody}>

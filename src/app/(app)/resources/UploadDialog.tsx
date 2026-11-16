@@ -6,7 +6,7 @@ import { ShieldCheck, Check } from 'lucide-react';
 import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
-import { Banner } from '@/components/ui/Display';
+import { Banner, Segmented } from '@/components/ui/Display';
 import { useToast } from '@/components/ui/Toast';
 import { useAction } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
@@ -15,12 +15,14 @@ import {
   RESOURCE_KINDS,
   RESOURCE_KIND_META,
   ALLOWED_FILE_EXTENSIONS,
-  MAX_FILE_SIZE_BYTES,
+  MAX_DIRECT_UPLOAD_BYTES,
   TERMS,
   type ResourceKind,
 } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { cn, hostnameOf } from '@/lib/utils';
 import styles from '../app.module.css';
+
+const maxMb = Math.round(MAX_DIRECT_UPLOAD_BYTES / 1_048_576);
 
 interface UploadDialogProps {
   open: boolean;
@@ -38,6 +40,9 @@ export default function UploadDialog({ open, onClose, onDone }: UploadDialogProp
   const [professor, setProfessor] = useState('');
   const [term, setTerm] = useState<string>(TERMS[0]);
   const [kind, setKind] = useState<ResourceKind>('class_notes');
+  // A file up to the direct-upload cap, or a link to one hosted elsewhere.
+  const [source, setSource] = useState<'file' | 'link'>('file');
+  const [link, setLink] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [tags, setTags] = useState('');
@@ -58,38 +63,53 @@ export default function UploadDialog({ open, onClose, onDone }: UploadDialogProp
   const upload = useAction(async () => {
     setFieldErrors({});
 
-    if (!file) {
-      setFieldErrors({ file: 'Please select a file to upload.' });
-      return;
-    }
-
-    setUploadingFile(true);
     let uploadedUrl = '';
-    let finalSize = file.size;
+    let fileName = '';
+    let fileType = 'link';
+    let finalSize = 0;
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Upload failed');
+    if (source === 'link') {
+      const url = link.trim();
+      if (!/^https:\/\/\S+\.\S+/.test(url)) {
+        setFieldErrors({ file: 'Paste a full https:// link.' });
+        return;
       }
-      
-      const data = await response.json();
-      uploadedUrl = data.url;
-      finalSize = data.bytes;
-    } catch (e) {
-      setUploadingFile(false);
-      toast.error(
-        'Could not upload that file',
-        e instanceof Error ? e.message : 'Check your connection and try again.'
-      );
-      return;
+      uploadedUrl = url;
+      fileName = hostnameOf(url);
+    } else {
+      if (!file) {
+        setFieldErrors({ file: 'Choose a file to upload.' });
+        return;
+      }
+      if (file.size > MAX_DIRECT_UPLOAD_BYTES) {
+        setFieldErrors({
+          file: `That file is over ${maxMb} MB. Put it on Drive and share the link instead.`,
+        });
+        return;
+      }
+
+      setUploadingFile(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'resources');
+
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          // The server's own reason — size, type, uploads not configured.
+          throw new Error(data?.error?.message ?? 'Upload failed.');
+        }
+
+        uploadedUrl = data.url;
+        finalSize = data.bytes;
+        fileName = file.name;
+        fileType = detectedExt || 'pdf';
+      } catch (e) {
+        setUploadingFile(false);
+        setFieldErrors({ file: e instanceof Error ? e.message : 'Upload failed.' });
+        return;
+      }
     }
 
     await api.post('/api/resources', {
@@ -100,9 +120,9 @@ export default function UploadDialog({ open, onClose, onDone }: UploadDialogProp
       term,
       kind,
       fileUrl: uploadedUrl,
-      fileName: file.name,
-      fileType: detectedExt || 'pdf',
-      fileSize: Math.min(Math.max(finalSize, 1), MAX_FILE_SIZE_BYTES),
+      fileName,
+      fileType,
+      fileSize: finalSize,
       tags: tags
         .split(',')
         .map((tag) => tag.trim().toLowerCase())
@@ -116,6 +136,7 @@ export default function UploadDialog({ open, onClose, onDone }: UploadDialogProp
     setTitle('');
     setDescription('');
     setFile(null);
+    setLink('');
     setTags('');
     setAffirmed(false);
     onDone();
@@ -124,7 +145,10 @@ export default function UploadDialog({ open, onClose, onDone }: UploadDialogProp
   if (!open) return null;
 
   const canSubmit =
-    title.trim().length >= 3 && course.trim().length >= 2 && file !== null && affirmed;
+    title.trim().length >= 3 &&
+    course.trim().length >= 2 &&
+    (source === 'file' ? file !== null : link.trim().length > 8) &&
+    affirmed;
 
   return (
     <Dialog
@@ -216,33 +240,60 @@ export default function UploadDialog({ open, onClose, onDone }: UploadDialogProp
         />
       </div>
 
-      {/* Tokens here match the design system: --border-subtle, --radius-md,
-          --bg-elevated and --accent-danger were from an earlier palette and
-          resolve to nothing, so this control rendered unstyled. */}
       <div className="stack gap-2">
-        <label htmlFor="resource-file" style={{ fontSize: 'var(--t-sm)', fontWeight: 560 }}>
-          File
-        </label>
-        <input
-          id="resource-file"
-          type="file"
-          accept={ALLOWED_FILE_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          style={{
-            padding: 'var(--s-3)',
-            border: '1px dashed var(--line-strong)',
-            borderRadius: 'var(--r-md)',
-            background: 'var(--bg-sunken)',
-            color: 'var(--text-secondary)',
-            fontSize: 'var(--t-sm)',
-            width: '100%',
+        <Segmented
+          ariaLabel="How to share it"
+          value={source}
+          onChange={(value) => {
+            setSource(value);
+            setFieldErrors({});
           }}
+          options={[
+            { value: 'file' as const, label: 'Upload a file' },
+            { value: 'link' as const, label: 'Share a link' },
+          ]}
         />
-        <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>
-          Up to {Math.round(MAX_FILE_SIZE_BYTES / 1_048_576)} MB ·{' '}
-          {ALLOWED_FILE_EXTENSIONS.join(', ')}
-          {file ? ` · ${file.name}` : ''}
-        </span>
+
+        {source === 'file' ? (
+          <>
+            <input
+              id="resource-file"
+              type="file"
+              aria-label="File"
+              accept={ALLOWED_FILE_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
+              onChange={(e) => {
+                setFile(e.target.files?.[0] || null);
+                setFieldErrors({});
+              }}
+              style={{
+                padding: 'var(--s-3)',
+                border: '1px dashed var(--line-strong)',
+                borderRadius: 'var(--r-md)',
+                background: 'var(--bg-sunken)',
+                color: 'var(--text-secondary)',
+                fontSize: 'var(--t-sm)',
+                width: '100%',
+              }}
+            />
+            <span className="dim" style={{ fontSize: 'var(--t-xs)' }}>
+              Up to {maxMb} MB · {ALLOWED_FILE_EXTENSIONS.join(', ')}
+              {file ? ` · ${file.name}` : ''}. Bigger than that? Share a link.
+            </span>
+          </>
+        ) : (
+          <Input
+            label="Link"
+            type="url"
+            inputMode="url"
+            placeholder="https://drive.google.com/…"
+            hint="Make sure anyone at your campus with the link can open it."
+            value={link}
+            onChange={(e) => {
+              setLink(e.target.value);
+              setFieldErrors({});
+            }}
+          />
+        )}
         {fieldErrors.file && (
           <span style={{ color: 'var(--danger)', fontSize: 'var(--t-xs)' }}>
             {fieldErrors.file}

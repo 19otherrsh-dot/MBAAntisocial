@@ -1,19 +1,17 @@
 import Task from '@/models/Task';
+import { DAY_MS, startOfDay, endOfDay, weekdayOf } from './time';
 import type { RecurrencePattern } from './constants';
-
-const DAY_MS = 86_400_000;
 
 /** How far ahead instances are materialised. */
 const HORIZON_DAYS = 14;
 
-function startOfDay(date: Date): Date {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
+/*
+ * Every "which day is it" question here is answered in the campus zone (see
+ * `lib/time.ts`). Using the process's local midnight made a daily habit fall
+ * due at 05:29 the next morning for an Indian campus on a UTC host.
+ */
 function isWeekday(date: Date): boolean {
-  const day = date.getDay();
+  const day = weekdayOf(date);
   return day !== 0 && day !== 6;
 }
 
@@ -25,7 +23,7 @@ function occursOn(pattern: RecurrencePattern, anchor: Date, date: Date): boolean
     case 'weekdays':
       return isWeekday(date);
     case 'weekly':
-      return date.getDay() === anchor.getDay();
+      return weekdayOf(date) === weekdayOf(anchor);
   }
 }
 
@@ -72,9 +70,8 @@ export async function materialiseRecurringTasks(userId: string, now: Date = new 
     for (let cursor = new Date(cursorStart); cursor <= horizon; cursor = new Date(cursor.getTime() + DAY_MS)) {
       if (!occursOn(template.recurrence, anchor, cursor)) continue;
 
-      // Due at end of the local day, matching how a daily habit is actually judged.
-      const dueAt = new Date(cursor);
-      dueAt.setHours(23, 59, 59, 999);
+      // Due at the end of the campus day, matching how a daily habit is judged.
+      const dueAt = endOfDay(cursor);
 
       pending.push({
         user: userId,
