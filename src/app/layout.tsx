@@ -30,7 +30,6 @@ export const metadata: Metadata = {
     'Book mock interviews with actual seniors, track every deadline, and find your batch’s notes. One app instead of nine group chats.',
   applicationName: 'MBAAntisocial',
   robots: { index: true, follow: true },
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

@@ -17,7 +17,6 @@
   "dependencies": {
     "@ai-sdk/google": "^4.0.44",
     "@ai-sdk/react": "^4.0.69",
-    "@ducanh2912/next-pwa": "^10.2.9",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.1.0",
     "ai": "^7.0.66",

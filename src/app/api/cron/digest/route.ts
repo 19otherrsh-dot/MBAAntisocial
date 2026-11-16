@@ -6,6 +6,7 @@ import Resource from '@/models/Resource';
 import InterviewSlot from '@/models/InterviewSlot';
 import DigestEmail from '@/emails/DigestEmail';
 import connectDB from '@/lib/mongodb';
+import { env } from '@/lib/env';
 
 /**
  * Constructed per request rather than at module scope.
@@ -98,7 +99,7 @@ export async function GET(request: Request) {
       for (const user of campusUsers) {
         try {
           await resend.emails.send({
-            from: 'MBAAntisocial <digest@mbaantisocial.com>',
+            from: env.EMAIL_FROM,
             to: user.email,
             subject: 'Your Weekly Campus Digest',
             react: DigestEmail({

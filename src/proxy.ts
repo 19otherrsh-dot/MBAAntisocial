@@ -19,7 +19,11 @@ export const config = {
      * unauthenticated request with a redirect to /login, which a `fetch` client
      * cannot act on. API routes are guarded by the `route()` wrapper instead,
      * which returns a real 401 JSON body.
+     *
+     * The service worker, manifest, and icons are excluded too: a browser
+     * fetches them without a session, and answering with a login redirect
+     * makes the app uninstallable and the worker fail to register.
      */
-    '/((?!api/|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|robots.txt|sitemap.xml).*)',
+    '/((?!api/|_next/static|_next/image|favicon.ico|icon.svg|icon-\\d+x\\d+\\.png|apple-icon.png|manifest.webmanifest|sw.js|robots.txt|sitemap.xml).*)',
   ],
 };

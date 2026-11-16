@@ -11,7 +11,7 @@
  * Every account uses the same password, printed at the end.
  */
 
-import 'dotenv/config';
+import './load-env';
 import mongoose from 'mongoose';
 import connectDB from '../src/lib/mongodb';
 import User from '../src/models/User';
@@ -25,6 +25,15 @@ import Notification from '../src/models/Notification';
 import Report from '../src/models/Report';
 import Application, { companyKeyOf } from '../src/models/Application';
 import InterviewQuestion from '../src/models/InterviewQuestion';
+import Job from '../src/models/Job';
+import Whisper from '../src/models/Whisper';
+import Offer from '../src/models/Offer';
+import Bounty from '../src/models/Bounty';
+import StudyRoom from '../src/models/StudyRoom';
+import RoomMessage from '../src/models/RoomMessage';
+import Contact from '../src/models/Contact';
+import Message from '../src/models/Message';
+import { zonedParts, zonedTime } from '../src/lib/time';
 
 const CAMPUS = 'IIM Ahmedabad';
 const BATCH = '2025-27';
@@ -34,11 +43,13 @@ const STAFF_EMAIL = 'placements@iima.ac.in';
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
 
-/** Days from now, at a given local hour. */
+/**
+ * Days from now, at a given hour on the *campus* clock. Using the process's
+ * local time put a 7 PM session at 12:30 AM IST on a UTC machine.
+ */
 function at(daysFromNow: number, hour: number, minute = 0): Date {
-  const date = new Date(Date.now() + daysFromNow * DAY);
-  date.setHours(hour, minute, 0, 0);
-  return date;
+  const today = zonedParts(new Date());
+  return zonedTime({ year: today.year, month: today.month, day: today.day + daysFromNow, hour, minute });
 }
 
 const SENIORS = [
@@ -114,10 +125,21 @@ async function seed() {
       Report.deleteMany({ reporter: { $in: existingIds } }),
       Application.deleteMany({ user: { $in: existingIds } }),
       InterviewQuestion.deleteMany({ contributor: { $in: existingIds } }),
+      Job.deleteMany({ author: { $in: existingIds } }),
+      Whisper.deleteMany({ author: { $in: existingIds } }),
+      Bounty.deleteMany({ owner: { $in: existingIds } }),
+      Contact.deleteMany({ owner: { $in: existingIds } }),
+      Message.deleteMany({ $or: [{ sender: { $in: existingIds } }, { receiver: { $in: existingIds } }] }),
+      StudyRoom.deleteMany({ createdBy: { $in: existingIds } }),
+      RoomMessage.deleteMany({ author: { $in: existingIds } }),
       User.deleteMany({ _id: { $in: existingIds } }),
     ]);
   }
   await CaseComp.deleteMany({ source: 'curated' });
+  // Offers carry no author by design, so the only handle on seeded ones is the
+  // campus. This is a development seed for a demo campus; never run it against
+  // a database holding that campus's real reports.
+  await Offer.deleteMany({ campus: CAMPUS });
 
   /*
    * Created one at a time rather than with insertMany, because the password
@@ -158,7 +180,7 @@ async function seed() {
     );
   }
 
-  const juniors = [];
+  const juniors: Array<{ _id: mongoose.Types.ObjectId; name: string }> = [];
   for (const [index, person] of JUNIORS.entries()) {
     juniors.push(
       await User.create({
@@ -773,6 +795,224 @@ async function seed() {
   );
   console.log(`Created ${intel.length} interview questions.`);
 
+  // ── Campus opportunities ─────────────────────────────────────────────────
+  // Ananya's post invites contact, which is what lets a junior message her —
+  // the one route into a DM that does not need a completed session first.
+  await Job.insertMany([
+    {
+      author: seniors[0]._id,
+      campus: CAMPUS,
+      title: 'Consult Club — case-prep buddies for the winter cohort',
+      kind: 'club_role',
+      org: '',
+      description:
+        'Pairing first-years for twice-weekly case practice through placement season. You get a partner, a question bank, and a senior who reviews one recorded case a fortnight. Message me if you want in.',
+      commitment: 'light',
+      link: '',
+      invitesContact: true,
+      closesAt: at(10, 23, 59),
+      isActive: true,
+    },
+    {
+      author: seniors[3]._id,
+      campus: CAMPUS,
+      title: 'TA for Corporate Finance — Term III',
+      kind: 'teaching_assistant',
+      org: '',
+      description:
+        'Prof. Mehta needs two TAs to run tutorials and grade problem sets. Strong Term I finance grade preferred. Paid at the institute rate.',
+      commitment: 'moderate',
+      link: '',
+      invitesContact: false,
+      closesAt: at(6, 17),
+      isActive: true,
+    },
+    {
+      author: seniors[1]._id,
+      campus: CAMPUS,
+      title: 'Live project: pricing a D2C subscription',
+      kind: 'live_project',
+      org: 'Early-stage consumer startup',
+      description:
+        'Six-week live project with a seed-stage founder. Customer interviews, a pricing test, and a final readout. Good story for product and marketing interviews.',
+      commitment: 'moderate',
+      link: '',
+      invitesContact: true,
+      isActive: true,
+    },
+  ]);
+
+  // ── Whispers: three reviews each, so the averages publish ────────────────
+  const whisperTargets = [
+    {
+      targetName: 'Prof. Mehta',
+      targetType: 'professor' as const,
+      reviews: [
+        [4, 4, 4, 'Brutal on cold calls, but you leave actually understanding DCF. Do the readings.'],
+        [5, 3, 4, 'Best teacher in the core. Office hours are where the real learning happens.'],
+        [3, 5, 5, 'Grades hard and the problem sets eat your weekend. Worth it, mostly.'],
+      ] as Array<[number, number, number, string]>,
+    },
+    {
+      targetName: 'Marketing Management',
+      targetType: 'course' as const,
+      reviews: [
+        [4, 2, 3, 'Case-heavy and fun. Class participation is a big chunk — speak early.'],
+        [3, 2, 2, 'Light workload, but the group project depends entirely on who you get.'],
+        [4, 3, 3, 'Good frameworks for summers interviews. The final is fair.'],
+      ] as Array<[number, number, number, string]>,
+    },
+  ];
+  const whisperRows = whisperTargets.flatMap((target) =>
+    target.reviews.map(([rating, difficulty, workload, content], index) => ({
+      author: juniors[index]._id,
+      campus: CAMPUS,
+      targetName: target.targetName,
+      targetType: target.targetType,
+      rating,
+      difficulty,
+      workload,
+      content,
+    }))
+  );
+  // `create`, not `insertMany`: the target key is set by a validate hook.
+  for (const row of whisperRows) await Whisper.create(row);
+
+  // ── Offer intel: five consulting reports, so that benchmark publishes ─────
+  const offerRows = [
+    { company: 'Bain & Company', role: 'Associate Consultant', baseSalary: 3_400_000 },
+    { company: 'McKinsey & Company', role: 'Associate', baseSalary: 3_600_000 },
+    { company: 'BCG', role: 'Associate', baseSalary: 3_500_000 },
+    { company: 'Kearney', role: 'Consultant', baseSalary: 2_900_000 },
+    { company: 'Accenture Strategy', role: 'Management Consultant', baseSalary: 2_600_000 },
+  ].map((offer, index) => ({
+    ...offer,
+    campus: CAMPUS,
+    location: index % 2 === 0 ? 'Mumbai' : 'Gurugram',
+    signingBonus: index < 3 ? 300_000 : 0,
+    offerType: 'full_time',
+    track: 'consulting',
+  }));
+  offerRows.push(
+    {
+      company: 'Flipkart',
+      role: 'Product Manager Intern',
+      baseSalary: 200_000,
+      campus: CAMPUS,
+      location: 'Bengaluru',
+      signingBonus: 0,
+      offerType: 'internship',
+      track: 'product',
+    },
+    {
+      company: 'Hindustan Unilever',
+      role: 'Marketing Intern',
+      baseSalary: 175_000,
+      campus: CAMPUS,
+      location: 'Mumbai',
+      signingBonus: 0,
+      offerType: 'internship',
+      track: 'marketing',
+    }
+  );
+  await Offer.insertMany(offerRows);
+
+  // ── The Syndicate ────────────────────────────────────────────────────────
+  await Bounty.insertMany([
+    {
+      campus: CAMPUS,
+      owner: juniors[1]._id,
+      title: 'Mint + Economist annual subscription',
+      description: 'One login, shared across four. Pay me over UPI once it fills.',
+      totalCost: 7_200,
+      slotsRequired: 4,
+      slotsFilled: [juniors[1]._id, juniors[3]._id],
+      category: 'subscription',
+      status: 'open',
+    },
+    {
+      campus: CAMPUS,
+      owner: juniors[4]._id,
+      title: 'Cab to the airport, Friday 6 AM',
+      description: 'Innova from the main gate. Leaving at 6 sharp for the 8:40 flight.',
+      totalCost: 1_800,
+      slotsRequired: 3,
+      slotsFilled: [juniors[4]._id],
+      category: 'travel',
+      status: 'open',
+    },
+  ]);
+
+  // ── Study room with a short conversation ─────────────────────────────────
+  const roomExpiry = new Date(Date.now() + 10 * HOUR);
+  const room = await StudyRoom.create({
+    title: 'Guesstimate grind before Bain',
+    topic: 'Consulting',
+    campus: CAMPUS,
+    isGlobal: false,
+    createdBy: juniors[0]._id,
+    expiresAt: roomExpiry,
+  });
+  const roomLines: Array<[number, string]> = [
+    [0, 'Doing 20-minute guesstimates back to back. Anyone want to swap prompts?'],
+    [4, 'In. Give me one and I will give you the number of petrol pumps in Pune.'],
+    [0, 'Daily cups of chai sold at IIMA. Go.'],
+  ];
+  await RoomMessage.insertMany(
+    roomLines.map(([who, content], index) => ({
+      room: room._id,
+      author: juniors[who]._id,
+      content,
+      expiresAt: roomExpiry,
+      createdAt: new Date(Date.now() - (roomLines.length - index) * 4 * 60_000),
+    }))
+  );
+
+  // ── Black Book: Sneha's contacts, oldest follow-up first ─────────────────
+  await Contact.insertMany(
+    [
+      { name: 'Rhea Kapoor', company: 'Bain & Company', role: 'Consultant · alum', status: 'warm', days: 21 },
+      { name: 'Vikram Sethi', company: 'Kearney', role: 'Principal', status: 'cold', days: 9 },
+      { name: 'Ananya Raghavan', company: 'McKinsey (summers)', role: 'Senior', status: 'advocate', days: 2 },
+    ].map(({ days, ...contact }) => ({
+      ...contact,
+      owner: juniors[0]._id,
+      campus: CAMPUS,
+      notes: '',
+      lastContactedAt: new Date(Date.now() - days * DAY),
+    }))
+  );
+
+  // ── A DM thread, opened by the completed session between Priya and Meera ──
+  await Message.insertMany([
+    {
+      sender: juniors[2]._id,
+      receiver: seniors[2]._id,
+      content: 'Thanks again for Tuesday. I rewrote my answers to lead with the point — could I send you two to look at?',
+      read: true,
+      createdAt: new Date(Date.now() - 2 * DAY),
+    },
+    {
+      sender: seniors[2]._id,
+      receiver: juniors[2]._id,
+      content: 'Send them over. Keep each under 90 seconds spoken and I will mark where I would have interrupted.',
+      read: false,
+      createdAt: new Date(Date.now() - DAY),
+    },
+  ]);
+
+  // ── One report about a person, so the suspend path is demonstrable ───────
+  await Report.create({
+    reporter: juniors[3]._id,
+    campus: CAMPUS,
+    targetType: 'user',
+    target: juniors[4]._id,
+    reason: 'spam',
+    detail: 'Posting the same referral-for-money message in every room.',
+  });
+
+  console.log('Created opportunities, whispers, offers, splits, a study room, contacts, and a DM thread.');
+
   console.log('\n─────────────────────────────────────────');
   console.log('Seed complete.\n');
   console.log(`Campus:   ${CAMPUS}`);
@@ -781,6 +1021,7 @@ async function seed() {
   console.log(`Senior/moderator:  ${SENIORS[0].email}`);
   console.log(`Senior (mentor):   ${SENIORS[2].email}`);
   console.log(`Junior (busiest):  ${JUNIORS[0].email}`);
+  console.log(`Junior (has DMs):  ${JUNIORS[2].email}`);
   console.log('─────────────────────────────────────────\n');
 
   await mongoose.disconnect();
