@@ -44,15 +44,18 @@ environment at boot and fails with a readable message rather than surfacing
 
 `npm run seed` builds one campus (IIM Ahmedabad) with four seniors publishing
 slots, five juniors, a booked session, a completed session carrying both sides of
-the feedback rubric, a resource library, four competitions, and a feed with real
-threads. Every account uses the password `seedpassword123`.
+the feedback rubric, a resource library, four competitions, a feed with real
+threads, tracked pipelines and interview intel, and data for every newer page —
+opportunities, whispers, offer benchmarks, splits, a study room, contacts, and a
+DM thread. Every account uses the password `seedpassword123`.
 
 | Account | Role |
 | --- | --- |
 | `placements@iima.ac.in` | Institute staff — sees the campus report, moderates nothing |
 | `ananya@iima.ac.in` | Senior, moderator — has the moderation queue |
 | `priya@iima.ac.in` | Senior, mentor — has a completed session with feedback |
-| `sneha@iima.ac.in` | Junior — has bookings, tasks, and an overdue item |
+| `sneha@iima.ac.in` | Junior — has bookings, tasks, a pipeline, and an overdue item |
+| `meera@iima.ac.in` | Junior — has a completed session and an open message thread |
 
 ### Scripts
 
@@ -62,8 +65,9 @@ threads. Every account uses the password `seedpassword123`.
 | `npm run build` / `npm start` | Production build and serve |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint, including the React Compiler rules |
-| `npm run seed` | Rebuild the seeded campus |
-| `npm run verify` | typecheck → lint → build |
+| `npm run seed` | Rebuild the seeded campus (reads `.env.local`) |
+| `npm test` | Unit tests; add `TEST_MONGODB_URI` to run the database tests too |
+| `npm run verify` | typecheck → lint → test → build |
 
 ---
 
@@ -93,10 +97,17 @@ src/
 ### The route wrapper
 
 Every API route goes through `route()` in `src/lib/api/handler.ts`, which
-resolves the session, gates on role, validates the body and query against a zod
-schema, applies rate limiting, connects to the database, and serialises any
-thrown `ApiError` into a consistent JSON envelope. Handlers below that line can
-assume a valid `actor` and parsed input.
+resolves the session, validates the body and query against a zod schema, applies
+rate limiting, connects to the database, loads the caller, gates on role, and
+serialises any thrown `ApiError` into a consistent JSON envelope. Handlers below
+that line can assume a valid `actor` and parsed input.
+
+**The caller is read from the database on every request, not from the token.**
+The session token proves *who* is calling; what they may do — role, campus,
+suspension — is looked up fresh by primary key. A token is a thirty-day
+snapshot, and authorising from it meant a suspended account kept working and a
+revoked moderator stayed a moderator until it expired. A password reset also
+retires every session issued before it.
 
 Input is validated **before** the database is touched, so a malformed request
 costs a schema parse rather than a connection from the pool.
@@ -113,6 +124,38 @@ token — a JWT is only reissued at sign-in, so anything stored on it would be
 frozen at whatever it was that day.
 
 ---
+
+### Time
+
+Every "which day is it" question — streaks, habit due dates, "due today",
+notification copy — is answered in `APP_TIME_ZONE` through `src/lib/time.ts`,
+never the host's clock. Hosts run in UTC, where an Indian campus's day rolls
+over at half past five in the morning.
+
+### Realtime
+
+Messages and notifications go out over Pusher on **private** channels
+(`private-user-<id>`, `private-room-<id>`), each signed by `/api/pusher/auth`
+after checking the caller may read it. Realtime is optional: without keys,
+everything still arrives on the next load.
+
+### AI
+
+`src/lib/ai.ts` wraps the model calls. Replies stream to the browser as plain
+text, and a model failure before the first word becomes a real error status
+instead of an empty reply. The interviewer is grounded in the campus's own
+Interview Intel for the company being practised, and finishes with a scorecard
+on the same rubric seniors use. The resume roast reads the PDF in memory and
+keeps nothing.
+
+### Tests
+
+`tests/unit` covers the rules that are easy to get subtly wrong — time zones,
+streaks, banding, channel names, name normalisation, Markdown escaping, and the
+session-update escalation. `tests/integration` runs against a throwaway MongoDB
+(`TEST_MONGODB_URI`): one-payout ledger awards, daily caps, milestone payouts,
+mentor capacity, atomic split claims, and the campus boundary on messaging. CI
+(`.github/workflows/ci.yml`) runs everything against a MongoDB service.
 
 ## Design decisions worth knowing
 
@@ -139,6 +182,15 @@ messaged first, one of them posted an opportunity inviting contact, or a
 moderator is involved. Everything else is a cold DM. The gate applies to reading
 a thread as well as writing to one — otherwise it only stops people sending, not
 looking.
+
+**Campus is proven, not claimed.** Everything is scoped by campus, so a
+dropdown is not a boundary. `CAMPUS_EMAIL_DOMAINS` binds a domain to a campus;
+once bound, the address decides the campus and must be confirmed before the
+account can sign in. No role — alumni included — bypasses the campus scope.
+
+**Cross-campus is the author's choice, per item.** A feed post or study room
+reaches other campuses only when the person creating it says so. The
+all-campuses view shows those items and nothing else.
 
 **Opportunities are campus-internal, not a job board.** Competing on external
 listings means competing with national marketplaces without their employer
@@ -218,6 +270,16 @@ value representing a current submission, so the guardrail is the absence of a
 code path rather than a policy page nobody reads. Uploads are additionally gated
 on recorded acceptance of the sharing policy.
 
+**Offer intel publishes bands, never figures.** Reports carry no author, and
+every individual figure — including a track's top offer — is published as a
+band. Each account can file at most six reports, counted on the account rather
+than the report, so one person cannot set a benchmark.
+
+**The fun is cooperative.** The one shared number on Today is a season goal the
+whole batch pushes together; it ranks nobody. "Your impact" turns karma back
+into what it stands for — people helped. An offer gets a moment of its own, and
+a nudge to leave something behind for next year.
+
 **Moderation shipped in version one.** Reporting, a moderator queue, and
 hide-don't-delete exist now — before the pressure to loosen anything arrives.
 Hidden content stays reviewable, including when the call was wrong.
@@ -226,23 +288,20 @@ Hidden content stays reviewable, including when the call was wrong.
 
 ## What is deliberately not built
 
-- **File uploads.** Resources are referenced by link. There is no object-storage
-  bucket wired up, and a fake upload control that silently stores nothing would
-  be worse than being explicit. The schema, size limits, and version history
-  already assume a real `fileUrl`, so a signed-upload flow touches only
-  `UploadDialog`.
+- **Large file uploads.** Uploads go to Cloudinary but are capped at 4 MB, below
+  the request-body limit serverless hosts enforce before any code runs. Anything
+  bigger is shared as a link, which the upload dialog offers directly.
 - **Calendar-API meeting links.** §6.1 calls for auto-generated Meet/Zoom links
   via calendar integration, which needs per-institute OAuth. Mentors supply a
   standing room link; a booking without one flags that a link is still needed
   rather than silently booking a session nobody can join.
-- **Email and push delivery.** `notify()` in `src/lib/notifications.ts` is the
-  single fan-out point with preference gating already applied. Additional
-  transports go behind that call, not beside it.
-- **Anonymous posting.** §11 makes moderation tooling a precondition. The tooling
-  is here; the feature is deliberately not.
-- **Cross-campus anything.** Phase 3 in the roadmap. The `campus` field is on
-  every relevant model, so opening it up is a query change rather than a
-  migration.
+- **Push notifications.** `notify()` in `src/lib/notifications.ts` is the single
+  fan-out point with preference gating applied; in-app and realtime delivery
+  exist, email covers account flows and the digest, and web push belongs behind
+  the same call.
+- **Anonymous feed posting.** Anonymity exists only where it is narrow and
+  moderated: hidden bylines on interview questions, course reviews, and offer
+  reports. Each stores enough for a moderator to act.
 
 ### Known limitation
 
@@ -255,7 +314,7 @@ paths need. A shared store is a drop-in change behind `consume()`.
 
 ## Verification
 
-`npm run verify` runs typecheck, lint, and a production build. The lint config
+`npm run verify` runs typecheck, lint, tests, and a production build. The lint config
 includes the React Compiler rules, which are treated as errors rather than
 suppressed — no `Date.now()` during render, no synchronous `setState` inside an
 effect.
