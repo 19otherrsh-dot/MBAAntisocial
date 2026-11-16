@@ -369,6 +369,11 @@
 
 .mobileNav { display: none; }
 
+.desktopOnly { display: contents; }
+
+/* The page inside the shell. Inherits the content column's spacing. */
+.page { display: flex; flex-direction: column; gap: inherit; min-width: 0; }
+
 /* The "More" sheet. A native <dialog>, so it only exists while open. */
 .sheet {
   margin: auto auto 0;
@@ -472,6 +477,12 @@
 
   .mobileBrand { display: flex; }
 
+  /* On a phone the top bar is the scoreboard: the page title is in the tab
+     bar, and profile, theme, and sign-out live in the "More" sheet. */
+  .desktopOnly { display: none; }
+  .topbarTitle { display: none; }
+  .topbarActions { margin-left: auto; }
+
   .topbar { padding: 0 var(--s-4); }
 
   .content {
@@ -517,6 +528,25 @@
   }
 
   .mobileItemActive { color: var(--accent); }
+
+  /* The active tab gets a soft pill, and its icon hops up to meet it. */
+  .mobileItem::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 48px;
+    height: 28px;
+    margin-left: -24px;
+    border-radius: var(--r-full);
+    background: var(--accent-soft);
+    transform: scale(0.4);
+    opacity: 0;
+    transition: transform 320ms var(--ease-spring), opacity var(--dur-fast) var(--ease);
+  }
+  .mobileItemActive::before { transform: scale(1); opacity: 1; }
+  .mobileItem svg { position: relative; transition: transform 320ms var(--ease-spring); }
+  .mobileItemActive svg { transform: translateY(-1px) scale(1.12); }
 
   .mobileBadge {
     position: absolute;

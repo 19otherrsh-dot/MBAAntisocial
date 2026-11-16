@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Trophy, Flame, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -9,9 +10,10 @@ import { useApiQuery } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
 import { cn, formatCount, pluralise } from '@/lib/utils';
 import { BADGE_BY_ID } from '@/lib/constants';
+import g from '@/components/game/game.module.css';
 import styles from '../app.module.css';
 
-type Track = 'karma' | 'points';
+type Track = 'week' | 'karma' | 'points';
 type Scope = 'campus' | 'global';
 
 interface Row {
@@ -24,6 +26,7 @@ interface Row {
   streak: number;
   badges: string[];
   campus?: string;
+  weekXp?: number;
 }
 
 interface LeaderboardResponse {
@@ -31,12 +34,33 @@ interface LeaderboardResponse {
   scope: Scope;
   campus: string;
   rows: Row[];
-  me: { optedIn: boolean; rank: number | null; points: number; karma: number; streak: number };
+  me: {
+    optedIn: boolean;
+    rank: number | null;
+    points: number;
+    karma: number;
+    streak: number;
+    weekXp?: number;
+    gapToNext?: number | null;
+  };
 }
 
 export default function LeaderboardPage() {
+  // `useSearchParams` needs a Suspense boundary to keep the route prerenderable.
+  return (
+    <Suspense fallback={<div className="skeleton" style={{ height: 420 }} />}>
+      <Standings />
+    </Suspense>
+  );
+}
+
+function Standings() {
   const { me } = useMe();
-  const [track, setTrack] = useState<Track>('karma');
+  const params = useSearchParams();
+  const [track, setTrack] = useState<Track>(() => {
+    const requested = params.get('track');
+    return requested === 'karma' || requested === 'points' ? requested : 'week';
+  });
   const [scope, setScope] = useState<Scope>('campus');
 
   const { data, loading, error } = useApiQuery<LeaderboardResponse>('/api/leaderboard', { track, scope });
@@ -50,7 +74,7 @@ export default function LeaderboardPage() {
         <div>
           <h2 className={styles.pageTitle}>Standings</h2>
           <p className={styles.pageSubtitle}>
-            {data?.campus ?? me?.campus} · {pluralise(rows.length, 'person')} taking part
+            {data?.campus ?? me?.campus} · {pluralise(rows.length, 'person', 'people')} taking part
           </p>
         </div>
       </div>
@@ -61,6 +85,7 @@ export default function LeaderboardPage() {
           value={track}
           onChange={setTrack}
           options={[
+            { value: 'week' as const, label: 'This week' },
             { value: 'karma' as const, label: 'Karma' },
             { value: 'points' as const, label: 'Points' },
           ]}
@@ -79,7 +104,9 @@ export default function LeaderboardPage() {
       </div>
 
       <Banner variant="info">
-        {track === 'karma'
+        {track === 'week'
+          ? 'The weekly league: XP earned since Monday. It resets every week, so anyone can top it.'
+          : track === 'karma'
           ? 'Karma comes only from helping other people — hosting sessions, writing feedback, sharing notes. It is the one worth ranking.'
           : 'Points track your own work: tasks finished, streaks held, sessions attended. Useful to you, less interesting to everyone else.'}
       </Banner>
@@ -113,10 +140,12 @@ export default function LeaderboardPage() {
           body="The board fills up as people choose to be listed. Being first is a whole personality, if you want it."
         />
       ) : (
+        <>
+        {track === 'week' && rows.length >= 3 && <Podium rows={rows.slice(0, 3)} />}
         <div className={styles.board}>
           {rows.map((row, index) => {
             const isMe = row._id === me?.id;
-            const score = track === 'karma' ? row.karma : row.points;
+            const score = track === 'week' ? row.weekXp ?? 0 : track === 'karma' ? row.karma : row.points;
             const topBadge = row.badges.map((id) => BADGE_BY_ID.get(id)).find(Boolean);
 
             return (
@@ -150,19 +179,42 @@ export default function LeaderboardPage() {
 
                 <div>
                   <div className={styles.boardScore}>{formatCount(score)}</div>
-                  <div className={styles.boardScoreLabel}>{track}</div>
+                  <div className={styles.boardScoreLabel}>{track === 'week' ? 'XP' : track}</div>
                 </div>
               </div>
             );
           })}
         </div>
+        </>
       )}
 
       {optedIn && data?.me.rank && (
         <p className="dim" style={{ fontSize: 'var(--t-sm)', textAlign: 'center' }}>
-          You are ranked #{data.me.rank} on {track} {scope === 'global' ? 'globally' : `at ${data.campus}`}.
+          You are #{data.me.rank} {track === 'week' ? 'this week' : `on ${track}`}{' '}
+          {scope === 'global' ? 'globally' : `at ${data.campus}`}.
+          {track === 'week' && data.me.gapToNext ? ` ${data.me.gapToNext} XP to move up a place.` : ''}
         </p>
       )}
     </>
+  );
+}
+
+/** Top three of the week, on blocks that grow up from the floor. */
+function Podium({ rows }: { rows: Row[] }) {
+  // Second, first, third: the winner stands in the middle.
+  const order = [rows[1], rows[0], rows[2]];
+  const blockClass = [g.podium2, g.podium1, g.podium3];
+  const place = [2, 1, 3];
+  return (
+    <div className={g.podium} aria-label="This week's top three">
+      {order.map((row, index) => (
+        <div key={row._id} className={g.podiumSpot}>
+          <Avatar name={row.name} image={row.image} seed={row._id} size={index === 1 ? 56 : 44} />
+          <div className={g.podiumName}>{row.name.split(' ')[0]}</div>
+          <div className={g.podiumXp}>{row.weekXp ?? 0} XP</div>
+          <div className={cn(g.podiumBlock, blockClass[index])}>{place[index]}</div>
+        </div>
+      ))}
+    </div>
   );
 }

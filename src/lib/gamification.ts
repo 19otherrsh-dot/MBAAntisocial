@@ -6,6 +6,7 @@ import {
   POINT_RULES,
   STREAK_MILESTONES,
   STREAK_GRACE_DAYS,
+  MAX_STREAK_SHIELDS,
   BADGE_BY_ID,
   type PointAction,
 } from './constants';
@@ -14,25 +15,33 @@ import { dayKey, daysBetween } from './time';
 
 export { dayKey };
 
-export type StreakStep = 'same_day' | 'advance' | 'grace' | 'reset';
+export type StreakStep = 'same_day' | 'advance' | 'grace' | 'shield' | 'reset';
 
 /**
  * What a check-in does to a streak, given the day of the previous one.
  *
- * Pure, so the rule is testable without a database: consecutive days advance,
- * a gap inside the grace window holds the streak where it was, anything longer
- * starts again from one.
+ * Pure, so the rule is testable without a database. Consecutive days advance.
+ * One missed day is forgiven by the grace day. Missed days beyond that are
+ * covered by streak shields, one each, if there are enough; otherwise the
+ * streak starts again from one. A held streak does not advance — showing up
+ * is what advances it.
  */
 export function nextStreak(
   current: number,
   lastDay: string | null,
-  today: string
-): { streak: number; step: StreakStep } {
-  if (lastDay === today) return { streak: current, step: 'same_day' };
+  today: string,
+  shields = 0
+): { streak: number; step: StreakStep; shieldsUsed: number } {
+  if (lastDay === today) return { streak: current, step: 'same_day', shieldsUsed: 0 };
   const gap = lastDay ? daysBetween(lastDay, today) : Infinity;
-  if (gap === 1) return { streak: current + 1, step: 'advance' };
-  if (gap > 1 && gap <= 1 + STREAK_GRACE_DAYS) return { streak: current, step: 'grace' };
-  return { streak: 1, step: 'reset' };
+  if (gap === 1) return { streak: current + 1, step: 'advance', shieldsUsed: 0 };
+  const missed = gap - 1;
+  if (missed <= STREAK_GRACE_DAYS) return { streak: current, step: 'grace', shieldsUsed: 0 };
+  const needed = missed - STREAK_GRACE_DAYS;
+  if (Number.isFinite(needed) && current > 0 && needed <= shields) {
+    return { streak: current, step: 'shield', shieldsUsed: needed };
+  }
+  return { streak: 1, step: 'reset', shieldsUsed: 0 };
 }
 
 /**
@@ -50,6 +59,12 @@ export function milestoneEntity(milestone: number): Types.ObjectId {
 export interface AwardOptions {
   entityType?: string;
   entity?: Types.ObjectId | string;
+  /**
+   * For reward actions whose size varies (quests, the chest, path steps): the
+   * amount to credit. Ignored for fixed-rate actions, so a caller cannot inflate
+   * an ordinary award.
+   */
+  amount?: number;
 }
 
 export interface AwardResult {
@@ -79,6 +94,7 @@ export async function award(
   options: AwardOptions = {}
 ): Promise<AwardResult> {
   const rule = POINT_RULES[action];
+  const amount = rule.points === 0 && options.amount ? Math.max(0, Math.round(options.amount)) : rule.points;
   const today = dayKey();
 
   if (rule.dailyCap !== null) {
@@ -93,7 +109,7 @@ export async function award(
       user: userId,
       action,
       track: rule.track,
-      amount: rule.points,
+      amount,
       entityType: options.entityType,
       entity: options.entity,
       day: today,
@@ -105,9 +121,9 @@ export async function award(
     throw error;
   }
 
-  await User.updateOne({ _id: userId }, { $inc: { [rule.track]: rule.points } });
+  if (amount > 0) await User.updateOne({ _id: userId }, { $inc: { [rule.track]: amount } });
 
-  return { awarded: true, amount: rule.points, track: rule.track };
+  return { awarded: true, amount, track: rule.track };
 }
 
 /** Reverses a previously granted award, e.g. when an upvote is withdrawn. */
@@ -134,6 +150,8 @@ export interface StreakResult {
   milestone?: number;
   /** True when a missed day was forgiven rather than resetting the streak. */
   graceUsed: boolean;
+  /** Shields spent to keep the streak alive across missed days. */
+  shieldsUsed: number;
 }
 
 /**
@@ -146,13 +164,13 @@ export interface StreakResult {
  */
 export async function recordCheckIn(userId: string): Promise<StreakResult> {
   const user = await User.findById(userId).select(
-    'streak longestStreak lastCheckInAt badges name'
+    'streak longestStreak lastCheckInAt badges name streakShields'
   );
   if (!user) throw new Error(`User ${userId} not found`);
 
   const today = dayKey();
   const last = user.lastCheckInAt ? dayKey(user.lastCheckInAt) : null;
-  const { streak, step } = nextStreak(user.streak, last, today);
+  const { streak, step, shieldsUsed } = nextStreak(user.streak, last, today, user.streakShields ?? 0);
 
   if (step === 'same_day') {
     return {
@@ -160,6 +178,7 @@ export async function recordCheckIn(userId: string): Promise<StreakResult> {
       longestStreak: user.longestStreak,
       isNewDay: false,
       graceUsed: false,
+      shieldsUsed: 0,
     };
   }
 
@@ -168,7 +187,10 @@ export async function recordCheckIn(userId: string): Promise<StreakResult> {
 
   await User.updateOne(
     { _id: userId },
-    { $set: { streak, longestStreak, lastCheckInAt: new Date() } }
+    {
+      $set: { streak, longestStreak, lastCheckInAt: new Date() },
+      ...(shieldsUsed > 0 ? { $inc: { streakShields: -shieldsUsed } } : {}),
+    }
   );
 
   await award(userId, 'daily_check_in');
@@ -187,11 +209,18 @@ export async function recordCheckIn(userId: string): Promise<StreakResult> {
     });
     // Announced only the first time; climbing back to the same number after a
     // reset is not news.
-    if (result.awarded) milestone = streak;
+    if (result.awarded) {
+      milestone = streak;
+      // A shield for reaching it, up to the cap. Earned, never bought.
+      await User.updateOne(
+        { _id: userId, streakShields: { $lt: MAX_STREAK_SHIELDS } },
+        { $inc: { streakShields: 1 } }
+      );
+    }
     if (streak >= 30) await grantBadge(userId, 'streak_30');
   }
 
-  return { streak, longestStreak, isNewDay: true, milestone, graceUsed };
+  return { streak, longestStreak, isNewDay: true, milestone, graceUsed, shieldsUsed };
 }
 
 /** Adds a badge if the user does not already hold it, and notifies them once. */

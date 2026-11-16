@@ -181,3 +181,37 @@ it('messaging opens after a completed session on the same campus', async () => {
   const check = await lib.connections.checkConnection(String(mentee._id), 'student', String(mentor._id));
   assert.deepEqual(check, { allowed: true, reason: 'completed_session' });
 });
+
+it('quest rewards pay their amount once, and fixed-rate actions ignore a supplied amount', async () => {
+  const user = await makeUser();
+  const id = String(user._id);
+  const { stableId } = await import('@/lib/game/ids');
+  const entity = stableId(`quest:${id}:2026-03-10:tasks`);
+
+  const results = await Promise.all(
+    [0, 1, 2].map(() => lib.gamification.award(id, 'quest_reward', { entity, amount: 15 }))
+  );
+  assert.equal(results.filter((r) => r.awarded).length, 1);
+  assert.equal(results.find((r) => r.awarded)?.amount, 15);
+
+  // A caller cannot inflate an ordinary award.
+  const fixed = await lib.gamification.award(id, 'task_completed', { entity: new Types.ObjectId(), amount: 9999 });
+  assert.equal(fixed.amount, 8);
+
+  const fresh = await lib.User.findById(user._id).lean();
+  assert.equal(fresh?.points, 23);
+});
+
+it('a streak shield is spent to survive a missed day, and earned at a milestone', async () => {
+  const day = 86_400_000;
+  const user = await makeUser({ streak: 9, streakShields: 1, lastCheckInAt: new Date(Date.now() - 3 * day) });
+  const result = await lib.gamification.recordCheckIn(String(user._id));
+  assert.equal(result.streak, 9);
+  assert.equal(result.shieldsUsed, 1);
+  assert.equal((await lib.User.findById(user._id).lean())?.streakShields, 0);
+
+  const climber = await makeUser({ streak: 13, lastCheckInAt: new Date(Date.now() - day) });
+  const milestone = await lib.gamification.recordCheckIn(String(climber._id));
+  assert.equal(milestone.milestone, 14);
+  assert.equal((await lib.User.findById(climber._id).lean())?.streakShields, 1);
+});

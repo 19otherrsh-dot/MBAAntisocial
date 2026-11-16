@@ -7,7 +7,6 @@ import {
   ListChecks,
   Swords,
   Target,
-  Flame,
   Sparkles,
   CheckCircle2,
   TriangleAlert,
@@ -17,6 +16,9 @@ import {
 import { useApiQuery, useNow } from '@/lib/client/hooks';
 import { endOfDay } from '@/lib/time';
 import { useMe } from '@/lib/client/me';
+import { useGame } from '@/lib/client/game';
+import Mascot from '@/components/game/Mascot';
+import g from '@/components/game/game.module.css';
 import { Chip, Stat, Banner, Avatar } from '@/components/ui/Display';
 import Button from '@/components/ui/Button';
 import {
@@ -157,7 +159,7 @@ function greetingFor(date = new Date()): string {
 }
 
 export default function HomePage() {
-  const { me, checkIn } = useMe();
+  const { me } = useMe();
   const now = useNow();
 
   const tasks = useApiQuery<TaskResponse>('/api/tasks', { includeCompleted: 'false' });
@@ -213,12 +215,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* A milestone is acknowledged once and never nagged about. */}
-      {checkIn?.milestone && (
-        <Banner variant="success" icon={<Flame size={16} />} title={`${checkIn.milestone}-day streak`}>
-          You have shown up {checkIn.milestone} days running. That is the whole trick.
-        </Banner>
-      )}
+      <TodayGameCard />
 
       {me && (
         <div className={styles.statStrip}>
@@ -565,6 +562,87 @@ function CampusPulsePanel() {
               ? `${pluralise(data.questionsThisWeek, 'question')} logged this week. ${remaining} more and the campus hits ${data.goal.target}.`
               : `${remaining} more and the campus hits ${data.goal.target}. Every debrief counts for everyone.`}
         </p>
+      </div>
+    </section>
+  );
+}
+
+/* ───────────────────────── Today's game ───────────────────────── */
+
+/**
+ * The day's to-do list, game-shaped: what is left of the daily goal, the three
+ * quests, and the one next step on the season path. One glance answers "what
+ * should I do right now?".
+ */
+function TodayGameCard() {
+  const { state, claimQuest } = useGame();
+  if (!state) return <div className="skeleton" style={{ height: 156 }} />;
+
+  const next = state.path.find((step) => step.status === 'current');
+  const left = Math.max(0, state.today.goal - state.today.xp);
+  const mood = state.today.goalMet ? 'cheer' : state.today.xp > 0 ? 'happy' : 'focus';
+
+  return (
+    <section className={cn(styles.panel, 'animate-rise')} style={{ padding: 'var(--s-4)' }}>
+      <div className={styles.todayGame}>
+        <div className={styles.todayGameIntro}>
+          <Mascot mood={mood} size={84} />
+          <div>
+            <div className={styles.todayGameHeadline}>
+              {state.today.goalMet
+                ? 'Daily goal done. Legend.'
+                : state.today.xp === 0
+                  ? `Let's get ${state.today.goal} XP today`
+                  : `${left} XP to today's goal`}
+            </div>
+            <div className={g.questBar} style={{ height: 12, marginTop: 8 }}>
+              <div
+                className={g.questBarFill}
+                style={{
+                  width: `${Math.max(3, Math.min(100, (state.today.xp / state.today.goal) * 100))}%`,
+                  background: state.today.goalMet ? 'var(--amber)' : 'var(--teal)',
+                }}
+              />
+            </div>
+            {next && (
+              <Link href={next.href} className={styles.todayGameNext}>
+                Next on your path: <strong>{next.title}</strong> · +{next.xp} XP <ArrowRight size={12} />
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.todayGameQuests}>
+          {state.quests.map((quest) => {
+            const done = quest.progress >= quest.target;
+            return (
+              <div key={quest.key} className={cn(g.quest, done && g.questDone)} style={{ padding: '10px 12px' }}>
+                <span className={g.questIcon} style={{ width: 32, height: 32 }}>
+                  {done ? <CheckCircle2 size={16} /> : <Sparkles size={15} />}
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div className={cn(g.questTitle, 'truncate')} style={{ fontSize: 'var(--t-sm)' }}>
+                    {quest.title}
+                  </div>
+                  <div className={g.questBar} style={{ height: 6, marginTop: 4 }}>
+                    <div className={g.questBarFill} style={{ width: `${(quest.progress / quest.target) * 100}%` }} />
+                  </div>
+                </div>
+                {done && !quest.claimed ? (
+                  <button type="button" className={cn(g.chunky, g.chunkyGold, g.chunkyGlow)} style={{ height: 30 }} onClick={() => void claimQuest(quest.key)}>
+                    +{quest.xp}
+                  </button>
+                ) : done ? (
+                  <CheckCircle2 size={16} style={{ color: 'var(--teal)' }} />
+                ) : (
+                  <Link href={quest.href} className={g.chunky} style={{ height: 30, padding: '0 10px' }}>
+                    Go
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

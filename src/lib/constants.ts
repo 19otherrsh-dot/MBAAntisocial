@@ -487,6 +487,22 @@ export const POINT_RULES = {
   question_contributed: { points: 35, track: 'karma', label: 'Logged an interview question', dailyCap: 12 },
   question_upvoted: { points: 5, track: 'karma', label: 'Question found useful', dailyCap: 20 },
   round_logged: { points: 6, track: 'points', label: 'Updated your pipeline', dailyCap: 8 },
+
+  /*
+   * Small, capped credits for the everyday actions that daily quests count.
+   * Each is tied to the thing acted on where there is one, so undoing and
+   * redoing an action (un-reacting, re-reacting) cannot pay twice.
+   */
+  ai_answer: { points: 2, track: 'points', label: 'Answered an AI interview question', dailyCap: 10 },
+  ai_debrief: { points: 15, track: 'points', label: 'Finished an AI mock', dailyCap: 2 },
+  reaction_given: { points: 1, track: 'points', label: 'Reacted to a post', dailyCap: 5 },
+  comment_posted: { points: 2, track: 'karma', label: 'Replied on the feed', dailyCap: 5 },
+  upvote_given: { points: 1, track: 'karma', label: 'Upvoted something useful', dailyCap: 5 },
+
+  /* Rewards whose amount varies; `award()` is passed the amount explicitly. */
+  quest_reward: { points: 0, track: 'points', label: 'Completed a daily quest', dailyCap: 3 },
+  chest_reward: { points: 0, track: 'points', label: 'Opened the daily chest', dailyCap: 1 },
+  path_reward: { points: 0, track: 'points', label: 'Reached a step on your path', dailyCap: null },
 } as const satisfies Record<string, PointRule>;
 
 export type PointAction = keyof typeof POINT_RULES;
@@ -500,6 +516,13 @@ export const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100] as const;
  * punishment mechanic, and it is a deliberate choice against §16's dark patterns.
  */
 export const STREAK_GRACE_DAYS = 1;
+
+/**
+ * Streak shields: one is earned at each streak milestone, up to this many, and
+ * one is spent automatically to cover a missed day beyond the grace day. Earned
+ * by showing up, never bought.
+ */
+export const MAX_STREAK_SHIELDS = 2;
 
 export interface BadgeDefinition {
   id: string;

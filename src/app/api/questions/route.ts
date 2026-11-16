@@ -165,6 +165,7 @@ export const PATCH = route({ body: questionActionSchema, rateLimit: 'write' }, a
     await revoke(contributorId, 'question_upvoted', question._id);
   } else {
     await award(contributorId, 'question_upvoted', { entityType: 'question', entity: question._id });
+    await award(actor.id, 'upvote_given', { entityType: 'question', entity: question._id });
     await notify({
       user: contributorId,
       kind: 'question_upvoted',

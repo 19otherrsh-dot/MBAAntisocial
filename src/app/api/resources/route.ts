@@ -121,6 +121,7 @@ export const PATCH = route({ body: resourceActionSchema, rateLimit: 'write' }, a
       await revoke(authorId, 'resource_upvoted', resource._id);
     } else {
       await award(authorId, 'resource_upvoted', { entityType: 'resource', entity: resource._id });
+      await award(actor.id, 'upvote_given', { entityType: 'resource', entity: resource._id });
       if ((updated?.upvoteCount ?? 0) >= 50) await grantBadge(authorId, 'well_read');
 
       await notify({

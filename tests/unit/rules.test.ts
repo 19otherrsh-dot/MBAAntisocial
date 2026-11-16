@@ -10,11 +10,21 @@ import { campusForEmail, isCampusBound } from '@/lib/env';
 import { zonedTime } from '@/lib/time';
 
 test('streak: consecutive days advance, one missed day holds, two reset', () => {
-  assert.deepEqual(nextStreak(6, '2026-03-09', '2026-03-10'), { streak: 7, step: 'advance' });
-  assert.deepEqual(nextStreak(6, '2026-03-08', '2026-03-10'), { streak: 6, step: 'grace' });
-  assert.deepEqual(nextStreak(6, '2026-03-07', '2026-03-10'), { streak: 1, step: 'reset' });
-  assert.deepEqual(nextStreak(6, '2026-03-10', '2026-03-10'), { streak: 6, step: 'same_day' });
-  assert.deepEqual(nextStreak(0, null, '2026-03-10'), { streak: 1, step: 'reset' });
+  assert.deepEqual(nextStreak(6, '2026-03-09', '2026-03-10'), { streak: 7, step: 'advance', shieldsUsed: 0 });
+  assert.deepEqual(nextStreak(6, '2026-03-08', '2026-03-10'), { streak: 6, step: 'grace', shieldsUsed: 0 });
+  assert.deepEqual(nextStreak(6, '2026-03-07', '2026-03-10'), { streak: 1, step: 'reset', shieldsUsed: 0 });
+  assert.deepEqual(nextStreak(6, '2026-03-10', '2026-03-10'), { streak: 6, step: 'same_day', shieldsUsed: 0 });
+  assert.deepEqual(nextStreak(0, null, '2026-03-10'), { streak: 1, step: 'reset', shieldsUsed: 0 });
+});
+
+test('streak shields cover missed days beyond the grace day, one each', () => {
+  // Two missed days: grace covers one, a shield the other.
+  assert.deepEqual(nextStreak(9, '2026-03-07', '2026-03-10', 1), { streak: 9, step: 'shield', shieldsUsed: 1 });
+  // Three missed days need two shields; one is not enough.
+  assert.equal(nextStreak(9, '2026-03-06', '2026-03-10', 1).step, 'reset');
+  assert.deepEqual(nextStreak(9, '2026-03-06', '2026-03-10', 2), { streak: 9, step: 'shield', shieldsUsed: 2 });
+  // A first-ever check-in never spends a shield.
+  assert.equal(nextStreak(0, null, '2026-03-10', 2).shieldsUsed, 0);
 });
 
 test('streak: a grace day never counts as reaching a milestone', () => {

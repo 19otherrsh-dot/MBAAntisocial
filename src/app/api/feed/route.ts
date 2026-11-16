@@ -90,6 +90,11 @@ export const PATCH = route({ body: postActionSchema, rateLimit: 'write' }, async
       post.markModified('reactions');
       await post.save();
 
+      // Once per post: un-reacting and re-reacting cannot pay twice.
+      if (index === -1 && post.author.toString() !== actor.id) {
+        await award(actor.id, 'reaction_given', { entityType: 'post', entity: post._id });
+      }
+
       return ok({ reaction: body.reaction, active: index === -1, count: voters.length });
     }
 
@@ -97,6 +102,11 @@ export const PATCH = route({ body: postActionSchema, rateLimit: 'write' }, async
       post.comments.push({ author: actor.id, content: body.content, markedUseful: false } as never);
       post.commentCount = post.comments.filter((c) => !c.hiddenAt).length;
       await post.save();
+
+      if (post.author.toString() !== actor.id) {
+        const added = post.comments[post.comments.length - 1];
+        await award(actor.id, 'comment_posted', { entityType: 'comment', entity: added._id });
+      }
 
       await notify({
         user: post.author,

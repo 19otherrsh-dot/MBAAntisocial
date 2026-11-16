@@ -92,6 +92,18 @@ export interface IUser {
    * one account inventing a salary benchmark on its own.
    */
   offerReports: number;
+  /** XP a day this person is aiming for. */
+  dailyGoal: number;
+  /** Streak shields banked; each covers one missed day beyond the grace day. */
+  streakShields: number;
+  /** The highest level and achievement tiers already celebrated on screen. */
+  /**
+   * The highest level and achievement tiers already celebrated on screen.
+   * `since` is unset until the first game-state load, which records the
+   * account's existing standing as seen, so nobody is greeted by celebrations
+   * for things they did before the game layer existed.
+   */
+  celebrated: { level: number; achievements: Map<string, number>; since?: Date };
 
   createdAt: Date;
   updatedAt: Date;
@@ -180,6 +192,13 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
     passwordReset: { type: pendingTokenSchema, select: false },
     passwordChangedAt: { type: Date },
     offerReports: { type: Number, default: 0, min: 0 },
+    dailyGoal: { type: Number, default: 40, min: 10, max: 500 },
+    streakShields: { type: Number, default: 0, min: 0, max: 5 },
+    celebrated: {
+      level: { type: Number, default: 1 },
+      achievements: { type: Map, of: Number, default: () => new Map() },
+      since: { type: Date },
+    },
   },
   { timestamps: true }
 );

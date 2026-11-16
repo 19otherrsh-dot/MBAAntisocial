@@ -1,6 +1,7 @@
 'use client';
 
 import { cn, getInitials, hashToIndex } from '@/lib/utils';
+import { useCountUpFromZero } from '@/lib/client/useCountUp';
 import type { Tone } from '@/lib/constants';
 import styles from './ui.module.css';
 
@@ -90,7 +91,7 @@ export function Stat({ value, label, meta, tone }: StatProps) {
         className={styles.statValue}
         style={tone ? { color: `var(--${tone}-text)` } : undefined}
       >
-        {value}
+        {typeof value === 'number' ? <CountUp value={value} /> : value}
       </span>
       <span className={styles.statLabel}>{label}</span>
       {meta && <span className={styles.statMeta}>{meta}</span>}
@@ -259,4 +260,9 @@ export function RatingInput({
       <span className={styles.ratingValue}>{value ? `${value}/${max}` : '—'}</span>
     </div>
   );
+}
+
+/** A number that ticks up from zero when it first appears. */
+function CountUp({ value }: { value: number }) {
+  return <>{useCountUpFromZero(value)}</>;
 }

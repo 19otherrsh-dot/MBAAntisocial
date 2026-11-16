@@ -9,7 +9,7 @@ import { Banner, Chip } from '@/components/ui/Display';
 import { Input, Select } from '@/components/ui/Field';
 import Markdown from '@/components/ui/Markdown';
 import { useApiQuery } from '@/lib/client/hooks';
-import { api, errorMessage } from '@/lib/client/api';
+import { api, errorMessage, notifyMutation } from '@/lib/client/api';
 import { readTextStream } from '@/lib/client/stream';
 import {
   ROLE_TRACKS,
@@ -109,6 +109,8 @@ function Interview() {
       }
     } finally {
       setBusy(false);
+      // The answer may have counted towards a quest; let the game layer look.
+      notifyMutation();
     }
   };
 

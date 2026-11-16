@@ -33,7 +33,7 @@ import StudyRoom from '../src/models/StudyRoom';
 import RoomMessage from '../src/models/RoomMessage';
 import Contact from '../src/models/Contact';
 import Message from '../src/models/Message';
-import { zonedParts, zonedTime } from '../src/lib/time';
+import { zonedParts, zonedTime, dayKey, startOfWeek } from '../src/lib/time';
 
 const CAMPUS = 'IIM Ahmedabad';
 const BATCH = '2025-27';
@@ -1016,6 +1016,32 @@ async function seed() {
   });
 
   console.log('Created opportunities, whispers, offers, splits, a study room, contacts, and a DM thread.');
+
+  // ── A week of activity, so the weekly league has a podium ────────────────
+  // Spread from Monday to now; amounts differ so the ranking is not a tie.
+  const weekStart = startOfWeek();
+  const elapsed = Math.max(1, Date.now() - weekStart.getTime());
+  const leagueRows: Array<Record<string, unknown>> = [];
+  // Sneha (juniors[0]) is left out so the demo account starts the day at zero
+  // and the daily-goal celebration can be seen.
+  const competitors = [...seniors, juniors[2], juniors[4]];
+  competitors.forEach((person, personIndex) => {
+    const sessions = 3 + ((personIndex * 5) % 7);
+    for (let i = 0; i < sessions; i += 1) {
+      const at = new Date(weekStart.getTime() + (elapsed * (i + 0.5)) / (sessions + 1));
+      leagueRows.push({
+        user: person._id,
+        action: i % 2 === 0 ? 'task_completed' : 'post_created',
+        track: 'points',
+        amount: 6 + ((personIndex * 13 + i * 7) % 19),
+        entityType: 'seed',
+        entity: new mongoose.Types.ObjectId(),
+        day: dayKey(at),
+        createdAt: at,
+      });
+    }
+  });
+  await LedgerEntry.insertMany(leagueRows);
 
   console.log('\n─────────────────────────────────────────');
   console.log('Seed complete.\n');

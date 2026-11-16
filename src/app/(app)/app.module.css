@@ -303,7 +303,7 @@
 }
 .taskRow:hover { border-color: var(--line-strong); }
 
-.taskDone { opacity: 0.55; }
+.taskDone { opacity: 0.55; transition: opacity var(--dur-slow) var(--ease); }
 .taskDone .taskTitle { text-decoration: line-through; text-decoration-color: var(--text-muted); }
 
 .taskOverdue { border-color: color-mix(in srgb, var(--rose) 40%, transparent); }
@@ -327,6 +327,7 @@
   background: var(--teal);
   border-color: var(--teal);
   color: #fff;
+  animation: check-pop 420ms var(--ease-spring);
 }
 
 .taskBody { flex: 1; min-width: 0; }
@@ -547,6 +548,7 @@
 .reactionBtn:hover { border-color: var(--line-strong); color: var(--text); }
 
 .reactionActive {
+  animation: check-pop 360ms var(--ease-spring);
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 32%, transparent);
   color: var(--accent-text);
@@ -1264,3 +1266,42 @@
 @media (prefers-reduced-motion: reduce) {
   .pulseFill { transition: none; }
 }
+
+/* ───────────────────────── Today's game strip ───────────────────────── */
+
+.todayGame {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: var(--s-5);
+  align-items: center;
+}
+.todayGameIntro { display: flex; gap: var(--s-4); align-items: center; }
+.todayGameIntro > div:last-child { flex: 1; min-width: 0; }
+.todayGameHeadline { font-size: var(--t-lg); font-weight: 750; letter-spacing: -0.01em; }
+.todayGameNext {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--accent-text);
+}
+.todayGameNext:hover { text-decoration: underline; }
+.todayGameQuests { display: flex; flex-direction: column; gap: var(--s-2); }
+
+@media (max-width: 900px) {
+  .todayGame { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Lists deal their cards in. */
+.cardList > *, .cardGrid > *, .board > * { animation: rise var(--dur-slow) var(--ease) both; }
+.cardList > *:nth-child(2), .cardGrid > *:nth-child(2), .board > *:nth-child(2) { animation-delay: 40ms; }
+.cardList > *:nth-child(3), .cardGrid > *:nth-child(3), .board > *:nth-child(3) { animation-delay: 80ms; }
+.cardList > *:nth-child(4), .cardGrid > *:nth-child(4), .board > *:nth-child(4) { animation-delay: 120ms; }
+.cardList > *:nth-child(5), .cardGrid > *:nth-child(5), .board > *:nth-child(5) { animation-delay: 160ms; }
+.cardList > *:nth-child(n + 6), .cardGrid > *:nth-child(n + 6), .board > *:nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Panels lift a touch under the pointer. */
+.panel { transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease); }
+.panel:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }

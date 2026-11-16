@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { LogOut, UserRound, X } from 'lucide-react';
 import { NAV_GROUPS, TABS, canSee, isActive, sectionForPath } from './navigation';
+import ThemeToggle from './ThemeToggle';
 import { useMe } from '@/lib/client/me';
 import { MODERATOR_ROLES, STAFF_ROLES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -45,7 +46,7 @@ export default function BottomNav() {
           const active = tab.href
             ? (section !== null && tab.sections.includes(section)) || isActive(pathname, tab.href)
             : open || (section !== null && tab.sections.includes(section)) || pathname.startsWith('/profile');
-          const dot = tab.label === 'Campus' && unreadMessages > 0;
+          const dot = tab.label === 'More' && unreadMessages > 0;
 
           const body = (
             <>
@@ -97,12 +98,12 @@ export default function BottomNav() {
         </div>
 
         <div className={styles.sheetBody}>
-          {NAV_GROUPS.filter((group) => group.label).map((group) => {
+          {NAV_GROUPS.map((group) => {
             const items = group.items.filter((item) => canSee(item, viewer));
             if (items.length === 0) return null;
             return (
               <section key={group.key}>
-                <div className={styles.navGroupLabel}>{group.label}</div>
+                <div className={styles.navGroupLabel}>{group.label || 'You'}</div>
                 <div className={styles.sheetGrid}>
                   {items.map((item) => {
                     const Icon = item.icon;
@@ -134,6 +135,12 @@ export default function BottomNav() {
           })}
 
           <div className={styles.sheetFooter}>
+            <div className={styles.sheetItem} style={{ cursor: 'default' }}>
+              <span className={styles.sheetIcon}>
+                <ThemeToggle />
+              </span>
+              <span className={styles.sheetLabel}>Theme</span>
+            </div>
             <Link href="/profile" className={styles.sheetItem} onClick={() => setOpen(false)}>
               <span className={styles.sheetIcon}>
                 <UserRound size={18} />

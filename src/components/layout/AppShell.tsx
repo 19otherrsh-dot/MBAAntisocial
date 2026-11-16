@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, ViewTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -11,6 +11,9 @@ import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import { titleForPath } from './navigation';
 import { MeProvider, useMe } from '@/lib/client/me';
+import { GameProvider } from '@/lib/client/game';
+import GameHud from '@/components/game/GameHud';
+import GameLayer from '@/components/game/GameLayer';
 import { useRealtime } from '@/lib/client/realtime';
 import { userChannel } from '@/lib/realtime';
 import { usePersistentFlag } from '@/lib/client/hooks';
@@ -23,7 +26,10 @@ const COLLAPSE_KEY = 'sidebar-collapsed';
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <MeProvider>
-      <ShellFrame>{children}</ShellFrame>
+      <GameProvider>
+        <ShellFrame>{children}</ShellFrame>
+        <GameLayer />
+      </GameProvider>
     </MeProvider>
   );
 }
@@ -63,13 +69,16 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
           <h1 className={cn(styles.topbarTitle, 'truncate')}>{titleForPath(pathname)}</h1>
 
           <div className={styles.topbarActions}>
-            <ThemeToggle />
+            <GameHud />
+            <span className={styles.desktopOnly}>
+              <ThemeToggle />
+            </span>
             <NotificationBell />
-            <Link href="/profile" className={styles.iconButton} aria-label="Your profile">
+            <Link href="/profile" className={cn(styles.iconButton, styles.desktopOnly)} aria-label="Your profile">
               <UserRound size={18} />
             </Link>
             <button
-              className={styles.iconButton}
+              className={cn(styles.iconButton, styles.desktopOnly)}
               onClick={() => signOut({ callbackUrl: '/login' })}
               aria-label="Sign out"
               title="Sign out"
@@ -79,7 +88,16 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className={styles.content}>{children}</main>
+        <main className={styles.content}>
+          {/*
+           * Keyed by route, so every navigation hands the old page out and the
+           * new one in as a view transition. The shell around it never moves —
+           * only the content does, which is what keeps it from feeling jumpy.
+           */}
+          <ViewTransition key={pathname} enter="page-in" exit="page-out" default="none">
+            <div className={styles.page}>{children}</div>
+          </ViewTransition>
+        </main>
       </div>
 
       <BottomNav />

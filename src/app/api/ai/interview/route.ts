@@ -3,6 +3,7 @@ import { streamText, generateObject } from 'ai';
 import { route, ok } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
 import { requireModel, streamAsText } from '@/lib/ai';
+import { award } from '@/lib/gamification';
 import InterviewQuestion from '@/models/InterviewQuestion';
 import { companyKeyOf } from '@/models/Application';
 import {
@@ -113,11 +114,19 @@ ${MENTOR_RUBRIC.map((criterion) => `- ${criterion.key}: ${criterion.label} — $
 Be honest and specific. Quote or point to what they actually said. Do not inflate scores to be kind: a 3 is a normal, respectable answer. "strengths" and "improvements" are short, concrete sentences the candidate can act on before a real interview. "verdict" is two sentences at most.`,
         prompt: `Transcript:\n\n${transcript}`,
       });
+      await award(actor.id, 'ai_debrief', { entityType: 'ai' });
       return ok({ debrief: object, rubric: MENTOR_RUBRIC });
     } catch (error) {
       console.error('[ai] debrief failed:', error);
       throw new ApiError(502, 'ai_unavailable', 'Could not write the debrief. Try again in a moment.');
     }
+  }
+
+  // A turn that carries a new answer counts towards practice quests. Capped
+  // daily in the rule table, so it cannot be farmed by spamming the chat.
+  const last = body.messages[body.messages.length - 1];
+  if (last?.role === 'user' && last.content.trim().length >= 20) {
+    await award(actor.id, 'ai_answer', { entityType: 'ai' });
   }
 
   const grounding = await loadGrounding(actor.campus, body.company);

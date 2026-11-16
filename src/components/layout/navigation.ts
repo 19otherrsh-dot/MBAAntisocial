@@ -20,6 +20,7 @@ import {
   VolumeX,
   Handshake,
   LayoutGrid,
+  Map as MapIcon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -57,7 +58,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'today',
     label: '',
-    items: [{ href: '/home', label: 'Today', icon: Home }],
+    items: [
+      { href: '/home', label: 'Today', icon: Home },
+      { href: '/path', label: 'Path', icon: MapIcon, hint: 'Quests, streak, level, achievements' },
+    ],
   },
   {
     key: 'placements',
@@ -115,11 +119,11 @@ export interface Tab {
 
 /** The mobile tab bar: five targets, the most a thumb can reliably hit. */
 export const TABS: Tab[] = [
-  { label: 'Today', icon: Home, href: '/home', sections: ['today'] },
+  { label: 'Today', icon: Home, href: '/home', sections: [] },
   { label: 'Pipeline', icon: Target, href: '/pipeline', sections: ['placements'] },
+  { label: 'Path', icon: MapIcon, href: '/path', sections: [] },
   { label: 'Prep', icon: CalendarClock, href: '/sessions', sections: ['prep'] },
-  { label: 'Campus', icon: MessagesSquare, href: '/feed', sections: ['campus'] },
-  { label: 'More', icon: LayoutGrid, href: null, sections: ['institute'] },
+  { label: 'More', icon: LayoutGrid, href: null, sections: ['campus', 'institute'] },
 ];
 
 const ALL_ITEMS = NAV_GROUPS.flatMap((group) => group.items.map((item) => ({ item, group })));

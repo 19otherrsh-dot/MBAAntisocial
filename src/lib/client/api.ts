@@ -80,7 +80,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     );
   }
 
+  if (method !== 'GET' && !path.startsWith('/api/game')) notifyMutation();
   return payload as T;
+}
+
+/**
+ * Announces that something changed on the server.
+ *
+ * The game layer listens and re-reads progress, so XP, quests, and level-ups
+ * react to any action anywhere in the app without each page having to know
+ * about them. Pages that call `fetch` directly (streams, uploads) call this
+ * themselves.
+ */
+export function notifyMutation(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('api:mutated'));
 }
 
 export const api = {
