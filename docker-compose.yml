@@ -1,0 +1,29 @@
+# Self-hosting in one command: the app and a MongoDB with a persistent volume.
+#   cp .env.example .env.production   # fill in AUTH_SECRET and APP_URL at least
+#   docker compose up -d --build
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    env_file: .env.production
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/mba-antisocial
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 })']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

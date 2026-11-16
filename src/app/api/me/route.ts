@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import { route, ok } from '@/lib/api/handler';
+import { deleteAccount } from '@/lib/account/lifecycle';
 import { ApiError } from '@/lib/api/errors';
 import { updateProfileSchema } from '@/lib/validation';
 import { recordCheckIn } from '@/lib/gamification';
@@ -122,3 +124,21 @@ export const PATCH = route(
     return ok({ user });
   }
 );
+
+const deleteSchema = z.object({
+  password: z.string().min(1, 'Enter your password to confirm.'),
+  confirm: z.literal('DELETE', { message: 'Type DELETE to confirm.' }),
+});
+
+/**
+ * Deletes the caller's account. Needs the password, so an unattended laptop
+ * or a stolen session cannot do it.
+ */
+export const DELETE = route({ body: deleteSchema, rateLimit: 'account' }, async ({ actor, body }) => {
+  const user = await User.findById(actor.id).select('+password');
+  if (!user || !(await user.comparePassword(body.password))) {
+    throw ApiError.unprocessable('Some fields need fixing.', { password: 'That password is not right.' });
+  }
+  await deleteAccount(actor.id);
+  return ok({ deleted: true });
+});

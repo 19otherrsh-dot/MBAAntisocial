@@ -67,6 +67,7 @@ DM thread. Every account uses the password `seedpassword123`.
 | `npm run lint` | ESLint, including the React Compiler rules |
 | `npm run seed` | Rebuild the seeded campus (reads `.env.local`) |
 | `npm test` | Unit tests; add `TEST_MONGODB_URI` to run the database tests too |
+| `npm run db:indexes` | Build every declared index (run once per production deploy) |
 | `npm run verify` | typecheck → lint → test → build |
 
 ---
@@ -148,7 +149,27 @@ Interview Intel for the company being practised, and finishes with a scorecard
 on the same rubric seniors use. The resume roast reads the PDF in memory and
 keeps nothing.
 
-### Tests
+### The game layer
+
+`src/lib/game/` holds the rules as pure functions — levels, daily quests,
+achievements, the season path — and `loadGameState()` assembles them from the
+points ledger. Nothing is a second source of truth: a quest's progress *is*
+today's ledger rows, an achievement *is* a lifetime count. Claims
+(`POST /api/game`) are re-checked on the server and paid through a stable
+ledger entity, so a retry, a double-tap, or a second tab pays once.
+
+On the client, the API wrapper announces every change (`api:mutated`); the
+`GameProvider` re-reads progress and turns the difference into feedback — a
+floating "+XP", a quest toast, or a full-screen celebration. Pages never call
+the game directly. Celebrations already seen are recorded on the account, and an
+account's existing standing is recorded as seen on its first load, so nobody is
+greeted by fireworks for last month.
+
+What stays from the original design: ranking is opt-in (the weekly league
+included), streaks forgive a missed day, and streak shields are earned by
+showing up — never bought. All motion respects `prefers-reduced-motion`, and
+sound effects are synthesised (no files) and switchable from the Path page.
+
 
 `tests/unit` covers the rules that are easy to get subtly wrong — time zones,
 streaks, banding, channel names, name normalisation, Markdown escaping, and the
@@ -156,6 +177,41 @@ session-update escalation. `tests/integration` runs against a throwaway MongoDB
 (`TEST_MONGODB_URI`): one-payout ledger awards, daily caps, milestone payouts,
 mentor capacity, atomic split claims, and the campus boundary on messaging. CI
 (`.github/workflows/ci.yml`) runs everything against a MongoDB service.
+
+## Deploying
+
+**Vercel (recommended).** Import the repository, set the environment variables
+from `.env.example`, and deploy. `vercel.json` schedules the weekly digest.
+Use MongoDB Atlas for the database.
+
+**Anywhere with Docker.**
+
+```bash
+cp .env.example .env.production   # set AUTH_SECRET, APP_URL, and the integrations you use
+docker compose up -d --build      # the app plus MongoDB with a persistent volume
+```
+
+The image is a standalone Next.js server running as a non-root user, with a
+health check on `/api/health`. Pass `--build-arg APP_URL=https://…` so the
+HTTPS-only headers (HSTS, upgrade-insecure-requests) are emitted.
+
+**Before launch**
+
+- [ ] `AUTH_SECRET` is fresh and long; `APP_URL` is the real `https://` origin
+- [ ] `CAMPUS_EMAIL_DOMAINS` binds each campus to its email domain
+- [ ] `RESEND_API_KEY` and `EMAIL_FROM` set (turns on email confirmation)
+- [ ] `UPSTASH_REDIS_REST_URL` / `_TOKEN` set if more than one instance runs
+- [ ] `GOOGLE_GENERATIVE_AI_API_KEY` set and `GEMINI_MODEL` pinned to a stable id
+- [ ] Pusher keys set for realtime (optional)
+- [ ] `npm run db:indexes` run against the production database
+- [ ] `/api/health` wired to your uptime monitor
+- [ ] `/legal/terms` and `/legal/privacy` reviewed by counsel for your jurisdiction
+
+**What is in place:** a strict Content Security Policy and the usual security
+headers, HSTS over HTTPS, an error hook (`src/instrumentation.ts`) that logs one
+JSON line per server error for any log drain, a global error screen, robots and
+sitemap, password reset and email confirmation, account export and deletion
+(Profile → Your data), and CI that runs everything on each push.
 
 ## Design decisions worth knowing
 
@@ -279,6 +335,11 @@ than the report, so one person cannot set a benchmark.
 whole batch pushes together; it ranks nobody. "Your impact" turns karma back
 into what it stands for — people helped. An offer gets a moment of its own, and
 a nudge to leave something behind for next year.
+
+**People own their data.** Profile → Your data downloads everything stored
+about the account as JSON, and deletes the account behind a password and a
+typed confirmation. Interview questions survive deletion without the name —
+they were given to the campus.
 
 **Moderation shipped in version one.** Reporting, a moderator queue, and
 hide-don't-delete exist now — before the pressure to loosen anything arrives.

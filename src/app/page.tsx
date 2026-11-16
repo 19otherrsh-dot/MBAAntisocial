@@ -239,6 +239,7 @@ export default function LandingPage() {
           <div className={styles.footerLinks}>
             <Link href="/legal/honor-code">Sharing policy</Link>
             <Link href="/legal/privacy">Privacy</Link>
+            <Link href="/legal/terms">Terms</Link>
             <Link href="/login">Sign in</Link>
           </div>
         </div>

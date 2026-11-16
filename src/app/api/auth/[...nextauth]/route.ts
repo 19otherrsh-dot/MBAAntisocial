@@ -16,7 +16,7 @@ export const { GET } = handlers;
 export async function POST(request: NextRequest): Promise<Response> {
   if (request.nextUrl.pathname.endsWith('/callback/credentials')) {
     try {
-      consume('login', clientIdentifier(request));
+      await consume('login', clientIdentifier(request));
     } catch (error) {
       if (error instanceof ApiError && error.status === 429) {
         const url = new URL('/login', request.nextUrl.origin);

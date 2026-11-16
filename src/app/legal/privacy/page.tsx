@@ -49,17 +49,40 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      <h2>Deleting things</h2>
-      <p>
-        You can delete your own posts and uploads at any time, and they go. Content hidden by a
-        moderator is retained so the decision can be reviewed. Notifications are discarded
-        automatically after ninety days.
-      </p>
+      <h2>Services that process data for us</h2>
+      <ul>
+        <li><strong>Database hosting</strong> — stores your account and activity.</li>
+        <li><strong>Cloudinary</strong> — stores files you upload as resources or profile pictures.</li>
+        <li><strong>Resend</strong> — sends account emails (confirmation, password reset, digest).</li>
+        <li><strong>Pusher</strong> — delivers messages and notifications in real time.</li>
+        <li>
+          <strong>Google Gemini</strong> — generates AI interview replies and resume feedback from
+          what you type or upload there. Resumes are not stored by us.
+        </li>
+      </ul>
+      <p>Each processes data only to provide its part of the service.</p>
+
+      <h2>Your rights</h2>
+      <ul>
+        <li>
+          <strong>Download everything.</strong> Profile → Your data → Download my data gives you a
+          copy of everything stored about you.
+        </li>
+        <li>
+          <strong>Delete your account.</strong> Profile → Your data → Delete account removes your
+          records. Interview questions you logged stay in the campus bank without your name.
+        </li>
+        <li>
+          You can delete individual posts and uploads at any time. Content hidden by a moderator is
+          retained so the decision can be reviewed.
+        </li>
+      </ul>
 
       <h2>Security</h2>
       <p>
         Passwords are stored as bcrypt hashes and are never readable, including by us. Sessions are
-        signed tokens that expire after thirty days.
+        signed tokens that expire after thirty days, and changing your password signs out every
+        other device.
       </p>
 
       <h2>Reaching a person</h2>

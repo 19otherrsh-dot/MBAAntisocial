@@ -1,13 +1,17 @@
 import { ApiError } from './errors';
 
 /**
- * Fixed-window rate limiter backed by an in-process map.
+ * Fixed-window rate limiting.
  *
- * This is intentionally simple and has a known limitation: each serverless
- * instance keeps its own counters, so the effective limit scales with instance
- * count. It is sufficient to stop a single client hammering an endpoint, which
- * is what the write paths here need. Moving to a shared store (Redis, Upstash)
- * is a drop-in change behind `consume` when the deployment goes multi-instance.
+ * With `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` set, counters
+ * live in Redis and are shared by every server instance — the limit means what
+ * it says however many copies of the app are running. Without them, each
+ * instance counts on its own, which still stops one client hammering an
+ * endpoint and is fine for a single server or local development.
+ *
+ * If the shared store is unreachable the request falls back to the local
+ * counter rather than failing: an outage of the limiter must not become an
+ * outage of the app.
  */
 interface Window {
   count: number;
@@ -51,30 +55,72 @@ export const RATE_LIMITS = {
    */
   ai: { limit: 40, windowSeconds: 3600 },
   chat: { limit: 60, windowSeconds: 300 },
+  /** Account export and deletion: rare, and expensive. */
+  account: { limit: 5, windowSeconds: 3600 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;
 
+interface Hit {
+  count: number;
+  resetAt: number;
+}
+
+function hitLocal(key: string, windowMs: number, now: number): Hit {
+  sweep(now);
+  const existing = buckets.get(key);
+  if (!existing || existing.resetAt <= now) {
+    const fresh = { count: 1, resetAt: now + windowMs };
+    buckets.set(key, fresh);
+    return fresh;
+  }
+  existing.count += 1;
+  return existing;
+}
+
+/** One round trip: increment this window's counter and give it an expiry. */
+async function hitShared(key: string, windowMs: number, now: number): Promise<Hit | null> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const windowKey = `rl:${key}:${windowStart}`;
+
+  try {
+    const response = await fetch(`${url.replace(/\/$/, '')}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([
+        ['INCR', windowKey],
+        ['PEXPIRE', windowKey, String(windowMs)],
+      ]),
+      signal: AbortSignal.timeout(800),
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const [incr] = (await response.json()) as Array<{ result?: number; error?: string }>;
+    if (typeof incr?.result !== 'number') throw new Error(incr?.error ?? 'bad reply');
+    return { count: incr.result, resetAt: windowStart + windowMs };
+  } catch (error) {
+    console.warn('[rate-limit] shared store unavailable, counting locally:', (error as Error).message);
+    return null;
+  }
+}
+
 /**
  * Records one hit against `identifier` and throws once the window is exhausted.
  */
-export function consume(name: RateLimitName, identifier: string): void {
+export async function consume(name: RateLimitName, identifier: string): Promise<void> {
   const rule = RATE_LIMITS[name];
   const now = Date.now();
-  sweep(now);
-
+  const windowMs = rule.windowSeconds * 1000;
   const key = `${name}:${identifier}`;
-  const existing = buckets.get(key);
 
-  if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + rule.windowSeconds * 1000 });
-    return;
-  }
+  const hit = (await hitShared(key, windowMs, now)) ?? hitLocal(key, windowMs, now);
 
-  existing.count += 1;
-
-  if (existing.count > rule.limit) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetAt - now) / 1000));
+  if (hit.count > rule.limit) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((hit.resetAt - now) / 1000));
     throw ApiError.tooManyRequests(
       `Too many requests. Try again in ${formatRetry(retryAfterSeconds)}.`,
       retryAfterSeconds

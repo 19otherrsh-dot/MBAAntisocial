@@ -67,7 +67,7 @@ export function route<TBody = undefined, TQuery = undefined>(
       if (!session?.user?.id) throw ApiError.unauthorized();
 
       // Throttle on identity so one account cannot burn a shared IP's budget.
-      if (options.rateLimit) consume(options.rateLimit, session.user.id);
+      if (options.rateLimit) await consume(options.rateLimit, session.user.id);
 
       /*
        * Input is validated before the database is touched. A malformed request
@@ -152,7 +152,7 @@ export function publicRoute<TBody = undefined, TQuery = undefined>(
 ) {
   return async (request: NextRequest, routeArgs?: NextRouteArgs): Promise<Response> => {
     try {
-      if (options.rateLimit) consume(options.rateLimit, clientIdentifier(request));
+      if (options.rateLimit) await consume(options.rateLimit, clientIdentifier(request));
 
       // Validate before connecting, as in `route` above.
       const body = options.body ? await parseBody(request, options.body) : (undefined as TBody);

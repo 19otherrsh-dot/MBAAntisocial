@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Award, ShieldCheck, Star, Lock } from 'lucide-react';
+import { signOut } from 'next-auth/react';
+import { Award, ShieldCheck, Star, Lock, Download, Trash2 } from 'lucide-react';
+import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
 import { Input, Select, Switch, Textarea } from '@/components/ui/Field';
 import { Avatar, Banner, Chip, Stat } from '@/components/ui/Display';
@@ -382,7 +384,84 @@ function ProfileEditor({ me }: { me: Me }) {
         )}
       </section>
 
+      <AccountData />
+
       {save.error && <div className={styles.errorBox}>{save.error}</div>}
     </>
+  );
+}
+
+/**
+ * Data rights: download everything, or delete the account. Deletion asks for
+ * the password and the word DELETE — it cannot be undone, and a borrowed
+ * laptop should not be enough to do it.
+ */
+function AccountData() {
+  const [confirming, setConfirming] = useState(false);
+  const [password, setPassword] = useState('');
+  const [word, setWord] = useState('');
+
+  const remove = useAction(async () => {
+    await api.delete('/api/me', undefined, { password, confirm: word });
+    await signOut({ callbackUrl: '/?deleted=1' });
+  });
+
+  return (
+    <section className={styles.settingsGroup}>
+      <div>
+        <h3 className={styles.settingsTitle}>Your data</h3>
+        <p className={styles.settingsHint}>
+          Download a copy of everything stored about you, or delete your account. Interview
+          questions you logged stay in the campus bank without your name; everything else goes.
+        </p>
+      </div>
+      <div className="row gap-3 wrap">
+        <a href="/api/me/export" download>
+          <Button variant="secondary" icon={<Download size={16} />}>
+            Download my data
+          </Button>
+        </a>
+        <Button variant="dangerGhost" icon={<Trash2 size={16} />} onClick={() => setConfirming(true)}>
+          Delete account
+        </Button>
+      </div>
+
+      <Dialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title="Delete your account?"
+        description="This cannot be undone. Your tasks, pipeline, messages, posts, and uploads are deleted."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirming(false)} disabled={remove.pending}>
+              Keep my account
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => remove.run()}
+              loading={remove.pending}
+              disabled={!password || word !== 'DELETE'}
+            >
+              Delete forever
+            </Button>
+          </>
+        }
+      >
+        {remove.error && <Banner variant="danger">{remove.error}</Banner>}
+        <Input
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <Input
+          label='Type "DELETE" to confirm'
+          value={word}
+          onChange={(event) => setWord(event.target.value)}
+          autoComplete="off"
+        />
+      </Dialog>
+    </section>
   );
 }

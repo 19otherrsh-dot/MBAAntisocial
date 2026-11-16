@@ -256,6 +256,11 @@ export default function RegisterPage() {
         <Button type="submit" size="lg" fullWidth loading={pending}>
           Create account
         </Button>
+
+        <p className="dim" style={{ fontSize: 'var(--t-xs)', textAlign: 'center', lineHeight: 1.5 }}>
+          By creating an account you agree to the <Link href="/legal/terms">terms</Link> and the{' '}
+          <Link href="/legal/privacy">privacy notice</Link>.
+        </p>
       </form>
 
       <p className={styles.footerNote}>
