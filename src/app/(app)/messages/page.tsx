@@ -19,6 +19,7 @@ interface Conversation {
   lastMessage: string;
   time: string;
   unread: boolean;
+  unreadCount: number;
 }
 
 interface Message {
@@ -56,7 +57,7 @@ export default function MessagesPage() {
 }
 
 function Messages() {
-  const { me } = useMe();
+  const { me, unreadMessages, setUnreadMessages } = useMe();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -71,7 +72,8 @@ function Messages() {
   const list = useApiQuery<{ conversations: Conversation[] }>('/api/messages');
   const thread = useApiQuery<Thread>(peerId ? '/api/messages' : null, { peerId });
 
-  const [draft, setDraft] = useState('');
+  // `?draft=` pre-fills the composer when a page links in to start a thread.
+  const [draft, setDraft] = useState(() => (searchParams.get('draft') ?? '').slice(0, 2000));
   // Messages added since the thread loaded: sent here, or arrived over the socket.
   const [extra, setExtra] = useState<{ peerId: string; messages: Message[] }>({ peerId: '', messages: [] });
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -89,12 +91,17 @@ function Messages() {
     }));
 
   const open = (id: string | null) => {
+    // Opening a thread reads it; take its count off the badge straight away.
+    const opened = list.data?.conversations.find((conversation) => conversation.user._id === id);
+    if (opened?.unreadCount) setUnreadMessages(unreadMessages - opened.unreadCount);
+    setDraft('');
     router.push(id ? `/messages?peer=${id}` : '/messages', { scroll: false });
   };
 
   const refetchList = list.refetch;
   useRealtime<Message>(me ? userChannel(me.id) : null, 'new-message', (message) => {
     if (message.sender === peerId) append(message.sender, message);
+    else setUnreadMessages(unreadMessages + 1);
     refetchList();
   });
 

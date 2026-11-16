@@ -53,13 +53,19 @@ export const GET = route({ query: querySchema }, async ({ actor, query }) => {
       const isSender = msg.sender._id.toString() === actor.id;
       const peer = isSender ? msg.receiver : msg.sender;
       const key = peer._id.toString();
-      if (peers.has(key)) continue;
+      const unread = !isSender && !msg.read;
+      const existing = peers.get(key) as { unreadCount: number } | undefined;
+      if (existing) {
+        if (unread) existing.unreadCount += 1;
+        continue;
+      }
 
       peers.set(key, {
         user: peer,
         lastMessage: msg.content,
         time: msg.createdAt,
-        unread: !isSender && !msg.read,
+        unread,
+        unreadCount: unread ? 1 : 0,
       });
     }
 

@@ -41,7 +41,8 @@ export default function ForgotPasswordPage() {
           If that address has an account, a reset link is on its way. It works for one hour.
         </Banner>
       ) : (
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <form className={styles.form} onSubmit={handleSubmit} method="post" noValidate>
+          {/* POST, so a submit before hydration cannot put anything in the URL. */}
           {error && <Banner variant="danger">{error}</Banner>}
           <Input
             label="Email"

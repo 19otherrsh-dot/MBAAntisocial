@@ -68,6 +68,7 @@ interface CheckIn {
 interface MeResponse {
   user: Me;
   unreadNotifications: number;
+  unreadMessages: number;
   checkIn: CheckIn;
 }
 
@@ -75,11 +76,13 @@ interface MeApi {
   me: Me | null;
   loading: boolean;
   unread: number;
+  unreadMessages: number;
   checkIn: CheckIn | null;
   refresh: () => Promise<void>;
   /** Applies a local patch so the shell updates without a round trip. */
   patch: (changes: Partial<Me>) => void;
   setUnread: (count: number) => void;
+  setUnreadMessages: (count: number) => void;
 }
 
 const MeContext = createContext<MeApi | null>(null);
@@ -102,6 +105,7 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
 
   const [overrides, setOverrides] = useState<Partial<Me>>({});
   const [unreadOverride, setUnreadOverride] = useState<number | null>(null);
+  const [unreadMessagesOverride, setUnreadMessagesOverride] = useState<number | null>(null);
 
   const me = useMemo(() => {
     if (!data) return null;
@@ -112,6 +116,7 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
     // Server state supersedes anything applied locally.
     setOverrides({});
     setUnreadOverride(null);
+    setUnreadMessagesOverride(null);
     refetch();
   }, [refetch]);
 
@@ -120,6 +125,10 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setUnread = useCallback((count: number) => setUnreadOverride(count), []);
+  const setUnreadMessages = useCallback(
+    (count: number) => setUnreadMessagesOverride(Math.max(0, count)),
+    []
+  );
 
   const unread = unreadOverride ?? data?.unreadNotifications ?? 0;
 
@@ -128,12 +137,14 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
       me,
       loading,
       unread,
+      unreadMessages: unreadMessagesOverride ?? data?.unreadMessages ?? 0,
       checkIn: data?.checkIn ?? null,
       refresh,
       patch,
       setUnread,
+      setUnreadMessages,
     }),
-    [me, loading, unread, data, refresh, patch, setUnread]
+    [me, loading, unread, unreadMessagesOverride, data, refresh, patch, setUnread, setUnreadMessages]
   );
 
   return <MeContext.Provider value={value}>{children}</MeContext.Provider>;

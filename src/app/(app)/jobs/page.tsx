@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Briefcase, Building, Send, Plus, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
@@ -57,7 +56,6 @@ type KindFilter = OpportunityKind | 'all';
 
 export default function JobsPage() {
   const { me } = useMe();
-  const router = useRouter();
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [kind, setKind] = useState<KindFilter>('all');
@@ -84,22 +82,6 @@ export default function JobsPage() {
       // Surface what actually went wrong rather than a generic failure line —
       // the API already returns a usable message.
       toast.error('Could not delete that', err instanceof Error ? err.message : undefined);
-    }
-  };
-
-  const requestReferral = async (authorId: string, company: string) => {
-    // Optimistically send a message to start the DM, then redirect
-    try {
-      await api.post('/api/messages', {
-        receiverId: authorId,
-        content: `Hi! I saw your post for a role at ${company} and I'd love to request a referral. Let me know what you need from me.`,
-      });
-      router.push('/messages');
-    } catch (err) {
-      toast.error(
-        'Could not start that conversation',
-        err instanceof Error ? err.message : undefined
-      );
     }
   };
 
@@ -212,13 +194,15 @@ export default function JobsPage() {
                             opt-in the messaging gate honours, so this button is
                             never a cold DM. */}
                         {job.invitesContact && (
-                          <Button
-                            size="sm"
-                            icon={<Send size={14} />}
-                            onClick={() => requestReferral(job.author._id, job.org || job.title)}
+                          <Link
+                            href={`/messages?peer=${job.author._id}&draft=${encodeURIComponent(
+                              `Hi ${job.author.name.split(' ')[0]} — I saw "${job.title}" on Opportunities and would like to know more.`
+                            )}`}
                           >
-                            Get in touch
-                          </Button>
+                            <Button size="sm" icon={<Send size={14} />}>
+                              Get in touch
+                            </Button>
+                          </Link>
                         )}
                       </>
                     )}

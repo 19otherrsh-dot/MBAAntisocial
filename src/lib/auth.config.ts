@@ -101,15 +101,10 @@ export const authConfig = {
         return true;
       }
 
-      if (!isSignedIn) return false;
-
-      // A new account sees onboarding once, before anything else. Skipping it
-      // is allowed and recorded, so this never becomes a loop.
-      if (!auth?.user?.onboardedAt && pathname !== '/onboarding') {
-        return Response.redirect(new URL('/onboarding', request.nextUrl));
-      }
-
-      return true;
+      // Onboarding is routed by the app shell from live account data, not here:
+      // the token is a snapshot, and concurrent requests re-issuing it can put
+      // a stale copy back after onboarding has been completed.
+      return isSignedIn;
     },
   },
   trustHost: true,

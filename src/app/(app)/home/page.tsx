@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   TriangleAlert,
 } from 'lucide-react';
-import { useApiQuery } from '@/lib/client/hooks';
+import { useApiQuery, useNow } from '@/lib/client/hooks';
+import { endOfDay } from '@/lib/time';
 import { useMe } from '@/lib/client/me';
 import { Chip, Stat, Banner, Avatar } from '@/components/ui/Display';
 import Button from '@/components/ui/Button';
@@ -34,6 +35,8 @@ interface TaskRow {
   type: string;
   status: string;
   dueAt?: string;
+  /** Set on a day's instance of a recurring habit. */
+  recurrenceParent?: string;
 }
 
 interface TaskResponse {
@@ -154,6 +157,7 @@ function greetingFor(date = new Date()): string {
 
 export default function HomePage() {
   const { me, checkIn } = useMe();
+  const now = useNow();
 
   const tasks = useApiQuery<TaskResponse>('/api/tasks', { includeCompleted: 'false' });
   const bookings = useApiQuery<{ slots: SlotRow[] }>('/api/sessions', { view: 'bookings', limit: 5 });
@@ -162,17 +166,31 @@ export default function HomePage() {
   const firstName = me?.name.split(' ')[0] ?? 'there';
 
   const upcoming = (bookings.data?.slots ?? [])
-    .filter((slot) => slot.status === 'booked' && new Date(slot.startAt) > new Date())
+    .filter((slot) => slot.status === 'booked' && new Date(slot.startAt).getTime() > now)
     .slice(0, 3);
 
+  /*
+   * A daily habit is materialised two weeks ahead, so the raw list shows "Read
+   * business news" once for every coming day. Today only cares about today's
+   * instance: one per habit, and none from later days.
+   */
+  const endOfToday = endOfDay(new Date(now)).getTime();
+  const seenHabits = new Set<string>();
   const nextTasks = (tasks.data?.tasks ?? [])
-    .filter((task) => task.status !== 'completed')
+    .filter((task) => {
+      if (task.status === 'completed') return false;
+      if (!task.recurrenceParent) return true;
+      if (task.dueAt && new Date(task.dueAt).getTime() > endOfToday) return false;
+      if (seenHabits.has(task.recurrenceParent)) return false;
+      seenHabits.add(task.recurrenceParent);
+      return true;
+    })
     .slice(0, 5);
 
   const summary = tasks.data?.summary;
 
   const savedComps = (comps.data?.comps ?? [])
-    .filter((comp) => new Date(comp.registrationDeadline) > new Date())
+    .filter((comp) => new Date(comp.registrationDeadline).getTime() > now)
     .slice(0, 3);
 
   return (

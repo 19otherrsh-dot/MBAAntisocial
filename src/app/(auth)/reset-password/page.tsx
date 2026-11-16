@@ -62,7 +62,12 @@ function ResetForm() {
         At least ten characters. Saving it signs you out everywhere else.
       </p>
 
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      {/*
+         * `method="post"`: if this is submitted before JavaScript has loaded —
+         * a slow phone on campus Wi-Fi — the browser's default GET would put
+         * the password in the address bar, history, and server logs.
+         */}
+      <form className={styles.form} onSubmit={handleSubmit} method="post" noValidate>
         {error && (
           <Banner variant="danger" icon={<AlertCircle size={16} />}>
             {error} <Link href="/forgot-password">Get a new link</Link>

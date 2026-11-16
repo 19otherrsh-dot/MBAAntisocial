@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  MessageCircle,
   Video,
   MessageSquareQuote,
   Star,
@@ -11,6 +12,7 @@ import {
   Clock,
   Calendar,
 } from 'lucide-react';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Avatar, Chip } from '@/components/ui/Display';
 import { useNow } from '@/lib/client/hooks';
@@ -290,6 +292,15 @@ export default function SlotCard({
                 Cancel
               </Button>
             </>
+          )}
+
+          {/* A completed session is what opens a thread between the two of you. */}
+          {slot.status === 'completed' && counterpart && (
+            <Link href={`/messages?peer=${counterpart._id}`}>
+              <Button size="sm" variant="secondary" icon={<MessageCircle size={14} />}>
+                Message {counterpart.name.split(' ')[0]}
+              </Button>
+            </Link>
           )}
 
           {slot.status === 'completed' &&

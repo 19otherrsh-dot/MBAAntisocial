@@ -4,6 +4,7 @@ import { updateProfileSchema } from '@/lib/validation';
 import { recordCheckIn } from '@/lib/gamification';
 import { unreadCount } from '@/lib/notifications';
 import User, { averageRating } from '@/models/User';
+import Message from '@/models/Message';
 import { MENTOR_ROLES } from '@/lib/constants';
 
 /**
@@ -19,7 +20,7 @@ import { MENTOR_ROLES } from '@/lib/constants';
 export const GET = route({}, async ({ actor }) => {
   const checkIn = await recordCheckIn(actor.id);
 
-  const [user, unread] = await Promise.all([
+  const [user, unread, unreadMessages] = await Promise.all([
     User.findById(actor.id)
       .select(
         'name email image campus batch year role bio specializations mentorProfile ' +
@@ -29,6 +30,7 @@ export const GET = route({}, async ({ actor }) => {
       )
       .lean(),
     unreadCount(actor.id),
+    Message.countDocuments({ receiver: actor.id, read: false }),
   ]);
 
   if (!user) throw ApiError.notFound('Your account could not be loaded.');
@@ -65,6 +67,7 @@ export const GET = route({}, async ({ actor }) => {
       joinedAt: user.createdAt,
     },
     unreadNotifications: unread,
+    unreadMessages,
     checkIn: {
       streak: checkIn.streak,
       isNewDay: checkIn.isNewDay,
@@ -100,7 +103,7 @@ export const PATCH = route(
       }
     }
 
-    if (Object.keys(update).length === 0) {
+    if (Object.keys(update).length === 0 && !body.markOnboarded) {
       throw ApiError.badRequest('Nothing to update.');
     }
 

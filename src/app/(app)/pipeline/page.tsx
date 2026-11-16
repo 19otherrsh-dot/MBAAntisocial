@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Target, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Target, Trash2, BookOpen, Bot } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import { Input, Select, Textarea } from '@/components/ui/Field';
@@ -298,6 +298,16 @@ function ApplicationCard({
             ? `${pluralise(application.intelAvailable, 'question')} from your campus`
             : 'No intel yet — be the first'}
         </Link>
+
+        {!stageMeta.closed && (
+          <Link
+            href={`/ai-interview?company=${encodeURIComponent(application.company)}&track=${application.track}`}
+            className={styles.intelPill}
+          >
+            <Bot size={12} />
+            Practise
+          </Link>
+        )}
 
         {!stageMeta.closed && (
           <Select

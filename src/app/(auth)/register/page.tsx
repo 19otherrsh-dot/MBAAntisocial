@@ -134,7 +134,12 @@ export default function RegisterPage() {
         Your campus and batch decide whose slots you see and whose notes you get. Pick carefully.
       </p>
 
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      {/*
+         * `method="post"`: if this is submitted before JavaScript has loaded —
+         * a slow phone on campus Wi-Fi — the browser's default GET would put
+         * the password in the address bar, history, and server logs.
+         */}
+      <form className={styles.form} onSubmit={handleSubmit} method="post" noValidate>
         {error && (
           <Banner variant="danger" icon={<AlertCircle size={16} />}>
             {error}

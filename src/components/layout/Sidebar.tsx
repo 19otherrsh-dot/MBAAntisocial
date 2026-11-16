@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PanelLeftClose, PanelLeftOpen, Flame, Sparkles } from 'lucide-react';
-import { NAV_GROUPS } from './navigation';
+import { NAV_GROUPS, canSee, isActive } from './navigation';
 import { Avatar } from '@/components/ui/Display';
 import { LogoMark } from '@/components/brand/Logo';
 import { useMe } from '@/lib/client/me';
@@ -18,10 +18,12 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const { me } = useMe();
+  const { me, unreadMessages } = useMe();
 
-  const canModerate = me ? MODERATOR_ROLES.includes(me.role) : false;
-  const isStaff = me ? STAFF_ROLES.includes(me.role) : false;
+  const viewer = {
+    canModerate: me ? MODERATOR_ROLES.includes(me.role) : false,
+    isStaff: me ? STAFF_ROLES.includes(me.role) : false,
+  };
 
   return (
     <aside className={cn(styles.sidebar, collapsed && styles.collapsed)}>
@@ -48,18 +50,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       <nav className={styles.nav} aria-label="Main">
         {NAV_GROUPS.map((group) => {
-          const items = group.items.filter(
-            (item) =>
-              (!item.moderatorOnly || canModerate) && (!item.staffOnly || isStaff)
-          );
+          const items = group.items.filter((item) => canSee(item, viewer));
           if (items.length === 0) return null;
 
           return (
-            <div key={group.label}>
-              <div className={styles.navGroupLabel}>{group.label}</div>
+            <div key={group.key}>
+              {group.label && <div className={styles.navGroupLabel}>{group.label}</div>}
               {items.map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const active = isActive(pathname, item.href);
+                const unread = item.showsUnreadMessages && unreadMessages > 0;
                 const Icon = item.icon;
 
                 return (
@@ -74,6 +73,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
                     </span>
                     <span className={styles.navLabel}>{item.label}</span>
+                    {unread && (
+                      <span className={styles.navCount} aria-label={`${unreadMessages} unread`}>
+                        {unreadMessages > 9 ? '9+' : unreadMessages}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

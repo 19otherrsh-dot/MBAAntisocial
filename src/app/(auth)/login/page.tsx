@@ -110,7 +110,12 @@ function LoginForm() {
         Pick up where you left off — your slots, deadlines, and batch are waiting.
       </p>
 
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      {/*
+         * `method="post"`: if this is submitted before JavaScript has loaded —
+         * a slow phone on campus Wi-Fi — the browser's default GET would put
+         * the password in the address bar, history, and server logs.
+         */}
+      <form className={styles.form} onSubmit={handleSubmit} method="post" noValidate>
         {justVerified && !error && !unverified && (
           <Banner variant="success" icon={<MailCheck size={16} />}>
             Email confirmed. Sign in to get started.

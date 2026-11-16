@@ -89,6 +89,8 @@ export const resetPasswordSchema = z.object({ token: emailedToken, password });
 // ───────────────────────── Profile ─────────────────────────
 
 export const updateProfileSchema = z.object({
+  /** Records that onboarding was seen, for the "skip for now" path that changes nothing else. */
+  markOnboarded: z.literal(true).optional(),
   name: requiredText(2, 80, 'Name').optional(),
   image: httpsUrl.optional(),
   bio: trimmed(500).optional(),

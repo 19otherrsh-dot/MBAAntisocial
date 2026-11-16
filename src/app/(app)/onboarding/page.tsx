@@ -41,6 +41,15 @@ export default function OnboardingPage() {
   const [offers, setOffers] = useState<SessionType[]>([...SESSION_TYPES]);
   const [optIn, setOptIn] = useState(false);
 
+  /*
+   * The app shell sends an account here until `onboardedAt` is set. Patching it
+   * locally as well as on the server means the shell lets go straight away.
+   */
+  const leave = () => {
+    patch({ onboardedAt: new Date().toISOString() });
+    router.replace('/home');
+  };
+
   const finish = useAction(async () => {
     await api.patch('/api/me', {
       bio: bio.trim(),
@@ -51,8 +60,12 @@ export default function OnboardingPage() {
         : {}),
     });
 
-    patch({ onboardedAt: new Date().toISOString() });
-    router.push('/home');
+    leave();
+  });
+
+  const skip = useAction(async () => {
+    await api.patch('/api/me', { markOnboarded: true });
+    leave();
   });
 
   if (loading || !me) {
@@ -191,7 +204,7 @@ export default function OnboardingPage() {
         >
           Finish setup
         </Button>
-        <Button size="lg" variant="ghost" onClick={() => router.push('/home')}>
+        <Button size="lg" variant="ghost" onClick={() => skip.run()} loading={skip.pending}>
           Skip for now
         </Button>
         <Chip outline>Everything here is editable in your profile</Chip>

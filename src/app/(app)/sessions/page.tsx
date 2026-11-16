@@ -52,7 +52,11 @@ function SessionsView() {
   const view: View =
     viewParam === 'bookings' || viewParam === 'hosting' ? viewParam : 'open';
 
-  const [typeFilter, setTypeFilter] = useState<SessionType | ''>('');
+  // `?sessionType=` lets other pages link straight to, say, resume reviews.
+  const [typeFilter, setTypeFilter] = useState<SessionType | ''>(() => {
+    const requested = searchParams.get('sessionType');
+    return (SESSION_TYPES as readonly string[]).includes(requested ?? '') ? (requested as SessionType) : '';
+  });
   const [publishOpen, setPublishOpen] = useState(false);
   const [bookingSlot, setBookingSlot] = useState<Slot | null>(null);
   const [feedbackSlot, setFeedbackSlot] = useState<Slot | null>(null);

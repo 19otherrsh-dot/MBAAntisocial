@@ -170,6 +170,8 @@ async function seed() {
         points: 180 + index * 40,
         streak: 12 - index * 2,
         longestStreak: 24 - index,
+        // Checked in yesterday, so the seeded streak carries on rather than resetting.
+        lastCheckInAt: at(-1, 21),
         sessionsHosted: person.hosted,
         mentorRating: { sum: person.hosted * 4.6, count: person.hosted },
         leaderboardOptIn: true,
@@ -196,6 +198,8 @@ async function seed() {
         karma: index * 15,
         streak: 5 + index,
         longestStreak: 9 + index,
+        // Checked in yesterday, so the seeded streak carries on rather than resetting.
+        lastCheckInAt: at(-1, 21),
         sessionsAttended: index % 3,
         leaderboardOptIn: index % 2 === 0,
         honorCodeAcceptedAt: index < 3 ? new Date() : undefined,
