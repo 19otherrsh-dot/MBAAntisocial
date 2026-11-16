@@ -1290,8 +1290,13 @@
 .todayGameNext:hover { text-decoration: underline; }
 .todayGameQuests { display: flex; flex-direction: column; gap: var(--s-2); }
 
+.todayGameSkeleton { height: 218px; border-radius: var(--r-lg); }
+.statStripSkeleton { height: 122px; border-radius: var(--r-lg); }
+
 @media (max-width: 900px) {
   .todayGame { grid-template-columns: minmax(0, 1fr); }
+  .todayGameSkeleton { height: 358px; }
+  .statStripSkeleton { height: 201px; }
 }
 
 /* Lists deal their cards in. */

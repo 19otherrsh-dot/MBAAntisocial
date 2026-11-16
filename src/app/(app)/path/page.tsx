@@ -62,7 +62,6 @@ export default function PathPage() {
   const { state, claimQuest, claimChest, claimPath, setGoal } = useGame();
   const [soundOn, setSoundOn] = usePersistentFlag(SOUND_STORAGE_KEY, true);
   const [editingGoal, setEditingGoal] = useState(false);
-  const xp = useCountUp(state?.xp ?? 0);
 
   if (!state) {
     return (
@@ -92,9 +91,9 @@ export default function PathPage() {
           </div>
         </div>
         <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
-          <div className={g.levelTitle}>{state.level.title}</div>
+          <h2 className={g.levelTitle}>{state.level.title}</h2>
           <div className={g.levelMeta}>
-            {xp} XP · {state.level.toNext} XP to level {state.level.level + 1}
+            <CountUpText value={state.xp} /> XP · {state.level.toNext} XP to level {state.level.level + 1}
           </div>
           <div className={g.bar} role="progressbar" aria-label="Level progress" aria-valuenow={Math.round(state.level.fraction * 100)} aria-valuemin={0} aria-valuemax={100}>
             <div className={g.barFill} style={{ width: `${Math.max(3, state.level.fraction * 100)}%` }} />
@@ -206,7 +205,7 @@ export default function PathPage() {
                         Claimed
                       </span>
                     ) : (
-                      <Link href={quest.href} className={g.chunky}>
+                      <Link href={quest.href} className={g.chunky} aria-label={`Go: ${quest.title}`}>
                         Go
                       </Link>
                     )}
@@ -353,4 +352,12 @@ function SeasonPath({ steps, onClaim }: { steps: PathStepState[]; onClaim: (key:
       })}
     </div>
   );
+}
+
+/**
+ * The ticking XP number, in its own component: a count-up re-renders every
+ * frame for most of a second, and it should re-render this span, not the page.
+ */
+function CountUpText({ value }: { value: number }) {
+  return <>{useCountUp(value)}</>;
 }

@@ -213,6 +213,30 @@ JSON line per server error for any log drain, a global error screen, robots and
 sitemap, password reset and email confirmation, account export and deletion
 (Profile → Your data), and CI that runs everything on each push.
 
+## Performance
+
+Measured on a production build with seeded data. Cold loads, signed in where
+the page needs it; the phone profile is a Pixel 7 with a 4× slower CPU on slow
+4G (150 ms round trips, 1.6 Mbps).
+
+| | Desktop | Phone |
+| --- | --- | --- |
+| First paint | 0.07–0.12 s | 0.74–0.80 s |
+| Largest paint, signed-in pages | 0.24–0.28 s | 2.4–2.5 s |
+| Layout shift (CLS) | ≤ 0.02 | ≤ 0.07 |
+| Today → Path navigation | 0.14 s | 0.44 s |
+| Tick a task → "+XP" on screen | 0.27 s | 0.93 s |
+| Celebration animation | 61 fps | 61 fps |
+
+Lighthouse: accessibility and best practices 100 on every page measured;
+performance 92–100 except Path on the phone profile (75, a simulated estimate —
+the real measurement above is 2.5 s). Signed-in pages score lower on SEO only
+because `robots.txt` keeps them out of search on purpose.
+
+Two choices carry most of it: the account and game state are preloaded in the
+first flush of the HTML, so they load in parallel with the JavaScript; and
+placeholders are sized to the content they stand in for, so nothing jumps.
+
 ## Design decisions worth knowing
 
 **The pipeline and the intel bank are one loop, not two features.** A tracked

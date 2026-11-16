@@ -29,7 +29,7 @@ export default function GameHud() {
       <Link
         href="/path"
         className={styles.hudChip}
-        aria-label={`Daily goal: ${state.today.xp} of ${state.today.goal} XP`}
+        aria-label={`${state.today.xp} of ${state.today.goal} XP — daily goal`}
         title={`Today: ${state.today.xp}/${state.today.goal} XP`}
         style={{ paddingLeft: 3 }}
       >
@@ -52,7 +52,7 @@ export default function GameHud() {
         <span className={styles.hudOptional}>{state.today.xp}</span>
       </Link>
 
-      <Link href="/path" className={styles.hudChip} aria-label={`${state.streak.days}-day streak`} title="Day streak">
+      <Link href="/path" className={styles.hudChip} aria-label={`${state.streak.days} day streak`} title="Day streak">
         <Flame size={16} className={state.today.xp > 0 ? styles.hudFlame : styles.hudFlameCold} fill="currentColor" />
         {state.streak.days}
         {state.streak.shields > 0 && (
@@ -65,7 +65,7 @@ export default function GameHud() {
       <Link
         href="/path"
         className={styles.hudChip}
-        aria-label={`Level ${state.level.level}, ${xp} XP`}
+        aria-label={`Lv ${state.level.level} · ${xp} XP — ${state.level.title}`}
         title={`${state.level.title} · ${state.level.toNext} XP to level ${state.level.level + 1}`}
       >
         <span style={{ color: 'var(--accent-text)' }}>Lv {state.level.level}</span>

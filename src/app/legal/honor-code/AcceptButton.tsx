@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { SessionProvider, useSession } from 'next-auth/react';
 import { ShieldCheck } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Banner } from '@/components/ui/Display';
@@ -19,6 +19,15 @@ interface MeResponse {
  * stays a static server component and remains readable while signed out.
  */
 export default function AcceptButton() {
+  // The only place the client session is read, so the provider lives here.
+  return (
+    <SessionProvider>
+      <AcceptButtonInner />
+    </SessionProvider>
+  );
+}
+
+function AcceptButtonInner() {
   const router = useRouter();
   const { status } = useSession();
 

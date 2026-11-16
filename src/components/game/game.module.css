@@ -289,18 +289,19 @@
   padding: 0 14px;
   border: 0;
   border-radius: var(--r-md);
-  background: var(--teal);
+  /* A deeper teal than the token, so white text clears 4.5:1 in both themes. */
+  background: #0a7663;
   color: #fff;
   font: inherit;
   font-size: var(--t-sm);
   font-weight: 750;
   cursor: pointer;
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--teal) 55%, #000);
+  box-shadow: 0 4px 0 #05463b;
   transition: transform 90ms var(--ease), box-shadow 90ms var(--ease), filter var(--dur-fast);
   white-space: nowrap;
 }
 .chunky:hover { filter: brightness(1.07); }
-.chunky:active { transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--teal) 55%, #000); }
+.chunky:active { transform: translateY(3px); box-shadow: 0 1px 0 #05463b; }
 .chunky:disabled { opacity: 0.5; cursor: default; }
 .chunkyGold { background: var(--amber); color: #1f1300; box-shadow: 0 4px 0 color-mix(in srgb, var(--amber) 55%, #000); }
 .chunkyGold:active { box-shadow: 0 1px 0 color-mix(in srgb, var(--amber) 55%, #000); }

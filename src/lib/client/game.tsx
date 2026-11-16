@@ -187,7 +187,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onMutated = () => {
       clearTimeout(timer);
-      timer = setTimeout(refresh, 350);
+      // Short: long enough to coalesce a burst of changes, short enough that
+      // the "+XP" lands while the tap is still fresh.
+      timer = setTimeout(refresh, 120);
     };
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();

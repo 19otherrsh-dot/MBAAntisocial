@@ -89,12 +89,19 @@ export async function loadGameState(userId: string): Promise<GameState> {
     todayRows.filter((row) => actions.includes(row._id)).reduce((sum, row) => sum + row.count, 0);
   const lifetimeCount = (action: PointAction) => lifetime.find((row) => row._id === action)?.count ?? 0;
 
-  // Which of today's quest and chest rewards are already claimed.
+  // Which of today's rewards are already claimed: one indexed lookup on the
+  // exact entities that could be, rather than every reward ever paid.
+  const candidates = [
+    ...quests.map((quest) => questEntity(userId, day, quest.key)),
+    chestEntity(userId, day),
+    ...pathFor(isMentor).map((step) => pathEntity(userId, step.key)),
+  ];
   const claimedEntities = new Set(
     (
       await LedgerEntry.find({
         user: me,
         action: { $in: ['quest_reward', 'chest_reward', 'path_reward'] },
+        entity: { $in: candidates },
       })
         .select('entity')
         .lean()

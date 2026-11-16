@@ -22,7 +22,8 @@
   /* Ink */
   --text: #17161c;
   --text-secondary: #5a5866;
-  --text-muted: #8b8896;
+  /* 4.6:1 on the page background — WCAG AA for small text. */
+  --text-muted: #6e6b7b;
   --text-inverse: #faf9f6;
 
   /* Lines */
@@ -134,7 +135,7 @@
 
     --text: #f3f1ee;
     --text-secondary: #a8a4b3;
-    --text-muted: #78748a;
+    --text-muted: #8f8ba0;
     --text-inverse: #17161c;
 
     --line: #2c2936;

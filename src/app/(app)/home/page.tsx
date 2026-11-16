@@ -217,7 +217,9 @@ export default function HomePage() {
 
       <TodayGameCard />
 
-      {me && (
+      {!me ? (
+        <div className={cn('skeleton', styles.statStripSkeleton)} />
+      ) : (
         <div className={styles.statStrip}>
           <Stat value={me.karma} label="Karma" meta="For helping others" tone="teal" />
           <Stat value={me.points} label="Points" meta="For your own work" tone="violet" />
@@ -576,7 +578,8 @@ function CampusPulsePanel() {
  */
 function TodayGameCard() {
   const { state, claimQuest } = useGame();
-  if (!state) return <div className="skeleton" style={{ height: 156 }} />;
+  // Same footprint as the loaded card, so nothing below it jumps when it arrives.
+  if (!state) return <div className={cn('skeleton', styles.todayGameSkeleton)} />;
 
   const next = state.path.find((step) => step.status === 'current');
   const left = Math.max(0, state.today.goal - state.today.xp);
@@ -635,7 +638,12 @@ function TodayGameCard() {
                 ) : done ? (
                   <CheckCircle2 size={16} style={{ color: 'var(--teal)' }} />
                 ) : (
-                  <Link href={quest.href} className={g.chunky} style={{ height: 30, padding: '0 10px' }}>
+                  <Link
+                    href={quest.href}
+                    className={g.chunky}
+                    style={{ height: 30, padding: '0 10px' }}
+                    aria-label={`Go: ${quest.title}`}
+                  >
                     Go
                   </Link>
                 )}
