@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Plus, Ghost, ShieldCheck } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
@@ -44,7 +45,25 @@ interface OffersResponse {
 }
 
 export default function OfferIntelPage() {
-  const [showModal, setShowModal] = useState(false);
+  // `useSearchParams` needs a Suspense boundary to keep the route prerenderable.
+  return (
+    <Suspense fallback={<div className="skeleton" style={{ height: 420 }} />}>
+      <OfferIntel />
+    </Suspense>
+  );
+}
+
+function OfferIntel() {
+  const params = useSearchParams();
+  // `?report=1&company=…` arrives from the pipeline's offer celebration.
+  const [showModal, setShowModal] = useState(params.get('report') === '1');
+  const preset = {
+    company: params.get('company') ?? '',
+    role: params.get('role') ?? '',
+    track: (ROLE_TRACKS as readonly string[]).includes(params.get('track') ?? '')
+      ? (params.get('track') as RoleTrack)
+      : undefined,
+  };
   const { data, loading, error, refetch } = useApiQuery<OffersResponse>('/api/offers');
 
   return (
@@ -175,21 +194,36 @@ export default function OfferIntelPage() {
       )}
 
       {showModal && (
-        <DropOfferDialog onClose={() => setShowModal(false)} onDone={() => { setShowModal(false); refetch(); }} />
+        <DropOfferDialog
+          preset={preset}
+          onClose={() => setShowModal(false)}
+          onDone={() => {
+            setShowModal(false);
+            refetch();
+          }}
+        />
       )}
     </>
   );
 }
 
-function DropOfferDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function DropOfferDialog({
+  preset,
+  onClose,
+  onDone,
+}: {
+  preset: { company: string; role: string; track?: RoleTrack };
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const toast = useToast();
-  const [company, setCompany] = useState('');
-  const [role, setRole] = useState('');
+  const [company, setCompany] = useState(preset.company);
+  const [role, setRole] = useState(preset.role);
   const [location, setLocation] = useState('');
   const [baseSalary, setBaseSalary] = useState('');
   const [signingBonus, setSigningBonus] = useState('');
   const [offerType, setOfferType] = useState<'internship' | 'full_time'>('full_time');
-  const [track, setTrack] = useState<RoleTrack>('consulting');
+  const [track, setTrack] = useState<RoleTrack>(preset.track ?? 'consulting');
 
   const submit = useAction(async () => {
     await api.post('/api/offers', {

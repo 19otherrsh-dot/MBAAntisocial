@@ -13,6 +13,7 @@ import { useApiQuery, useAction } from '@/lib/client/hooks';
 import { api } from '@/lib/client/api';
 import RoundDialog from './RoundDialog';
 import IntelDialog from './IntelDialog';
+import OfferCelebration from './OfferCelebration';
 import { nextRound, type Application, type PipelineResponse, type Round } from './types';
 import {
   APPLICATION_STAGES,
@@ -46,6 +47,7 @@ export default function PipelinePage() {
   const [addOpen, setAddOpen] = useState(false);
   const [roundTarget, setRoundTarget] = useState<{ application: Application; round: Round | null } | null>(null);
   const [intelTarget, setIntelTarget] = useState<{ application: Application; round: Round } | null>(null);
+  const [celebrating, setCelebrating] = useState<Application | null>(null);
 
   const query = useMemo(() => ({ stage: filter }), [filter]);
   const { data, loading, error, refetch } = useApiQuery<PipelineResponse>('/api/applications', query);
@@ -79,6 +81,7 @@ export default function PipelinePage() {
     try {
       await api.patch(`/api/applications/${application._id}`, { stage });
       refetch();
+      if (stage === 'offer' && application.stage !== 'offer') setCelebrating({ ...application, stage });
     } catch (caught) {
       toast.error('Could not update', caught instanceof Error ? caught.message : undefined);
     }
@@ -186,6 +189,8 @@ export default function PipelinePage() {
           }}
         />
       )}
+
+      {celebrating && <OfferCelebration application={celebrating} onClose={() => setCelebrating(null)} />}
 
       {confirmDialog}
     </>

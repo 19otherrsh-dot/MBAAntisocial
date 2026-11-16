@@ -1205,3 +1205,62 @@
   background: var(--accent);
 }
 .prose strong { font-weight: 620; }
+
+/* ───────────────────────── Celebration ───────────────────────── */
+
+.celebrateActions { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.celebrateAction {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.celebrateAction:hover { border-color: var(--line-accent); background: var(--accent-soft); }
+.celebrateAction > svg { flex: none; margin-top: 2px; color: var(--accent-text); }
+.celebrateAction strong { display: block; font-weight: 620; }
+.celebrateAction span span { display: block; font-size: var(--t-sm); color: var(--text-secondary); margin-top: 2px; }
+
+/* ───────────────────────── Impact & campus pulse ───────────────────────── */
+
+.impactLead { font-size: var(--t-lg); font-weight: 650; line-height: 1.35; padding: var(--s-4) var(--s-4) 0; }
+.impactLead em { font-style: normal; color: var(--teal-text); }
+
+.impactGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+}
+
+.impactCell { padding: var(--s-3); border-radius: var(--r-md); background: var(--bg-sunken); }
+.impactValue { font-size: var(--t-xl); font-weight: 680; font-variant-numeric: tabular-nums; }
+.impactLabel { font-size: var(--t-xs); color: var(--text-secondary); line-height: 1.4; }
+
+.pulseBody { padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
+.pulseGoal { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.pulseGoalText { font-weight: 620; }
+.pulseGoalCount { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: var(--t-sm); }
+
+.pulseTrack { height: 10px; border-radius: var(--r-full); background: var(--bg-sunken); overflow: hidden; }
+.pulseFill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--violet), var(--teal));
+  transition: width var(--dur-slow) var(--ease);
+}
+
+.pulseStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+.pulseStat { font-size: var(--t-xs); color: var(--text-secondary); }
+.pulseStat strong { display: block; font-size: var(--t-md); color: var(--text); font-variant-numeric: tabular-nums; }
+
+.pulseNote { font-size: var(--t-sm); color: var(--text-secondary); line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseFill { transition: none; }
+}

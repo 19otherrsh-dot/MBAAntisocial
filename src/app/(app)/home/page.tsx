@@ -11,6 +11,8 @@ import {
   Sparkles,
   CheckCircle2,
   TriangleAlert,
+  HeartHandshake,
+  Users,
 } from 'lucide-react';
 import { useApiQuery, useNow } from '@/lib/client/hooks';
 import { endOfDay } from '@/lib/time';
@@ -23,7 +25,6 @@ import {
   formatDateTime,
   formatDayLabel,
   pluralise,
-  timeAgo,
 } from '@/lib/utils';
 import { SESSION_TYPE_META, ROUND_TYPE_META, type SessionType } from '@/lib/constants';
 import styles from '../app.module.css';
@@ -404,36 +405,167 @@ export default function HomePage() {
             </Banner>
           )}
 
-          {me && (
-            <section className={styles.panel}>
-              <div className={styles.panelHead}>
-                <h3 className={styles.panelTitle}>Where you stand</h3>
-                <Link href="/leaderboard" className={styles.panelLink}>
-                  Standings <ArrowRight size={12} />
-                </Link>
-              </div>
-              <div className={styles.panelBody}>
-                <div className={styles.miniRow}>
-                  <div className="grow">
-                    <div className={styles.miniTitle}>{me.campus}</div>
-                    <div className={styles.miniMeta}>
-                      Joined {timeAgo(me.joinedAt)}
-                      {me.leaderboardOptIn ? ' · on the board' : ' · not ranked'}
-                    </div>
-                  </div>
-                </div>
-                {!me.leaderboardOptIn && (
-                  <p className={styles.miniEmpty} style={{ paddingTop: 0 }}>
-                    Ranking is off by default. Turn it on in your profile if you want to be listed.
-                  </p>
-                )}
-              </div>
-            </section>
-          )}
+          <ImpactPanel />
+          <CampusPulsePanel />
         </div>
       </div>
 
       {tasks.error && <div className={styles.errorBox}>{tasks.error}</div>}
     </>
+  );
+}
+
+/* ───────────────────────── Impact ───────────────────────── */
+
+interface Impact {
+  peopleHelped: number;
+  questionsLogged: number;
+  questionUpvotes: number;
+  resourcesShared: number;
+  resourceUpvotes: number;
+  resourceDownloads: number;
+  sessionsHosted: number;
+  answersMarkedUseful: number;
+}
+
+/**
+ * Karma, translated back into what it stands for. "Karma 340" is a number;
+ * "you have helped 9 people" is the reason to write a debrief at midnight.
+ */
+function ImpactPanel() {
+  const { data } = useApiQuery<Impact>('/api/me/impact');
+  if (!data) return null;
+
+  const cells = [
+    { value: data.questionUpvotes, label: 'times your interview intel helped someone prep', show: data.questionsLogged > 0 },
+    { value: data.sessionsHosted, label: data.sessionsHosted === 1 ? 'mock you hosted' : 'mocks you hosted', show: data.sessionsHosted > 0 },
+    { value: data.resourceDownloads, label: 'downloads of notes you shared', show: data.resourcesShared > 0 },
+    { value: data.answersMarkedUseful, label: 'feed answers marked useful', show: data.answersMarkedUseful > 0 },
+  ].filter((cell) => cell.show);
+
+  const nothingYet = cells.length === 0;
+  const uses = data.questionUpvotes + data.resourceDownloads + data.answersMarkedUseful + data.sessionsHosted;
+
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHead}>
+        <h3 className={styles.panelTitle}>
+          <HeartHandshake size={16} style={{ color: 'var(--teal)' }} />
+          Your impact
+        </h3>
+      </div>
+      {nothingYet ? (
+        <p className={styles.miniEmpty}>
+          Log one question after your next round and it starts preparing someone two seasons from
+          now. <Link href="/intel" style={{ textDecoration: 'underline' }}>See the bank</Link>
+        </p>
+      ) : (
+        <>
+          <p className={styles.impactLead}>
+            {data.peopleHelped > 0 ? (
+              <>
+                You have helped <em>{pluralise(data.peopleHelped, 'person', 'people')}</em> on your
+                campus.
+              </>
+            ) : uses > 0 ? (
+              <>
+                What you shared has been used <em>{pluralise(uses, 'time')}</em>.
+              </>
+            ) : (
+              <>Your contributions are in. The first thanks usually takes a week.</>
+            )}
+          </p>
+          <div className={styles.impactGrid}>
+            {cells.map((cell) => (
+              <div key={cell.label} className={styles.impactCell}>
+                <div className={styles.impactValue}>{cell.value}</div>
+                <div className={styles.impactLabel}>{cell.label}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/* ───────────────────────── Campus pulse ───────────────────────── */
+
+interface Pulse {
+  season: string;
+  questions: number;
+  questionsThisWeek: number;
+  mocks: number;
+  resources: number;
+  contributors: number;
+  goal: { target: number; previous: number; fraction: number; complete: boolean };
+}
+
+/**
+ * One bar the whole batch pushes together. The leaderboard ranks people
+ * against each other and is opt-in for that reason; this ranks nobody.
+ */
+function CampusPulsePanel() {
+  const { me } = useMe();
+  const { data } = useApiQuery<Pulse>('/api/campus/pulse');
+  if (!data || !me) return null;
+
+  const remaining = data.goal.target - data.questions;
+
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHead}>
+        <h3 className={styles.panelTitle}>
+          <Users size={16} style={{ color: 'var(--violet)' }} />
+          {me.campus} · {data.season}
+        </h3>
+        <Link href="/intel" className={styles.panelLink}>
+          Intel <ArrowRight size={12} />
+        </Link>
+      </div>
+      <div className={styles.pulseBody}>
+        <div className={styles.pulseGoal}>
+          <span className={styles.pulseGoalText}>
+            {data.goal.complete
+              ? 'Every milestone passed. Legendary batch.'
+              : `Season goal: ${data.goal.target} interview questions`}
+          </span>
+          <span className={styles.pulseGoalCount}>
+            {data.questions}/{data.goal.target}
+          </span>
+        </div>
+        <div
+          className={styles.pulseTrack}
+          role="progressbar"
+          aria-label="Campus question goal"
+          aria-valuemin={data.goal.previous}
+          aria-valuemax={data.goal.target}
+          aria-valuenow={data.questions}
+        >
+          <div className={styles.pulseFill} style={{ width: `${Math.max(4, data.goal.fraction * 100)}%` }} />
+        </div>
+        <div className={styles.pulseStats}>
+          <div className={styles.pulseStat}>
+            <strong>{data.mocks}</strong>
+            mocks run
+          </div>
+          <div className={styles.pulseStat}>
+            <strong>{data.resources}</strong>
+            notes shared
+          </div>
+          <div className={styles.pulseStat}>
+            <strong>{data.contributors}</strong>
+            contributors
+          </div>
+        </div>
+        <p className={styles.pulseNote}>
+          {data.goal.complete
+            ? 'The bank is deeper than any batch before it. Keep it fresh.'
+            : data.questionsThisWeek > 0
+              ? `${pluralise(data.questionsThisWeek, 'question')} logged this week. ${remaining} more and the campus hits ${data.goal.target}.`
+              : `${remaining} more and the campus hits ${data.goal.target}. Every debrief counts for everyone.`}
+        </p>
+      </div>
+    </section>
   );
 }

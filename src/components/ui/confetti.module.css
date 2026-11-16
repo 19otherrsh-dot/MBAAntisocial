@@ -1,0 +1,25 @@
+.burst {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.piece {
+  position: absolute;
+  top: -12px;
+  opacity: 0;
+  animation: fall 1.9s cubic-bezier(0.2, 0.7, 0.4, 1) forwards;
+}
+
+@keyframes fall {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(var(--drift), var(--fall), 0) rotate(var(--spin)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burst { display: none; }
+}
