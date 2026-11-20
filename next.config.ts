@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs/config';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -24,7 +25,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' https://*.pusher.com wss://*.pusher.com${isDev ? ' ws:' : ''}`,
+  `connect-src 'self' https://*.pusher.com wss://*.pusher.com https://*.sentry.io${isDev ? ' ws:' : ''}`,
   "media-src 'self'",
   "worker-src 'self'",
   "manifest-src 'self'",
@@ -77,4 +78,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Sentry's build plugin only matters for uploading source maps, which needs an
+ * auth token. Without one the config is exported untouched, so a deployment
+ * that does not use Sentry builds exactly as before.
+ */
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+    })
+  : nextConfig;

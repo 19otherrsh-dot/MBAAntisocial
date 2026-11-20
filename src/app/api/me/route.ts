@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { route, ok } from '@/lib/api/handler';
 import { deleteAccount } from '@/lib/account/lifecycle';
+import { recordAudit } from '@/lib/audit';
 import { ApiError } from '@/lib/api/errors';
 import { updateProfileSchema } from '@/lib/validation';
 import { recordCheckIn } from '@/lib/gamification';
@@ -96,8 +97,29 @@ export const PATCH = route(
       update[`notificationPrefs.${key}`] = value;
     }
 
+    /*
+     * Year and batch come from the registration form, or — for single sign-on,
+     * where the provider cannot know them — from onboarding. They are fixed
+     * once onboarding is done: year decides whether someone can host mocks, so
+     * it must not be a setting anyone can flip later. The only role change
+     * allowed here is between student and the basic mentor role.
+     */
+    if (body.year !== undefined || body.batch !== undefined) {
+      const current = await User.findById(actor.id).select('onboardedAt role').lean();
+      if (current?.onboardedAt) {
+        throw ApiError.forbidden('Year and batch are set at sign-up. Ask a campus admin to correct them.');
+      }
+      if (body.batch !== undefined) update.batch = body.batch;
+      if (body.year !== undefined) {
+        update.year = body.year;
+        if (current?.role === 'student' && body.year === 2) update.role = 'mentor';
+        if (current?.role === 'mentor' && body.year === 1) update.role = 'student';
+      }
+    }
+
     if (body.mentorProfile) {
-      if (!actor.canMentor) {
+      // Includes a second-year confirming their year in this same request.
+      if (!actor.canMentor && update.role !== 'mentor') {
         throw ApiError.forbidden('Only seniors and alumni can offer sessions.');
       }
       for (const [key, value] of Object.entries(body.mentorProfile)) {
@@ -140,5 +162,12 @@ export const DELETE = route({ body: deleteSchema, rateLimit: 'account' }, async 
     throw ApiError.unprocessable('Some fields need fixing.', { password: 'That password is not right.' });
   }
   await deleteAccount(actor.id);
+  // Recorded without the person's name: the account is gone, the fact that it
+  // was deleted (and when) is what the institute may need to show.
+  await recordAudit({
+    actor: { id: actor.id, campus: actor.campus, role: actor.role },
+    action: 'account.deleted',
+    target: { type: 'user', id: actor.id },
+  });
   return ok({ deleted: true });
 });

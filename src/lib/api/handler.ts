@@ -6,7 +6,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { ApiError, toErrorResponse } from './errors';
 import { consume, type RateLimitName, clientIdentifier } from './rate-limit';
-import { MENTOR_ROLES, MODERATOR_ROLES, STAFF_ROLES, type UserRole } from '@/lib/constants';
+import { ADMIN_ROLES, MENTOR_ROLES, MODERATOR_ROLES, STAFF_ROLES, type UserRole } from '@/lib/constants';
 
 /** The authenticated caller, resolved once per request. */
 export interface Actor {
@@ -20,6 +20,7 @@ export interface Actor {
   canMentor: boolean;
   canModerate: boolean;
   canReadReport: boolean;
+  isAdmin: boolean;
 }
 
 export interface RouteContext<TBody, TQuery> {
@@ -43,6 +44,8 @@ interface RouteOptions<TBody, TQuery> {
   requireModerator?: boolean;
   /** Restrict the route to institute staff reading the campus report. */
   requireStaff?: boolean;
+  /** Restrict the route to institute administrators. */
+  requireAdmin?: boolean;
 }
 
 type Handler<TBody, TQuery> = (
@@ -93,6 +96,9 @@ export function route<TBody = undefined, TQuery = undefined>(
       if (options.requireStaff && !actor.canReadReport) {
         throw ApiError.forbidden('This report is limited to institute staff.');
       }
+      if (options.requireAdmin && !actor.isAdmin) {
+        throw ApiError.forbidden('Admin access required.');
+      }
 
       const params = routeArgs ? await routeArgs.params : {};
 
@@ -139,6 +145,7 @@ async function resolveActor(userId: string, authAt: number | undefined): Promise
     canMentor: MENTOR_ROLES.includes(user.role),
     canModerate: MODERATOR_ROLES.includes(user.role),
     canReadReport: STAFF_ROLES.includes(user.role),
+    isAdmin: ADMIN_ROLES.includes(user.role),
   };
 }
 
@@ -147,7 +154,7 @@ async function resolveActor(userId: string, authAt: number | undefined): Promise
  * Throttling keys on client IP since there is no user yet.
  */
 export function publicRoute<TBody = undefined, TQuery = undefined>(
-  options: Omit<RouteOptions<TBody, TQuery>, 'requireMentor' | 'requireModerator'>,
+  options: Omit<RouteOptions<TBody, TQuery>, 'requireMentor' | 'requireModerator' | 'requireStaff' | 'requireAdmin'>,
   handler: (ctx: Omit<RouteContext<TBody, TQuery>, 'actor'>) => Promise<NextResponse | Response>
 ) {
   return async (request: NextRequest, routeArgs?: NextRouteArgs): Promise<Response> => {

@@ -91,6 +91,9 @@ export const resetPasswordSchema = z.object({ token: emailedToken, password });
 export const updateProfileSchema = z.object({
   /** Records that onboarding was seen, for the "skip for now" path that changes nothing else. */
   markOnboarded: z.literal(true).optional(),
+  /** Accepted only before onboarding completes — see `PATCH /api/me`. */
+  year: z.coerce.number().int().refine((v) => v === 1 || v === 2, 'Pick year 1 or 2.').optional(),
+  batch: requiredText(4, 20, 'Batch').optional(),
   name: requiredText(2, 80, 'Name').optional(),
   image: httpsUrl.optional(),
   bio: trimmed(500).optional(),
@@ -102,6 +105,7 @@ export const updateProfileSchema = z.object({
       deadlineReminders: z.boolean(),
       feedComments: z.boolean(),
       digest: z.boolean(),
+      email: z.boolean(),
     })
     .partial()
     .optional(),

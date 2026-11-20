@@ -2,16 +2,17 @@ import type { Types } from 'mongoose';
 import Notification from '@/models/Notification';
 import User from '@/models/User';
 import type { NotificationKind } from './constants';
-import { publish } from './pusherServer';
-import { userChannel } from './realtime';
+import type { CalendarEvent } from './calendar';
+import { CHANNELS, type Delivery } from './notify/channels';
 
 /**
  * Central notification engine (§7).
  *
  * Every module routes through `notify` rather than writing to the collection,
  * so preference checks, self-notification suppression, and copy conventions are
- * enforced once. Delivery today is in-app only; email and push are additional
- * transports behind this same call, not a second call site.
+ * enforced once. The in-app record is always written; every other way of
+ * reaching someone (realtime, email, and whatever comes next) is a channel in
+ * `notify/channels.ts`, each deciding for itself whether it carries a kind.
  */
 
 export interface NotifyInput {
@@ -24,6 +25,8 @@ export interface NotifyInput {
   entity?: string | Types.ObjectId;
   /** Suppressed when the actor is also the recipient. */
   actor?: string | Types.ObjectId;
+  /** Offered as a calendar invite by channels that can carry one (email). */
+  calendar?: CalendarEvent;
 }
 
 /** Which preference flag, if any, gates each kind. */
@@ -50,12 +53,11 @@ export async function notify(input: NotifyInput): Promise<void> {
   // Nobody needs telling about something they just did themselves.
   if (input.actor && String(input.actor) === userId) return;
 
+  const recipient = await User.findById(userId).select('name email notificationPrefs suspendedAt').lean();
+  if (!recipient || recipient.suspendedAt) return;
+
   const gate = PREFERENCE_GATE[input.kind];
-  if (gate) {
-    const recipient = await User.findById(userId).select('notificationPrefs').lean();
-    if (!recipient) return;
-    if (recipient.notificationPrefs?.[gate] === false) return;
-  }
+  if (gate && recipient.notificationPrefs?.[gate] === false) return;
 
   const notification = await Notification.create({
     user: userId,
@@ -68,7 +70,24 @@ export async function notify(input: NotifyInput): Promise<void> {
     actor: input.actor,
   });
 
-  await publish(userChannel(userId), 'new-notification', notification);
+  const delivery: Delivery = {
+    notification,
+    recipient: {
+      id: userId,
+      name: recipient.name,
+      email: recipient.email,
+      prefs: { email: recipient.notificationPrefs?.email !== false },
+    },
+    calendar: input.calendar,
+  };
+
+  // Independent: one channel failing (a mail outage) never stops another.
+  const results = await Promise.allSettled(
+    CHANNELS.filter((channel) => channel.accepts(delivery)).map((channel) => channel.send(delivery))
+  );
+  for (const result of results) {
+    if (result.status === 'rejected') console.error('[notify] channel failed:', result.reason);
+  }
 }
 
 /**

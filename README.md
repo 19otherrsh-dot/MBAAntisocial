@@ -51,6 +51,7 @@ DM thread. Every account uses the password `seedpassword123`.
 
 | Account | Role |
 | --- | --- |
+| `admin@iima.ac.in` | Institute admin — the admin console: people, roles, competitions, audit log |
 | `placements@iima.ac.in` | Institute staff — sees the campus report, moderates nothing |
 | `ananya@iima.ac.in` | Senior, moderator — has the moderation queue |
 | `priya@iima.ac.in` | Senior, mentor — has a completed session with feedback |
@@ -67,7 +68,11 @@ DM thread. Every account uses the password `seedpassword123`.
 | `npm run lint` | ESLint, including the React Compiler rules |
 | `npm run seed` | Rebuild the seeded campus (reads `.env.local`) |
 | `npm test` | Unit tests; add `TEST_MONGODB_URI` to run the database tests too |
+| `npm run db:migrate` | Apply pending data migrations (`migrations/`); `db:migrate:status` lists them |
+| `npm run db:migrate:create -- <name>` | Start a new migration |
 | `npm run db:indexes` | Build every declared index (run once per production deploy) |
+| `npm run test:e2e` | Playwright, desktop and phone, against a production build (reseeds the database) |
+| `npm run load-test` | Signed-in load test of the busiest reads; fails over a p99 budget |
 | `npm run verify` | typecheck → lint → test → build |
 
 ---
@@ -175,14 +180,77 @@ sound effects are synthesised (no files) and switchable from the Path page.
 streaks, banding, channel names, name normalisation, Markdown escaping, and the
 session-update escalation. `tests/integration` runs against a throwaway MongoDB
 (`TEST_MONGODB_URI`): one-payout ledger awards, daily caps, milestone payouts,
-mentor capacity, atomic split claims, and the campus boundary on messaging. CI
-(`.github/workflows/ci.yml`) runs everything against a MongoDB service.
+mentor capacity, atomic split claims, the campus boundary on messaging,
+once-only reminders, admin rules, and the append-only audit log. `e2e/` drives
+a real browser through sign-up and onboarding, the game loop, the admin console
+and audit trail, permission boundaries, and the phone layout. CI
+(`.github/workflows/ci.yml`) runs all of it against a MongoDB service.
+
+## Running an institute
+
+The pieces an institute's IT and placement office need, each behind one seam.
+
+**Single sign-on.** Google and Microsoft Entra ID through Auth.js, alongside
+email and password. A provider appears on the sign-in page only when its keys
+are set (`src/lib/sso.ts` is the registry; adding Okta or SAML via an OIDC
+bridge is one entry). Sign-in is decided by one pure function,
+`decideSsoSignIn`: the provider must vouch for the email, and its domain must
+be bound to a campus in `CAMPUS_EMAIL_DOMAINS` — so SSO can never place someone
+in a campus their address does not prove. A matching account is linked; a new
+one is created as a first-year and asked their year in onboarding.
+
+**Admin console** (`/admin`, role `admin`). People — search, filter, change a
+role, suspend or restore, with a required reason; Competitions — add, edit,
+archive the campus calendar; Audit log — every privileged action, filterable
+and exportable as CSV. Rules live in `src/lib/admin/*` (no changing your own
+role, never removing the last admin, everything campus-scoped), and the API
+routes stay thin.
+
+**Audit log.** `AuditLog` is append-only: the model refuses updates, and
+`recordAudit()` never throws, so a logging hiccup cannot fail the action it
+records. Role changes, suspensions, report resolutions, hidden content,
+password resets, SSO provisioning, competition edits, and account deletions are
+recorded with who, what, when, and why.
+
+**Notifications.** `notify()` writes the in-app item, then hands it to every
+channel that accepts it (`src/lib/notify/channels.ts`): realtime via Pusher,
+and email via Resend for the kinds that matter — bookings, cancellations,
+reschedules, reminders, deadlines, moderation. Each person can turn email off
+in Profile. A new channel (web push, Slack) implements one interface.
+
+**Calendar invites.** Bookings email an `.ics` invite (RFC 5545, a stable UID
+per session) to both sides; a reschedule updates the same event and a cancel
+removes it, in Google, Outlook and Apple Calendar alike.
+
+**Reminders.** `src/lib/jobs/reminders.ts` is a list of rules — a session in
+24 hours and in 1 hour, a task due soon, a saved competition's deadline, an
+interview round tomorrow. Each send is claimed in `ReminderLog` first, so a
+reminder goes out once however often the job runs. `/api/cron/reminders` runs
+them; `.github/workflows/reminders.yml` calls it hourly (Vercel's free plan
+runs crons only daily, which `vercel.json` keeps as a fallback).
+
+**Error tracking.** Every server error is logged as one JSON line
+(`src/instrumentation.ts`) and, with `SENTRY_DSN` set, sent to Sentry —
+browser errors too with `NEXT_PUBLIC_SENTRY_DSN`. Nothing personal is sent: no
+cookies, bodies, query strings, or user details. Application code reports
+through `reportError()` only, so the vendor is swappable.
+
+**Migrations.** Data changes ship as `migrate-mongo` scripts in `migrations/`,
+recorded in a `changelog` collection so each runs once. Index changes stay
+declared on the models and are built by `npm run db:indexes`.
 
 ## Deploying
 
 **Vercel (recommended).** Import the repository, set the environment variables
-from `.env.example`, and deploy. `vercel.json` schedules the weekly digest.
-Use MongoDB Atlas for the database.
+from `.env.example`, and deploy. `vercel.json` schedules the weekly digest and
+a daily reminder run. Use MongoDB Atlas for the database. On each deploy that
+changes the schema, run against the production database:
+
+```bash
+npm run db:migrate && npm run db:indexes
+```
+
+For hourly reminders, add `APP_URL` and `CRON_SECRET` as GitHub Actions secrets.
 
 **Anywhere with Docker.**
 
@@ -203,7 +271,11 @@ HTTPS-only headers (HSTS, upgrade-insecure-requests) are emitted.
 - [ ] `UPSTASH_REDIS_REST_URL` / `_TOKEN` set if more than one instance runs
 - [ ] `GOOGLE_GENERATIVE_AI_API_KEY` set and `GEMINI_MODEL` pinned to a stable id
 - [ ] Pusher keys set for realtime (optional)
-- [ ] `npm run db:indexes` run against the production database
+- [ ] `npm run db:migrate && npm run db:indexes` run against the production database
+- [ ] An admin account exists (set `role: "admin"` on one user in Atlas; after that, manage roles in `/admin`)
+- [ ] SSO keys set if the institute signs in with Google or Microsoft (redirect URIs in `.env.example`)
+- [ ] `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` set, and alerts routed to someone
+- [ ] `CRON_SECRET` set, plus the `APP_URL` / `CRON_SECRET` GitHub secrets for hourly reminders
 - [ ] `/api/health` wired to your uptime monitor
 - [ ] `/legal/terms` and `/legal/privacy` reviewed by counsel for your jurisdiction
 
@@ -232,6 +304,12 @@ Lighthouse: accessibility and best practices 100 on every page measured;
 performance 92–100 except Path on the phone profile (75, a simulated estimate —
 the real measurement above is 2.5 s). Signed-in pages score lower on SEO only
 because `robots.txt` keeps them out of search on purpose.
+
+**Under load** (`npm run load-test`: 25 concurrent signed-in clients against
+one local Node process and MongoDB): 190–290 requests/s on the account, game,
+feed, tasks, notifications and standings APIs with p99 at 110–210 ms, 78 pages/s
+for the signed-in home page at p99 600 ms, no errors. Throughput scales with
+instances; with more than one, set the Upstash keys so rate limits are shared.
 
 Two choices carry most of it: the account and game state are preloaded in the
 first flush of the HTML, so they load in parallel with the JavaScript; and
@@ -380,20 +458,21 @@ Hidden content stays reviewable, including when the call was wrong.
   via calendar integration, which needs per-institute OAuth. Mentors supply a
   standing room link; a booking without one flags that a link is still needed
   rather than silently booking a session nobody can join.
-- **Push notifications.** `notify()` in `src/lib/notifications.ts` is the single
-  fan-out point with preference gating applied; in-app and realtime delivery
-  exist, email covers account flows and the digest, and web push belongs behind
-  the same call.
+- **Web push.** `notify()` fans out to in-app, realtime and email channels;
+  web push is one more `NotificationChannel`, not yet written.
+- **SAML and SCIM.** SSO is OIDC (Google, Microsoft). An institute on SAML-only
+  identity needs an OIDC bridge, and accounts are provisioned on first sign-in
+  rather than pushed by a directory.
 - **Anonymous feed posting.** Anonymity exists only where it is narrow and
   moderated: hidden bylines on interview questions, course reviews, and offer
   reports. Each stores enough for a moderator to act.
 
 ### Known limitation
 
-Rate limiting is in-process (`src/lib/api/rate-limit.ts`), so each serverless
-instance keeps its own counters and the effective limit scales with instance
-count. It stops a single client hammering an endpoint, which is what the write
-paths need. A shared store is a drop-in change behind `consume()`.
+Without the Upstash keys, rate limiting is in-process
+(`src/lib/api/rate-limit.ts`): each instance keeps its own counters, so the
+effective limit scales with instance count. Set `UPSTASH_REDIS_REST_URL` and
+`_TOKEN` when running more than one instance.
 
 ---
 

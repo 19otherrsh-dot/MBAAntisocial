@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { timingSafeEqual } from 'node:crypto';
+import { isCronAuthorized } from '@/lib/cron';
 import { Resend } from 'resend';
 import User from '@/models/User';
 import Resource from '@/models/Resource';
@@ -22,25 +22,8 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
-/**
- * Constant-time comparison.
- *
- * `!==` on secrets returns as soon as it finds a differing byte, so response
- * timing leaks how much of a guess was correct. Over enough requests that is
- * enough to recover the secret a character at a time.
- */
-function secretMatches(provided: string | null, expected: string | undefined): boolean {
-  if (!provided || !expected) return false;
-
-  const a = Buffer.from(provided);
-  const b = Buffer.from(`Bearer ${expected}`);
-  if (a.length !== b.length) return false;
-
-  return timingSafeEqual(a, b);
-}
-
 export async function GET(request: Request) {
-  if (!secretMatches(request.headers.get('authorization'), process.env.CRON_SECRET)) {
+  if (!isCronAuthorized(request)) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 

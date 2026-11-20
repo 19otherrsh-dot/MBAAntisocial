@@ -20,6 +20,7 @@ import {
   VolumeX,
   Handshake,
   LayoutGrid,
+  Settings,
   Map as MapIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -34,6 +35,8 @@ export interface NavItem {
   moderatorOnly?: boolean;
   /** Only rendered for institute staff reading the campus report. */
   staffOnly?: boolean;
+  /** Only rendered for institute administrators. */
+  adminOnly?: boolean;
   /** Shows the unread-messages dot. */
   showsUnreadMessages?: boolean;
 }
@@ -104,6 +107,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/campus', label: 'Campus Report', icon: Building2, staffOnly: true, hint: 'Is this batch prepared?' },
       { href: '/moderation', label: 'Moderation', icon: ShieldCheck, moderatorOnly: true, hint: 'The report queue' },
+      { href: '/admin', label: 'Admin', icon: Settings, adminOnly: true, hint: 'People, roles, calendar, audit log' },
     ],
   },
 ];
@@ -144,8 +148,15 @@ export function sectionForPath(pathname: string): SectionKey | null {
 }
 
 /** Whether a nav item is visible to this viewer. */
-export function canSee(item: NavItem, viewer: { canModerate: boolean; isStaff: boolean }): boolean {
-  return (!item.moderatorOnly || viewer.canModerate) && (!item.staffOnly || viewer.isStaff);
+export function canSee(
+  item: NavItem,
+  viewer: { canModerate: boolean; isStaff: boolean; isAdmin?: boolean }
+): boolean {
+  return (
+    (!item.moderatorOnly || viewer.canModerate) &&
+    (!item.staffOnly || viewer.isStaff) &&
+    (!item.adminOnly || Boolean(viewer.isAdmin))
+  );
 }
 
 /** Page title for the top bar, matched longest-prefix-first. */

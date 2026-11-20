@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Switch, Textarea } from '@/components/ui/Field';
+import { Select, Switch, Textarea } from '@/components/ui/Field';
 import { Banner, Chip } from '@/components/ui/Display';
 import { useAction } from '@/lib/client/hooks';
 import { useMe } from '@/lib/client/me';
 import { api } from '@/lib/client/api';
-import { SESSION_TYPES, SESSION_TYPE_META, type SessionType } from '@/lib/constants';
+import { SESSION_TYPES, SESSION_TYPE_META, getBatchOptions, type SessionType } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import styles from '../app.module.css';
 
@@ -40,6 +40,11 @@ export default function OnboardingPage() {
   const [wantsToHost, setWantsToHost] = useState(false);
   const [offers, setOffers] = useState<SessionType[]>([...SESSION_TYPES]);
   const [optIn, setOptIn] = useState(false);
+  // Pre-filled from the account; confirmed here because single sign-on cannot
+  // know them, and they decide whether someone can host mocks.
+  const [year, setYear] = useState<string>(me ? String(me.year) : '1');
+  const [batch, setBatch] = useState<string>(me?.batch ?? '');
+  const batches = getBatchOptions();
 
   /*
    * The app shell sends an account here until `onboardedAt` is set. Patching it
@@ -52,10 +57,13 @@ export default function OnboardingPage() {
 
   const finish = useAction(async () => {
     await api.patch('/api/me', {
+      year: Number(year),
+      batch: batch || me?.batch,
       bio: bio.trim(),
       specializations: interests,
       leaderboardOptIn: optIn,
-      ...(me?.canMentor
+      // Hosting is offered to second-years, including those who just said so.
+      ...(me?.canMentor || year === '2'
         ? { mentorProfile: { acceptingBookings: wantsToHost, offers } }
         : {}),
     });
@@ -82,6 +90,32 @@ export default function OnboardingPage() {
       </div>
 
       {finish.error && <Banner variant="danger">{finish.error}</Banner>}
+
+      <section className={styles.settingsGroup}>
+        <div>
+          <h3 className={styles.settingsTitle}>Your year</h3>
+          <p className={styles.settingsHint}>
+            Second-years can host mock interviews for juniors. This is fixed once you finish setup.
+          </p>
+        </div>
+        <div className={styles.checkGrid}>
+          <Select
+            label="Year"
+            value={year}
+            onChange={(event) => setYear(event.target.value)}
+            options={[
+              { value: '1', label: 'First year' },
+              { value: '2', label: 'Second year' },
+            ]}
+          />
+          <Select
+            label="Batch"
+            value={batch || me?.batch || batches[1]}
+            onChange={(event) => setBatch(event.target.value)}
+            options={[...new Set([...(me?.batch ? [me.batch] : []), ...batches])].map((value) => ({ value, label: value }))}
+          />
+        </div>
+      </section>
 
       <section className={styles.settingsGroup}>
         <div>
@@ -128,7 +162,7 @@ export default function OnboardingPage() {
         />
       </section>
 
-      {me.canMentor && (
+      {(me.canMentor || year === '2') && (
         <section className={styles.settingsGroup}>
           <div>
             <h3 className={styles.settingsTitle}>

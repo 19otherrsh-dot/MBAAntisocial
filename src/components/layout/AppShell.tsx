@@ -70,7 +70,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
 
           <div className={styles.topbarActions}>
             <GameHud />
-            <span className={styles.desktopOnly}>
+            <span className={styles.desktopOnlyWrap}>
               <ThemeToggle />
             </span>
             <NotificationBell />

@@ -14,6 +14,8 @@ import InterviewSlot from '@/models/InterviewSlot';
 import User from '@/models/User';
 import { CANCELLATION_NOTICE_HOURS, SESSION_TYPE_META } from '@/lib/constants';
 import { formatDateTime } from '@/lib/utils';
+import type { CalendarEvent } from '@/lib/calendar';
+import { env } from '@/lib/env';
 import { serialiseSlot } from '../route';
 
 const MENTOR_FIELDS = 'name image year specializations mentorProfile karma mentorRating badges';
@@ -59,6 +61,31 @@ export const DELETE = route({ rateLimit: 'write' }, async ({ actor, params }) =>
 
   return ok({ deleted: true });
 });
+
+/**
+ * The calendar entry for a session. The uid is the slot id, so a reschedule or
+ * cancellation updates the same entry in both people's calendars instead of
+ * leaving a stale one behind.
+ */
+function sessionEvent(
+  slot: { _id: unknown; startAt: Date; endAt: Date; sessionType: keyof typeof SESSION_TYPE_META; meetingLink?: string },
+  withName: string,
+  sequence = 0,
+  cancelled = false
+): CalendarEvent {
+  const label = SESSION_TYPE_META[slot.sessionType].label;
+  return {
+    uid: `slot-${String(slot._id)}@mbaantisocial`,
+    title: `${label} with ${withName}`,
+    description: `${label} booked on MBAAntisocial.${slot.meetingLink ? `\nJoin: ${slot.meetingLink}` : '\nThe host will add a meeting link.'}`,
+    location: slot.meetingLink || undefined,
+    url: `${env.APP_URL}/sessions`,
+    startTime: slot.startAt,
+    endTime: slot.endAt,
+    sequence,
+    cancelled,
+  };
+}
 
 // ───────────────────────── Book ─────────────────────────
 
@@ -108,6 +135,7 @@ async function book(userId: string, campus: string, slotId: string, bookingNote:
   if (!booked) throw ApiError.conflict('Someone just took that slot.');
 
   const mentee = await User.findById(userId).select('name year').lean();
+  const mentorName = (booked.mentor as unknown as { name?: string })?.name ?? 'your senior';
 
   /*
    * No points are awarded here. The previous implementation paid out on
@@ -126,6 +154,19 @@ async function book(userId: string, campus: string, slotId: string, bookingNote:
     entityType: 'slot',
     entity: slotId,
     actor: userId,
+    calendar: sessionEvent(booked, mentee?.name ?? 'a junior'),
+  });
+
+  // The junior gets a confirmation too, with the invite attached.
+  await notify({
+    user: userId,
+    kind: 'slot_booked',
+    title: `You're booked: ${SESSION_TYPE_META[booked.sessionType].label.toLowerCase()} with ${mentorName}`,
+    body: formatDateTime(booked.startAt),
+    href: '/sessions?view=bookings',
+    entityType: 'slot',
+    entity: slotId,
+    calendar: sessionEvent(booked, mentorName),
   });
 
   return ok({ slot: serialiseSlot(booked, userId), needsMeetingLink: needsLink });
@@ -181,6 +222,7 @@ async function cancel(userId: string, slotId: string, reason: string) {
       user: counterpartyId,
       kind: 'slot_cancelled',
       title: late ? 'Session cancelled at short notice' : 'Session cancelled',
+      calendar: sessionEvent(slot, 'your session partner', slot.rescheduleHistory.length + 1, true),
       body: `${formatDateTime(slot.startAt)}${reason ? ` — "${reason.slice(0, 120)}"` : ''}`,
       href: isMentor ? '/sessions?view=bookings' : '/sessions?view=hosting',
       entityType: 'slot',
@@ -229,6 +271,7 @@ async function reschedule(userId: string, slotId: string, startAt: Date, endAt: 
       user: slot.bookedBy,
       kind: 'slot_rescheduled',
       title: 'Your session moved',
+      calendar: sessionEvent(slot, 'your senior', slot.rescheduleHistory.length),
       body: `Now ${formatDateTime(startAt)} — it was ${formatDateTime(previousStart)}.`,
       href: '/sessions?view=bookings',
       entityType: 'slot',

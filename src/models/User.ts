@@ -71,6 +71,8 @@ export interface IUser {
     deadlineReminders: boolean;
     feedComments: boolean;
     digest: boolean;
+    /** Whether the important notifications are also emailed. */
+    email: boolean;
   };
 
   /** §6.5 — recorded before a user can contribute or download resources. */
@@ -92,6 +94,8 @@ export interface IUser {
    * one account inventing a salary benchmark on its own.
    */
   offerReports: number;
+  /** Identity providers linked to this account, for single sign-on. */
+  linkedAccounts: Array<{ provider: string; providerAccountId: string; linkedAt: Date }>;
   /** XP a day this person is aiming for. */
   dailyGoal: number;
   /** Streak shields banked; each covers one missed day beyond the grace day. */
@@ -179,6 +183,7 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
       deadlineReminders: { type: Boolean, default: true },
       feedComments: { type: Boolean, default: true },
       digest: { type: Boolean, default: false },
+      email: { type: Boolean, default: true },
     },
 
     honorCodeAcceptedAt: { type: Date },
@@ -192,6 +197,14 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
     passwordReset: { type: pendingTokenSchema, select: false },
     passwordChangedAt: { type: Date },
     offerReports: { type: Number, default: 0, min: 0 },
+    linkedAccounts: [
+      {
+        _id: false,
+        provider: { type: String, required: true, maxlength: 40 },
+        providerAccountId: { type: String, required: true, maxlength: 200 },
+        linkedAt: { type: Date, default: Date.now },
+      },
+    ],
     dailyGoal: { type: Number, default: 40, min: 10, max: 500 },
     streakShields: { type: Number, default: 0, min: 0, max: 5 },
     celebrated: {
@@ -222,6 +235,12 @@ export function averageRating(summary?: RatingSummary): number | null {
 // Leaderboard reads: campus + opted-in, sorted by a ledger.
 UserSchema.index({ campus: 1, leaderboardOptIn: 1, karma: -1 });
 UserSchema.index({ campus: 1, leaderboardOptIn: 1, points: -1 });
+// One account per identity at each provider.
+UserSchema.index(
+  { 'linkedAccounts.provider': 1, 'linkedAccounts.providerAccountId': 1 },
+  { unique: true, partialFilterExpression: { 'linkedAccounts.provider': { $exists: true } } }
+);
+
 // Mentor directory.
 UserSchema.index({ campus: 1, 'mentorProfile.acceptingBookings': 1 });
 

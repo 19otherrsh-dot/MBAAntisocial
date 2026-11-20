@@ -369,7 +369,9 @@
 
 .mobileNav { display: none; }
 
-.desktopOnly { display: contents; }
+/* Hidden on phones (see the mobile block). On desktop it adds nothing, so a
+   button keeps its own box; the wrapper span alone uses `display: contents`. */
+.desktopOnlyWrap { display: contents; }
 
 /* The page inside the shell. Inherits the content column's spacing. */
 .page { display: flex; flex-direction: column; gap: inherit; min-width: 0; }
@@ -479,7 +481,7 @@
 
   /* On a phone the top bar is the scoreboard: the page title is in the tab
      bar, and profile, theme, and sign-out live in the "More" sheet. */
-  .desktopOnly { display: none; }
+  .desktopOnly, .desktopOnlyWrap { display: none; }
   .topbarTitle { display: none; }
   .topbarActions { margin-left: auto; }
 

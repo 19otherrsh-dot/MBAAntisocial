@@ -215,3 +215,74 @@ it('a streak shield is spent to survive a missed day, and earned at a milestone'
   assert.equal(milestone.milestone, 14);
   assert.equal((await lib.User.findById(climber._id).lean())?.streakShields, 1);
 });
+
+it('reminders go out once per key, however often the job runs, and skip daily habits', async () => {
+  const { runReminders } = await import('@/lib/jobs/reminders');
+  const Task = (await import('@/models/Task')).default;
+  const Notification = (await import('@/models/Notification')).default;
+
+  const mentor = await makeUser({ role: 'mentor', year: 2 });
+  const mentee = await makeUser();
+  const now = new Date();
+  await lib.InterviewSlot.create({
+    mentor: mentor._id,
+    campus: 'IIM Ahmedabad',
+    startAt: new Date(now.getTime() + 40 * 60_000),
+    endAt: new Date(now.getTime() + 85 * 60_000),
+    sessionType: 'mock_interview',
+    status: 'booked',
+    bookedBy: mentee._id,
+  });
+  await Task.create({ user: mentee._id, title: 'Submit SOP', dueAt: new Date(now.getTime() + 5 * 3_600_000) });
+  const template = await Task.create({ user: mentee._id, title: 'Read news', isTemplate: true, recurrence: 'daily' });
+  await Task.create({ user: mentee._id, title: 'Read news', dueAt: new Date(now.getTime() + 3_600_000), recurrenceParent: template._id });
+
+  const first = await runReminders(now);
+  assert.equal(first.sent.session_1h, 2, 'both people reminded');
+  assert.equal(first.sent.task_due, 1, 'the habit is not');
+
+  const second = await runReminders(now);
+  assert.equal(Object.values(second.sent).reduce((a, b) => a + b, 0), 0);
+  assert.ok(second.skipped >= 3);
+
+  assert.equal(await Notification.countDocuments({ user: mentee._id, kind: 'session_reminder' }), 1);
+});
+
+it('admin rules: no self-changes, the last admin stays, campus-scoped, and every change is audited', async () => {
+  const { changeRole, suspend } = await import('@/lib/admin/people');
+  const AuditLog = (await import('@/models/AuditLog')).default;
+
+  const admin = await makeUser({ role: 'admin', year: 2, campus: 'IIM Lucknow', email: `adm${seq}@iiml.ac.in` });
+  const student = await makeUser({ campus: 'IIM Lucknow', email: `stu${seq}@iiml.ac.in` });
+  const elsewhere = await makeUser({ campus: 'IIM Kozhikode', email: `k${seq}@iimk.ac.in` });
+  const actor = {
+    id: String(admin._id), name: 'Admin', email: '', campus: 'IIM Lucknow', batch: '', year: 2 as const,
+    role: 'admin' as const, canMentor: true, canModerate: true, canReadReport: true, isAdmin: true,
+  };
+
+  await assert.rejects(changeRole(actor, actor.id, 'student', ''), /own role/);
+  await assert.rejects(changeRole(actor, String(elsewhere._id), 'moderator', ''), /not on your campus/);
+
+  await changeRole(actor, String(student._id), 'moderator', 'Runs the consult club');
+  assert.equal((await lib.User.findById(student._id).lean())?.role, 'moderator');
+
+  // Promote the student to admin, then try to demote the other: allowed, since one remains.
+  await changeRole(actor, String(student._id), 'admin', '');
+  const second = { ...actor, id: String(student._id) };
+  await changeRole(second, String(admin._id), 'student', '');
+  // Now `student` is the only admin; demoting them via the first account is refused.
+  const formerAdmin = { ...actor, role: 'admin' as const };
+  await assert.rejects(changeRole(formerAdmin, String(student._id), 'student', ''), /last admin/);
+
+  await assert.rejects(suspend(second, String(admin._id), '   '), (error: Error) => /fields need fixing/.test(error.message));
+
+  const entries = await AuditLog.find({ campus: 'IIM Lucknow', action: 'role.changed' }).lean();
+  assert.equal(entries.length, 3);
+  assert.deepEqual(entries.map((entry) => entry.detail.to).sort(), ['admin', 'moderator', 'student']);
+});
+
+it('the audit log refuses updates', async () => {
+  const AuditLog = (await import('@/models/AuditLog')).default;
+  const entry = await AuditLog.create({ actor: new Types.ObjectId(), campus: 'X', action: 'comp.created', targetType: 'comp' });
+  await assert.rejects(AuditLog.updateOne({ _id: entry._id }, { $set: { action: 'comp.archived' } }), /append-only/);
+});

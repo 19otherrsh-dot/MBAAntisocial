@@ -25,6 +25,7 @@ export interface NotificationPrefs {
   deadlineReminders: boolean;
   feedComments: boolean;
   digest: boolean;
+  email: boolean;
 }
 
 export interface Me {

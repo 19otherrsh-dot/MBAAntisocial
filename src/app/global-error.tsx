@@ -1,11 +1,19 @@
 'use client';
 
+import { useEffect } from 'react';
+
 /**
  * Last-resort error screen, used when the root layout itself fails. It
  * replaces the whole document, so it carries its own <html> and inline styles
  * rather than relying on the app's stylesheet having loaded.
  */
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // Reported to Sentry when it is configured; the screen below shows either way.
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+    import('@sentry/nextjs').then((Sentry) => Sentry.captureException(error)).catch(() => undefined);
+  }, [error]);
+
   return (
     <html lang="en">
       <body

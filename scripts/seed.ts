@@ -39,6 +39,7 @@ const CAMPUS = 'IIM Ahmedabad';
 const BATCH = '2025-27';
 const PASSWORD = 'seedpassword123';
 const STAFF_EMAIL = 'placements@iima.ac.in';
+const ADMIN_EMAIL = 'admin@iima.ac.in';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -107,7 +108,7 @@ async function seed() {
   await connectDB();
   console.log(`Connected to ${mongoose.connection.name}`);
 
-  const emails = [...SENIORS, ...JUNIORS].map((person) => person.email).concat(STAFF_EMAIL);
+  const emails = [...SENIORS, ...JUNIORS].map((person) => person.email).concat(STAFF_EMAIL, ADMIN_EMAIL);
 
   // Scoped to the seeded campus so a shared database is not destroyed.
   const existing = await User.find({ email: { $in: emails } }).select('_id').lean();
@@ -229,6 +230,20 @@ async function seed() {
   console.log(
     `Created ${seniors.length} seniors, ${juniors.length} juniors, and 1 staff account (${staff.email}).`
   );
+
+  // An institute admin: manages people, roles, and the competition calendar.
+  await User.create({
+    name: 'Campus Admin',
+    email: ADMIN_EMAIL,
+    password: PASSWORD,
+    campus: CAMPUS,
+    batch: 'Staff',
+    year: 2,
+    role: 'admin',
+    bio: 'Institute administrator.',
+    leaderboardOptIn: false,
+    onboardedAt: new Date(),
+  });
 
   // ── Slots: a mix of open, booked, and completed with real feedback ────────
   const slots = [];
@@ -1048,6 +1063,7 @@ async function seed() {
   console.log(`Campus:   ${CAMPUS}`);
   console.log(`Password: ${PASSWORD}   (every account)\n`);
   console.log(`Placement office:  ${STAFF_EMAIL}   (campus report)`);
+  console.log(`Campus admin:      ${ADMIN_EMAIL}   (admin console)`);
   console.log(`Senior/moderator:  ${SENIORS[0].email}`);
   console.log(`Senior (mentor):   ${SENIORS[2].email}`);
   console.log(`Junior (busiest):  ${JUNIORS[0].email}`);

@@ -307,6 +307,7 @@ function ProfileEditor({ me }: { me: Me }) {
             ['sessionReminders', 'Session activity', 'Bookings, cancellations, and reschedules.'],
             ['deadlineReminders', 'Deadlines', 'Tasks and competition registrations closing soon.'],
             ['feedComments', 'Replies', 'When someone replies to something you posted.'],
+            ['email', 'Email me the important ones', 'Session bookings, reminders, and deadlines — with calendar invites.'],
             ['digest', 'Weekly summary', 'One email a week. Off by default.'],
           ] as const
         ).map(([key, label, hint]) => (
@@ -314,7 +315,7 @@ function ProfileEditor({ me }: { me: Me }) {
             key={key}
             label={label}
             hint={hint}
-            checked={draft.notificationPrefs?.[key] ?? false}
+            checked={draft.notificationPrefs?.[key] ?? key === 'email'}
             onChange={(checked) => {
               const next = { ...draft.notificationPrefs!, [key]: checked };
               setDraft({ ...draft, notificationPrefs: next });

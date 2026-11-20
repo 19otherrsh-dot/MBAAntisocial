@@ -8,7 +8,7 @@ import { Avatar } from '@/components/ui/Display';
 import { LogoMark } from '@/components/brand/Logo';
 import { useMe } from '@/lib/client/me';
 import { cn, formatCount } from '@/lib/utils';
-import { MODERATOR_ROLES, STAFF_ROLES } from '@/lib/constants';
+import { MODERATOR_ROLES, ROLE_META, STAFF_ROLES } from '@/lib/constants';
 import styles from './shell.module.css';
 
 interface SidebarProps {
@@ -23,6 +23,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const viewer = {
     canModerate: me ? MODERATOR_ROLES.includes(me.role) : false,
     isStaff: me ? STAFF_ROLES.includes(me.role) : false,
+    isAdmin: me?.role === 'admin',
   };
 
   return (
@@ -113,7 +114,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <span className={styles.userMeta}>
               <span className={cn(styles.userName, 'truncate')}>{me.name}</span>
               <span className={cn(styles.userSub, 'truncate')}>
-                {me.year === 2 ? 'Second year' : 'First year'} · {me.batch}
+                {me.role === 'admin' || me.role === 'placement_office'
+                  ? ROLE_META[me.role].label
+                  : `${me.year === 2 ? 'Second year' : 'First year'} · ${me.batch}`}
               </span>
             </span>
           </Link>

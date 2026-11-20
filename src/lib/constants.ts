@@ -33,6 +33,21 @@ export const MODERATOR_ROLES: readonly UserRole[] = ['moderator', 'admin'];
 export const STAFF_ROLES: readonly UserRole[] = ['placement_office', 'admin'];
 
 /**
+ * Institute administrators: manage roles, suspensions, and the competition
+ * calendar for their campus, and read its audit log.
+ */
+export const ADMIN_ROLES: readonly UserRole[] = ['admin'];
+
+export const ROLE_META: Record<UserRole, { label: string; blurb: string }> = {
+  student: { label: 'Student', blurb: 'First-year: books mocks, tracks a pipeline.' },
+  mentor: { label: 'Senior', blurb: 'Can host mock sessions.' },
+  alumni: { label: 'Alumni', blurb: 'Graduated; can host and post referrals.' },
+  moderator: { label: 'Moderator', blurb: 'Hosts, and acts on reports.' },
+  placement_office: { label: 'Placement office', blurb: 'Reads the campus report. Moderates nothing.' },
+  admin: { label: 'Admin', blurb: 'Manages people, roles, and the competition calendar.' },
+};
+
+/**
  * Minimum cohort size before a breakdown row is published.
  *
  * Individual pipelines are private by construction, and an aggregate can leak

@@ -28,6 +28,7 @@ export default function BottomNav() {
   const viewer = {
     canModerate: me ? MODERATOR_ROLES.includes(me.role) : false,
     isStaff: me ? STAFF_ROLES.includes(me.role) : false,
+    isAdmin: me?.role === 'admin',
   };
   const section = sectionForPath(pathname);
 

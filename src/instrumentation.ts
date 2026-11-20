@@ -1,13 +1,20 @@
 import type { Instrumentation } from 'next';
 
 /**
- * Server-side error reporting.
+ * Server-side observability.
  *
- * Every uncaught error in a route, page, or proxy is written as one line of
- * JSON, which log drains (Vercel, Datadog, Logtail, CloudWatch) index without
- * configuration. To forward to an error tracker instead, send the same object
- * to its HTTP intake here — this is the single place to do it.
+ * `register` starts Sentry when `SENTRY_DSN` is set; without it nothing is
+ * imported. `onRequestError` sees every uncaught error in a route, page, or
+ * the proxy: it always writes one JSON log line, and also reports to Sentry
+ * when configured.
  */
+export async function register() {
+  if (!process.env.SENTRY_DSN) return;
+  if (process.env.NEXT_RUNTIME === 'nodejs' || process.env.NEXT_RUNTIME === 'edge') {
+    await import('./lib/observability/sentry.server');
+  }
+}
+
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   const err = error as Error & { digest?: string };
   console.error(
@@ -24,4 +31,9 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
       routePath: context.routePath,
     })
   );
+
+  if (process.env.SENTRY_DSN) {
+    const Sentry = await import('@sentry/nextjs');
+    Sentry.captureRequestError(error, { ...request, path: request.path.split('?')[0] }, context);
+  }
 };

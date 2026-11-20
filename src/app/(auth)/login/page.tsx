@@ -2,13 +2,14 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Mail, KeyRound, AlertCircle, MailCheck } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Banner } from '@/components/ui/Display';
 import { api } from '@/lib/client/api';
+import SsoButtons from '@/components/auth/SsoButtons';
 import styles from '../auth.module.css';
 
 /**
@@ -29,6 +30,17 @@ export default function LoginPage() {
  * string, so following it blindly would let a crafted link bounce a freshly
  * signed-in user to any site.
  */
+/** Why a single sign-on attempt was turned away, in words. */
+const SSO_ERRORS: Record<string, string> = {
+  sso_domain_not_bound:
+    'Single sign-on is only open to institute addresses on a participating campus. Use your institute account, or sign up with email.',
+  sso_unverified: 'Your provider has not verified that email address. Verify it there, or sign up with email.',
+  sso_suspended: 'This account is suspended. Contact your campus moderator.',
+  sso_no_email: 'Your provider did not share an email address, so we could not sign you in.',
+  AccessDenied: 'That sign-in was not allowed.',
+  OAuthAccountNotLinked: 'That email is already registered. Sign in with your password once, then single sign-on links automatically.',
+};
+
 function safeCallback(value: string | null): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
     return '/home';
@@ -37,7 +49,6 @@ function safeCallback(value: string | null): string {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,6 +58,7 @@ function LoginForm() {
   const [resent, setResent] = useState(false);
 
   const justVerified = searchParams.get('verified') === '1';
+  const ssoError = SSO_ERRORS[searchParams.get('error') ?? ''] ?? null;
   const justReset = searchParams.get('reset') === '1';
 
   const resend = async () => {
@@ -97,10 +109,10 @@ function LoginForm() {
       return;
     }
 
-    // `refresh()` first so the server components pick up the new session
-    // before the dashboard route renders.
-    router.refresh();
-    router.push(safeCallback(searchParams.get('callbackUrl')));
+    // A full navigation, not a client-side push: the identity just changed, so
+    // every provider and cache on the page should start again from the new
+    // session rather than carry over what the signed-out page held.
+    window.location.assign(safeCallback(searchParams.get('callbackUrl')));
   };
 
   return (
@@ -110,12 +122,20 @@ function LoginForm() {
         Pick up where you left off — your slots, deadlines, and batch are waiting.
       </p>
 
+      <SsoButtons callbackUrl={safeCallback(searchParams.get('callbackUrl'))} />
+
       {/*
          * `method="post"`: if this is submitted before JavaScript has loaded —
          * a slow phone on campus Wi-Fi — the browser's default GET would put
          * the password in the address bar, history, and server logs.
          */}
       <form className={styles.form} onSubmit={handleSubmit} method="post" noValidate>
+        {ssoError && !error && (
+          <Banner variant="danger" icon={<AlertCircle size={16} />}>
+            {ssoError}
+          </Banner>
+        )}
+
         {justVerified && !error && !unverified && (
           <Banner variant="success" icon={<MailCheck size={16} />}>
             Email confirmed. Sign in to get started.

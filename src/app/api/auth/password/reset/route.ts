@@ -3,6 +3,7 @@ import { ApiError } from '@/lib/api/errors';
 import { resetPasswordSchema } from '@/lib/validation';
 import { hashToken } from '@/lib/tokens';
 import User from '@/models/User';
+import { recordAudit } from '@/lib/audit';
 
 /**
  * Completes a password reset from the emailed link.
@@ -27,6 +28,12 @@ export const POST = publicRoute({ body: resetPasswordSchema, rateLimit: 'login' 
   user.emailVerification = undefined;
   user.emailVerifiedAt ??= new Date();
   await user.save();
+
+  await recordAudit({
+    actor: { id: String(user._id), campus: user.campus, name: user.name, role: user.role },
+    action: 'account.password_reset',
+    target: { type: 'user', id: String(user._id), label: user.name },
+  });
 
   return ok({ reset: true });
 });

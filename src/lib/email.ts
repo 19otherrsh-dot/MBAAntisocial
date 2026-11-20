@@ -17,6 +17,8 @@ interface OutgoingEmail {
   action: { label: string; url: string };
   /** Plain-text footnote, e.g. how long the link lasts. */
   footnote: string;
+  /** Files to attach, e.g. a calendar invite. */
+  attachments?: Array<{ filename: string; content: string; contentType: string }>;
 }
 
 function escapeHtml(value: string): string {
@@ -62,6 +64,15 @@ export async function sendEmail(message: OutgoingEmail): Promise<boolean> {
       subject: message.subject,
       html,
       text,
+      ...(message.attachments?.length
+        ? {
+            attachments: message.attachments.map((file) => ({
+              filename: file.filename,
+              content: Buffer.from(file.content).toString('base64'),
+              contentType: file.contentType,
+            })),
+          }
+        : {}),
     });
     if (error) {
       console.error('[email] provider rejected the message:', error);

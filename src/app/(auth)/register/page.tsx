@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';
 import { Banner } from '@/components/ui/Display';
 import { api, ApiClientError } from '@/lib/client/api';
+import SsoButtons from '@/components/auth/SsoButtons';
 import { CAMPUSES, getBatchOptions } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import styles from '../auth.module.css';
@@ -133,6 +134,8 @@ export default function RegisterPage() {
       <p className={styles.subtitle}>
         Your campus and batch decide whose slots you see and whose notes you get. Pick carefully.
       </p>
+
+      <SsoButtons callbackUrl="/onboarding" />
 
       {/*
          * `method="post"`: if this is submitted before JavaScript has loaded —

@@ -14,13 +14,19 @@
     "seed": "tsx scripts/seed.ts",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build",
     "test": "node --import tsx --import ./tests/setup-env.ts --test \"tests/**/*.test.ts\"",
-    "db:indexes": "tsx scripts/sync-indexes.ts"
+    "db:indexes": "tsx scripts/sync-indexes.ts",
+    "db:migrate": "migrate-mongo up -f migrate-mongo-config.cjs",
+    "db:migrate:status": "migrate-mongo status -f migrate-mongo-config.cjs",
+    "db:migrate:create": "migrate-mongo create -f migrate-mongo-config.cjs",
+    "test:e2e": "playwright test",
+    "load-test": "tsx scripts/load-test.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.44",
     "@ai-sdk/react": "^4.0.69",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.1.0",
+    "@sentry/nextjs": "11.11.0",
     "ai": "^7.0.66",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
@@ -37,14 +43,18 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/autocannon": "^7.12.7",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autocannon": "^8.0.0",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "migrate-mongo": "14.0.7",
     "tsx": "^4.19.2",
     "typescript": "^5"
   }

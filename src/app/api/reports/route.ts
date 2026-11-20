@@ -3,6 +3,7 @@ import { route, ok, created } from '@/lib/api/handler';
 import { ApiError } from '@/lib/api/errors';
 import { createReportSchema, resolveReportSchema } from '@/lib/validation';
 import { notify } from '@/lib/notifications';
+import { recordAudit } from '@/lib/audit';
 import Report from '@/models/Report';
 import Post from '@/models/Post';
 import Resource from '@/models/Resource';
@@ -207,6 +208,30 @@ export const PATCH = route(
     }
 
     report.status = body.resolution === 'dismiss' ? 'dismissed' : 'actioned';
+
+    const auditActor = { id: actor.id, campus: actor.campus, name: actor.name, role: actor.role };
+    if (body.resolution === 'hide_content') {
+      await recordAudit({
+        actor: auditActor,
+        action: 'content.hidden',
+        target: { type: report.targetType, id: String(report.target) },
+        detail: { reason: report.reason, note: body.note, report: String(report._id) },
+      });
+    }
+    if (body.resolution === 'suspend_user') {
+      await recordAudit({
+        actor: auditActor,
+        action: 'user.suspended',
+        target: { type: 'user', id: String(report.target) },
+        detail: { reason: body.note, report: String(report._id) },
+      });
+    }
+    await recordAudit({
+      actor: auditActor,
+      action: 'report.resolved',
+      target: { type: 'report', id: String(report._id) },
+      detail: { resolution: body.resolution, targetType: report.targetType },
+    });
     report.resolvedBy = actor.id as never;
     report.resolvedAt = new Date();
     report.resolutionNote = body.note;
